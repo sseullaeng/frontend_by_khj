@@ -22,15 +22,17 @@ const sampleUser: User = {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      // 개발 단계에서는 샘플 유저로 자동 로그인
       user: import.meta.env.DEV ? sampleUser : null,
       setUser: (user) => set({ user }),
       logout: () => set({ user: null }),
     }),
     {
       name: 'auth-storage',
-      // 토큰은 저장 안 함 — user 정보만 persist
       partialize: (state) => ({ user: state.user }),
+      merge: (persisted, current) =>
+        import.meta.env.DEV
+          ? { ...current, user: (persisted as AuthState).user ?? sampleUser }
+          : { ...current, ...(persisted as AuthState) },
     }
   )
 )

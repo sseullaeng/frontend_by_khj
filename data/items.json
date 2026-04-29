@@ -1,0 +1,406 @@
+{
+  "categories": [
+    {
+      "id": "electronics",
+      "name": "Electronics",
+      "description": "Electronic devices and accessories"
+    },
+    {
+      "id": "furniture",
+      "name": "Furniture",
+      "description": "Home and office furniture"
+    },
+    {
+      "id": "clothing",
+      "name": "Clothing",
+      "description": "Apparel and accessories"
+    },
+    {
+      "id": "books",
+      "name": "Books",
+      "description": "Books and educational materials"
+    },
+    {
+      "id": "sports",
+      "name": "Sports",
+      "description": "Sports equipment and gear"
+    }
+  ],
+  "conditions": [
+    {
+      "id": "new",
+      "name": "New",
+      "description": "Brand new, unused item"
+    },
+    {
+      "id": "like-new",
+      "name": "Like New",
+      "description": "Excellent condition, barely used"
+    },
+    {
+      "id": "good",
+      "name": "Good",
+      "description": "Good condition with minor wear"
+    },
+    {
+      "id": "fair",
+      "name": "Fair",
+      "description": "Fair condition with noticeable wear"
+    }
+  ],
+  "locations": [
+    "Seoul",
+    "Busan",
+    "Daegu",
+    "Incheon",
+    "Gwangju",
+    "Daejeon",
+    "Ulsan",
+    "Jeju",
+    "Suwon",
+    "Changwon",
+    "Seongnam",
+    "Goyang"
+  ],
+  "items": [
+    {
+      "id": 1,
+      "title": "iPhone 13 Pro - Excellent Condition",
+      "description": "Barely used iPhone 13 Pro in excellent condition. 128GB storage, Pacific Blue color. Includes original box, charger, and accessories. No scratches or dents. Battery health at 98%. Purchased 6 months ago, selling because upgraded to newer model.",
+      "price": 850000,
+      "category": "electronics",
+      "condition": "like-new",
+      "location": "Seoul",
+      "images": [
+        "https://via.placeholder.com/280x200/e8420a/ffffff?text=iPhone+13+Pro",
+        "https://via.placeholder.com/280x200/dc3545/ffffff?text=iPhone+Back",
+        "https://via.placeholder.com/280x200/28a745/ffffff?text=iPhone+Side"
+      ],
+      "seller": {
+        "id": "user1",
+        "name": "Kim Minjun",
+        "rating": 4.8,
+        "reviews": 23
+      },
+      "postedAt": "2024-04-20T10:30:00Z",
+      "views": 245,
+      "likes": 18,
+      "negotiable": true,
+      "tags": ["smartphone", "apple", "5g", "pro"]
+    },
+    {
+      "id": 2,
+      "title": "Modern Office Chair",
+      "description": "Comfortable ergonomic office chair with lumbar support. Adjustable height, armrests, and tilt function. Mesh back for breathability. Perfect for home office setup. Used for 8 months, still in great condition.",
+      "price": 120000,
+      "category": "furniture",
+      "condition": "good",
+      "location": "Busan",
+      "images": [
+        "https://via.placeholder.com/280x200/667eea/ffffff?text=Office+Chair",
+        "https://via.placeholder.com/280x200/764ba2/ffffff?text=Chair+Detail"
+      ],
+      "seller": {
+        "id": "user2",
+        "name": "Lee Soyeon",
+        "rating": 4.9,
+        "reviews": 15
+      },
+      "postedAt": "2024-04-22T14:15:00Z",
+      "views": 89,
+      "likes": 7,
+      "negotiable": false,
+      "tags": ["office", "ergonomic", "chair", "work"]
+    },
+    {
+      "id": 3,
+      "title": "Vintage Denim Jacket",
+      "description": "Classic vintage denim jacket in great condition. Authentic Levi's from the 90s. Size M. Some natural wear that adds to the vintage character. Perfect piece for fashion enthusiasts.",
+      "price": 45000,
+      "category": "clothing",
+      "condition": "good",
+      "location": "Daegu",
+      "images": [
+        "https://via.placeholder.com/280x200/764ba2/ffffff?text=Denim+Jacket",
+        "https://via.placeholder.com/280x200/495057/ffffff?text=Jacket+Back"
+      ],
+      "seller": {
+        "id": "user3",
+        "name": "Park Jimin",
+        "rating": 4.7,
+        "reviews": 31
+      },
+      "postedAt": "2024-04-23T09:45:00Z",
+      "views": 156,
+      "likes": 23,
+      "negotiable": true,
+      "tags": ["vintage", "denim", "fashion", "levis"]
+    },
+    {
+      "id": 4,
+      "title": "Programming Books Bundle",
+      "description": "Collection of programming books for beginners. Includes JavaScript: The Good Parts, Clean Code, Design Patterns, and more. All books in good condition with minimal highlighting. Great for anyone starting their coding journey.",
+      "price": 35000,
+      "category": "books",
+      "condition": "fair",
+      "location": "Incheon",
+      "images": [
+        "https://via.placeholder.com/280x200/28a745/ffffff?text=Books+Bundle",
+        "https://via.placeholder.com/280x200/17a2b8/ffffff?text=Book+Collection"
+      ],
+      "seller": {
+        "id": "user4",
+        "name": "Choi Hyejin",
+        "rating": 4.6,
+        "reviews": 12
+      },
+      "postedAt": "2024-04-24T16:20:00Z",
+      "views": 67,
+      "likes": 5,
+      "negotiable": true,
+      "tags": ["programming", "books", "education", "coding"]
+    },
+    {
+      "id": 5,
+      "title": "Mountain Bike - Like New",
+      "description": "High-quality mountain bike, barely used. 21-speed Shimano gears, hydraulic disc brakes, aluminum frame. Perfect for trails and off-road adventures. Selling due to lack of time to use. Regular maintenance performed.",
+      "price": 280000,
+      "category": "sports",
+      "condition": "like-new",
+      "location": "Gwangju",
+      "images": [
+        "https://via.placeholder.com/280x200/dc3545/ffffff?text=Mountain+Bike",
+        "https://via.placeholder.com/280x200/ffc107/ffffff?text=Bike+Detail"
+      ],
+      "seller": {
+        "id": "user5",
+        "name": "Jong Sukjin",
+        "rating": 4.9,
+        "reviews": 28
+      },
+      "postedAt": "2024-04-25T11:30:00Z",
+      "views": 312,
+      "likes": 34,
+      "negotiable": false,
+      "tags": ["bike", "mountain", "sports", "outdoor"]
+    },
+    {
+      "id": 6,
+      "title": "Samsung 55\" Smart TV",
+      "description": "55-inch Samsung Smart TV with 4K resolution. Crystal UHD display, HDR support, built-in streaming apps. Remote control included. Excellent picture quality. Selling because upgrading to larger model.",
+      "price": 450000,
+      "category": "electronics",
+      "condition": "good",
+      "location": "Daejeon",
+      "images": [
+        "https://via.placeholder.com/280x200/ffc107/ffffff?text=Smart+TV",
+        "https://via.placeholder.com/280x200/e83e8c/ffffff?text=TV+Interface"
+      ],
+      "seller": {
+        "id": "user6",
+        "name": "Yoo Jihyun",
+        "rating": 4.8,
+        "reviews": 45
+      },
+      "postedAt": "2024-04-26T13:45:00Z",
+      "views": 428,
+      "likes": 56,
+      "negotiable": true,
+      "tags": ["tv", "smart", "4k", "samsung"]
+    },
+    {
+      "id": 7,
+      "title": "Wooden Dining Table",
+      "description": "Solid wood dining table for 6 people. Beautiful oak finish, sturdy construction. Some minor scratches and wear consistent with age. Chairs not included. Perfect for family dining room.",
+      "price": 180000,
+      "category": "furniture",
+      "condition": "fair",
+      "location": "Ulsan",
+      "images": [
+        "https://via.placeholder.com/280x200/17a2b8/ffffff?text=Dining+Table",
+        "https://via.placeholder.com/280x200/6f42c1/ffffff?text=Table+Detail"
+      ],
+      "seller": {
+        "id": "user7",
+        "name": "Kang Minho",
+        "rating": 4.5,
+        "reviews": 18
+      },
+      "postedAt": "2024-04-27T10:00:00Z",
+      "views": 134,
+      "likes": 12,
+      "negotiable": true,
+      "tags": ["dining", "table", "wood", "furniture"]
+    },
+    {
+      "id": 8,
+      "title": "Designer Handbag",
+      "description": "Authentic designer handbag, brand new with tags. Premium leather construction, gold hardware. Comes with dust bag and authenticity card. Selling because received as gift but already have similar bag.",
+      "price": 95000,
+      "category": "clothing",
+      "condition": "new",
+      "location": "Jeju",
+      "images": [
+        "https://via.placeholder.com/280x200/e83e8c/ffffff?text=Designer+Bag",
+        "https://via.placeholder.com/280x200/495057/ffffff?text=Bag+Interior"
+      ],
+      "seller": {
+        "id": "user8",
+        "name": "Lim Seoyeon",
+        "rating": 5.0,
+        "reviews": 8
+      },
+      "postedAt": "2024-04-28T15:30:00Z",
+      "views": 567,
+      "likes": 89,
+      "negotiable": false,
+      "tags": ["designer", "handbag", "luxury", "new"]
+    },
+    {
+      "id": 9,
+      "title": "Yoga Mat and Accessories",
+      "description": "Complete yoga set with mat and accessories. High-quality non-slip yoga mat (6mm thick), yoga blocks, straps, and carrying bag. Used for home yoga practice. All items clean and in good condition.",
+      "price": 25000,
+      "category": "sports",
+      "condition": "good",
+      "location": "Suwon",
+      "images": [
+        "https://via.placeholder.com/280x200/6f42c1/ffffff?text=Yoga+Set",
+        "https://via.placeholder.com/280x200/343a40/ffffff?text=Yoga+Accessories"
+      ],
+      "seller": {
+        "id": "user9",
+        "name": "Han Yuri",
+        "rating": 4.7,
+        "reviews": 22
+      },
+      "postedAt": "2024-04-29T12:15:00Z",
+      "views": 98,
+      "likes": 15,
+      "negotiable": true,
+      "tags": ["yoga", "fitness", "mat", "exercise"]
+    },
+    {
+      "id": 10,
+      "title": "Laptop Stand - Adjustable",
+      "description": "Adjustable aluminum laptop stand. Ergonomic design for better posture. Compatible with laptops up to 17 inches. Foldable and portable. Improves cooling and typing comfort. New condition.",
+      "price": 15000,
+      "category": "electronics",
+      "condition": "new",
+      "location": "Changwon",
+      "images": [
+        "https://via.placeholder.com/280x200/6c757d/ffffff?text=Laptop+Stand",
+        "https://via.placeholder.com/280x20a/20c997/ffffff?text=Stand+Folded"
+      ],
+      "seller": {
+        "id": "user10",
+        "name": "Song Jaehyun",
+        "rating": 4.8,
+        "reviews": 16
+      },
+      "postedAt": "2024-04-30T08:45:00Z",
+      "views": 201,
+      "likes": 28,
+      "negotiable": false,
+      "tags": ["laptop", "stand", "ergonomic", "adjustable"]
+    },
+    {
+      "id": 11,
+      "title": "Bookshelf - Modern Design",
+      "description": "Modern bookshelf with 5 shelves. Sturdy particle board construction with wood grain finish. Adjustable shelves for custom configuration. Some minor scratches on lower shelves. Perfect for books and decor.",
+      "price": 65000,
+      "category": "furniture",
+      "condition": "good",
+      "location": "Seongnam",
+      "images": [
+        "https://via.placeholder.com/280x200/343a40/ffffff?text=Bookshelf",
+        "https://via.placeholder.com/280x200/6c757d/ffffff?text=Shelf+Detail"
+      ],
+      "seller": {
+        "id": "user11",
+        "name": "Woo Seokhoon",
+        "rating": 4.6,
+        "reviews": 19
+      },
+      "postedAt": "2024-05-01T17:20:00Z",
+      "views": 143,
+      "likes": 19,
+      "negotiable": true,
+      "tags": ["bookshelf", "storage", "modern", "furniture"]
+    },
+    {
+      "id": 12,
+      "title": "Winter Coat Collection",
+      "description": "Collection of winter coats in various sizes. Includes 3 coats: down jacket, wool coat, and raincoat. All in good condition with normal wear. Perfect for winter season. Selling as bundle only.",
+      "price": 78000,
+      "category": "clothing",
+      "condition": "fair",
+      "location": "Goyang",
+      "images": [
+        "https://via.placeholder.com/280x200/495057/ffffff?text=Winter+Coats",
+        "https://via.placeholder.com/280x200/20c997/ffffff?text=Coat+Collection"
+      ],
+      "seller": {
+        "id": "user12",
+        "name": "Jung Minseo",
+        "rating": 4.5,
+        "reviews": 27
+      },
+      "postedAt": "2024-05-02T14:30:00Z",
+      "views": 234,
+      "likes": 31,
+      "negotiable": true,
+      "tags": ["winter", "coats", "bundle", "clothing"]
+    }
+  ],
+  "searchFilters": {
+    "priceRanges": [
+      {
+        "id": "under-10k",
+        "name": "Under 10,000",
+        "min": 0,
+        "max": 9999
+      },
+      {
+        "id": "10k-50k",
+        "name": "10,000 - 50,000",
+        "min": 10000,
+        "max": 50000
+      },
+      {
+        "id": "50k-100k",
+        "name": "50,000 - 100,000",
+        "min": 50000,
+        "max": 100000
+      },
+      {
+        "id": "over-100k",
+        "name": "Over 100,000",
+        "min": 100001,
+        "max": null
+      }
+    ],
+    "sortOptions": [
+      {
+        "id": "recent",
+        "name": "Most Recent",
+        "description": "Newest items first"
+      },
+      {
+        "id": "price-low",
+        "name": "Price: Low to High",
+        "description": "Lowest price first"
+      },
+      {
+        "id": "price-high",
+        "name": "Price: High to Low",
+        "description": "Highest price first"
+      },
+      {
+        "id": "popular",
+        "name": "Most Popular",
+        "description": "Most viewed items"
+      }
+    ]
+  }
+}

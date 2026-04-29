@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>물품찾기 - 쓸랭</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif; background: #F7F7F5; color: #1a1a1a; }
+
+  /* ───── 상단 네비게이션 ───── */
+  .navbar {
+    background: #fff;
+    border-bottom: 1px solid #EBEBEB;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .navbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 800;
+    color: #E8420A;
+    letter-spacing: -0.5px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .nav-menu {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #444;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .nav-item:hover { background: #F7F7F5; }
+  .nav-item.active { color: #E8420A; font-weight: 700; }
+  .nav-icon { font-size: 15px; }
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .nav-badge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #444;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .nav-badge:hover { background: #F7F7F5; }
+  .badge-dot {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #E8420A;
+    border: 1.5px solid #fff;
+  }
+  .user-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid #E0E0E0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+  }
+  .user-btn:hover { background: #F7F7F5; }
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #EEEDFE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #534AB7;
+    font-weight: 700;
+  }
+
+  /* ───── 검색 + 필터 영역 ───── */
+  .search-section {
+    background: #fff;
+    border-bottom: 1px solid #EBEBEB;
+    padding: 16px 0;
+  }
+  .search-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #F7F7F5;
+    border: 1.5px solid #E0E0E0;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 14px;
+    transition: border-color 0.15s;
+  }
+  .search-bar:focus-within {
+    border-color: #E8420A;
+    background: #fff;
+  }
+  .search-bar input {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    color: #333;
+    flex: 1;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-bar input::placeholder { color: #aaa; }
+  .search-btn {
+    background: #E8420A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .search-btn:hover { background: #C93508; }
+
+  /* 카테고리 필터 칩 */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #E0E0E0;
+    color: #555;
+    background: #fff;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .filter-chip:hover { border-color: #E8420A; color: #E8420A; }
+  .filter-chip.active {
+    background: #E8420A;
+    color: #fff;
+    border-color: #E8420A;
+  }
+
+  /* ───── 콘텐츠 영역 ───── */
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 32px;
+  }
+
+  /* 거래유형 + 정렬 바 */
+  .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .type-tabs {
+    display: flex;
+    gap: 6px;
+  }
+  .type-tab {
+    padding: 5px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #E0E0E0;
+    color: #666;
+    background: #fff;
+    transition: all 0.15s;
+  }
+  .type-tab:hover { border-color: #888; color: #333; }
+  .type-tab.active {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+  .list-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .count-text { font-size: 13px; color: #888; }
+  .sort-select {
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 13px;
+    color: #444;
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* 물품 카드 그리드 */
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 960px) { .product-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 680px) { .product-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .product-card {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #EBEBEB;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .product-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+    transform: translateY(-2px);
+  }
+  .card-image-wrap {
+    position: relative;
+    background: #F0F0EE;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .card-image-placeholder {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #DCDCDA;
+  }
+  .card-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .card-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-junggo { background: #FFF0EB; color: #E8420A; }
+  .badge-daeyeo { background: #EBF0FF; color: #4265E8; }
+  .badge-nanum  { background: #EBFFF2; color: #1A9045; }
+  .card-heart {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+  }
+  .card-heart:hover { background: #fff; }
+  .card-body { padding: 12px; }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-price-junggo {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 2px;
+  }
+  .card-price-junggo span { font-size: 11px; font-weight: 500; color: #888; margin-right: 3px; }
+  .card-price-daeyeo {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #4265E8;
+    margin-bottom: 8px;
+  }
+  .card-price-daeyeo span { font-size: 11px; font-weight: 500; color: #888; margin-right: 3px; }
+  .card-price-nanum {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1A9045;
+    margin-bottom: 8px;
+  }
+  .card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .card-tag { font-size: 11px; color: #888; }
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #aaa;
+    border-top: 1px solid #F0F0EE;
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+  .card-location { display: flex; align-items: center; gap: 3px; }
+  .card-meta { display: flex; align-items: center; gap: 8px; }
+
+  /* 검색 결과 없음 */
+  .no-results {
+    text-align: center;
+    padding: 80px 20px;
+    grid-column: 1 / -1;
+  }
+  .no-results h3 { font-size: 18px; font-weight: 700; color: #333; margin-bottom: 8px; }
+  .no-results p { font-size: 14px; color: #888; margin-bottom: 20px; }
+  .no-results button {
+    background: #E8420A;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .no-results button:hover { background: #C93508; }
+
+  /* 페이지네이션 */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 48px;
+  }
+  .pagination-btn {
+    padding: 7px 16px;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #555;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .pagination-btn:disabled { color: #ccc; cursor: not-allowed; }
+  .pagination-btn:not(:disabled):hover { border-color: #E8420A; color: #E8420A; }
+  .pagination-number {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #E0E0E0;
+    font-size: 13px;
+    color: #555;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .pagination-number.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .pagination-number:not(.active):hover { border-color: #E8420A; color: #E8420A; }
+  .pagination-ellipsis { font-size: 13px; color: #aaa; padding: 0 4px; }
+
+  /* ───── 푸터 ───── */
+  footer {
+    background: #fff;
+    border-top: 1px solid #EBEBEB;
+    padding: 36px 0 28px;
+  }
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: grid;
+    grid-template-columns: 200px 1fr 1fr;
+    gap: 40px;
+  }
+  .footer-brand .brand-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: #E8420A;
+    margin-bottom: 8px;
+  }
+  .footer-brand p { font-size: 12px; color: #888; line-height: 1.7; }
+  .footer-col h4 { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 12px; }
+  .footer-col p { font-size: 12.5px; color: #666; line-height: 2; }
+  .footer-bottom {
+    max-width: 1200px;
+    margin: 24px auto 0;
+    padding: 20px 32px 0;
+    border-top: 1px solid #F0F0EE;
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+
+<!-- ───── 상단 네비게이션 ───── -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a class="logo" href="#">쓸랭</a>
+    <div class="nav-menu">
+      <a class="nav-item active" href="#">물품찾기</a>
+      <a class="nav-item" href="#">물품등록</a>
+      <a class="nav-item" href="#">거래대행</a>
+      <a class="nav-item" href="#">새소식/이벤트</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-badge" href="#">
+        채팅/알림
+        <span class="badge-dot"></span>
+      </a>
+      <div class="user-btn">
+        <div class="user-avatar">테</div>
+        테스트유저
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ───── 검색 + 필터 ───── -->
+<div class="search-section">
+  <div class="search-inner">
+    <div class="search-bar">
+      <span style="font-size:16px;color:#aaa;">🔍</span>
+      <input type="text" class="search-input" placeholder="어떤 물품을 찾으시나요?">
+      <button class="search-btn">검색</button>
+    </div>
+    <div class="filter-row">
+      <button class="filter-chip active" data-category="all">전체</button>
+      <button class="filter-chip" data-category="electronics">전자기기</button>
+      <button class="filter-chip" data-category="clothing">의류</button>
+      <button class="filter-chip" data-category="household">생활용품</button>
+      <button class="filter-chip" data-category="books">도서</button>
+      <button class="filter-chip" data-category="sports">스포츠/레저</button>
+      <button class="filter-chip" data-category="furniture">가구/인테리어</button>
+      <button class="filter-chip" data-category="other">기타</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───── 물품 목록 ───── -->
+<div class="content">
+  <div class="list-header">
+    <div class="type-tabs">
+      <button class="type-tab active" data-type="all">전체</button>
+      <button class="type-tab" data-type="SELL">중고거래</button>
+      <button class="type-tab" data-type="RENT">대여</button>
+      <button class="type-tab" data-type="SHARE">나눔</button>
+    </div>
+    <div class="list-meta">
+      <span class="count-text">총 <strong id="totalCount">0</strong>개</span>
+      <select class="sort-select" id="sortSelect">
+        <option value="recent">최신순</option>
+        <option value="price-low">가격 낮은순</option>
+        <option value="price-high">가격 높은순</option>
+        <option value="popular">인기순</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="product-grid" id="itemsGrid"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- ───── 푸터 ───── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="brand-name">쓸랭</div>
+      <p>중고거래·대여·나눔·배달대행<br>통합 C2C 플랫폼</p>
+    </div>
+    <div class="footer-col">
+      <h4>사업자 정보</h4>
+      <p>
+        상호명: 쓸랭 주식회사<br>
+        대표자: 김쓸랭<br>
+        사업자등록번호: 123-45-67890<br>
+        통신판매업신고: 제2024-서울강남-1234호<br>
+        주소: 서울특별시 강남구 테헤란로 123
+      </p>
+    </div>
+    <div class="footer-col">
+      <h4>고객센터</h4>
+      <p>
+        전화: 1234-5678<br>
+        이메일: help@sseulang.com<br>
+        운영시간: 평일 09:00-18:00
+      </p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2024 쓸랭 주식회사. All rights reserved.
+  </div>
+</footer>
+
+<script src="js/item-search.js"></script>
+</body>
+</html>
