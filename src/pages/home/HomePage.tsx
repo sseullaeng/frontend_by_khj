@@ -1,25 +1,8 @@
-import {
-  Smartphone,
-  Shirt,
-  BookOpen,
-  Home as HomeIcon,
-  MoreHorizontal,
-  Baby,
-} from 'lucide-react'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
 import { useQuery } from '@tanstack/react-query'
 import type { Item } from '@/features/item/types'
-
-// 카테고리 데이터
-const categories = [
-  { slug: 'electronics', name: '전자기기', icon: Smartphone, color: 'bg-blue-100 text-blue-600' },
-  { slug: 'fashion', name: '의류', icon: Shirt, color: 'bg-pink-100 text-pink-600' },
-  { slug: 'books', name: '도서', icon: BookOpen, color: 'bg-green-100 text-green-600' },
-  { slug: 'home', name: '생활', icon: HomeIcon, color: 'bg-yellow-100 text-yellow-600' },
-  { slug: 'etc', name: '기타', icon: MoreHorizontal, color: 'bg-gray-100 text-gray-600' },
-]
 
 // 샘플 배너 데이터
 const sampleBanners = [
