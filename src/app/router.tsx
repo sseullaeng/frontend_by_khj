@@ -69,6 +69,17 @@ export const router = createBrowserRouter([
   // ── 소셜 로그인 콜백 (인증 미들웨어 불필요)
   { path: '/auth/callback', element: <SocialCallbackPage /> },
 
+  // ── 비로그인 접근 가능 라우트
+  {
+    element: <RootLayout />,
+    children: [
+      { path: '/',                          element: <HomePage /> },
+      { path: '/categories/:slug',          element: <CategoryPage /> },
+      { path: '/items',                     element: <ItemListPage /> },
+      { path: '/items/:id',                 element: <ItemDetailPage /> },
+    ],
+  },
+
   // ── 일반 사용자 라우트 (로그인 필수)
   {
     element: <ProtectedRoute />,
@@ -76,11 +87,6 @@ export const router = createBrowserRouter([
       {
         element: <RootLayout />,
         children: [
-          { path: '/',                          element: <HomePage /> },
-          { path: '/categories/:slug',          element: <CategoryPage /> },
-
-          { path: '/items',                     element: <ItemListPage /> },
-          { path: '/items/:id',                 element: <ItemDetailPage /> },
           { path: '/items/new',                 element: <ItemCreatePage /> },
           { path: '/items/:id/edit',            element: <ItemEditPage /> },
 
