@@ -34,6 +34,7 @@ jobs:
         run: npm run build
         env:
           VITE_MSW_ENABLED: true
+          GITHUB_PAGES: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
