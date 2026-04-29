@@ -24,15 +24,15 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: import.meta.env.DEV ? sampleUser : null,
       setUser: (user) => set({ user }),
-      logout: () => set({ user: null }),
+      logout: () => set({ user: import.meta.env.DEV ? sampleUser : null }),
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user }),
-      merge: (persisted, current) =>
+      merge: (_persisted, current) =>
         import.meta.env.DEV
-          ? { ...current, user: (persisted as AuthState).user ?? sampleUser }
-          : { ...current, ...(persisted as AuthState) },
+          ? { ...current, user: sampleUser }
+          : { ...current, ...(_persisted as AuthState) },
     }
   )
 )
