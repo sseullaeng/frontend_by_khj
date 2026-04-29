@@ -10,12 +10,32 @@ import { itemApi } from './api'
 import { itemKeys } from './keys'
 import { compressImage } from '@/shared/lib/imageCompress'
 import type { ItemCreateRequest, ItemFilter, ItemUpdateRequest } from './types'
+import { MOCK_ITEMS } from './mockData'
+
+const isMock = import.meta.env.VITE_MSW_ENABLED === 'true'
 
 export function useItemList(filter: ItemFilter) {
   return useInfiniteQuery({
     queryKey: itemKeys.list(filter),
-    queryFn: ({ pageParam = 0 }) =>
-      itemApi.getList({ ...filter, page: pageParam }).then((r) => r.data),
+    queryFn: async ({ pageParam = 0 }) => {
+      if (isMock) {
+        const keyword = filter.keyword?.toLowerCase() ?? ''
+        const filtered = MOCK_ITEMS.filter((item) => {
+          const matchKeyword = !keyword || item.title.toLowerCase().includes(keyword) ||
+            item.hashtags.some((t) => t.toLowerCase().includes(keyword))
+          const matchCategory = !filter.category || item.category === filter.category
+          const matchType = !filter.itemType || item.itemType === filter.itemType
+          return matchKeyword && matchCategory && matchType
+        })
+        const size = filter.size ?? 10
+        const start = (pageParam as number) * size
+        const content = filtered.slice(start, start + size)
+        return { content, page: pageParam as number, size, totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size),
+          hasNext: start + size < filtered.length, hasPrevious: (pageParam as number) > 0 }
+      }
+      return itemApi.getList({ ...filter, page: pageParam }).then((r) => r.data)
+    },
     getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
     initialPageParam: 0,
   })
@@ -24,7 +44,14 @@ export function useItemList(filter: ItemFilter) {
 export function useItemDetail(id: number) {
   return useQuery({
     queryKey: itemKeys.detail(id),
-    queryFn: () => itemApi.getDetail(id).then((r) => r.data),
+    queryFn: () => {
+      if (isMock) {
+        const item = MOCK_ITEMS.find((i) => i.id === id)
+        if (!item) throw new Error('ITEM_NOT_FOUND')
+        return item
+      }
+      return itemApi.getDetail(id).then((r) => r.data)
+    },
     enabled: !!id,
   })
 }
