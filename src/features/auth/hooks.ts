@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { authApi } from './api'
@@ -62,10 +63,15 @@ export function useLogout() {
 export function useMe() {
   const setUser = useAuthStore((s) => s.setUser)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: () => authApi.me().then((r) => r.data),
-    onSuccess: setUser,
     retry: false,
   })
+
+  useEffect(() => {
+    if (query.data) setUser(query.data)
+  }, [query.data, setUser])
+
+  return query
 }

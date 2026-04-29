@@ -29,7 +29,6 @@ export default function ItemCard({ item, className }: ItemCardProps) {
   const [wished, setWished] = useState(item.isWished)
   const { mutate: toggleWish } = useToggleWish(item.id)
   const isFree = item.price === 0
-  const formattedPrice = isFree ? '무료' : `${item.price.toLocaleString()}원`
   
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>

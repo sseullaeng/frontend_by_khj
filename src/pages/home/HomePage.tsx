@@ -1,18 +1,10 @@
-import { Link } from 'react-router-dom'
-import { 
-  Smartphone, 
-  Shirt, 
-  BookOpen, 
-  Home as HomeIcon, 
+import {
+  Smartphone,
+  Shirt,
+  BookOpen,
+  Home as HomeIcon,
   MoreHorizontal,
-  Package,
-  Car,
-  Gamepad2,
   Baby,
-  Dumbbell,
-  Music,
-  Palette,
-  Heart
 } from 'lucide-react'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
@@ -27,19 +19,6 @@ const categories = [
   { slug: 'books', name: '도서', icon: BookOpen, color: 'bg-green-100 text-green-600' },
   { slug: 'home', name: '생활', icon: HomeIcon, color: 'bg-yellow-100 text-yellow-600' },
   { slug: 'etc', name: '기타', icon: MoreHorizontal, color: 'bg-gray-100 text-gray-600' },
-]
-
-// 더 많은 카테고리
-const allCategories = [
-  ...categories,
-  { slug: 'furniture', name: '가구', icon: Package, color: 'bg-orange-100 text-orange-600' },
-  { slug: 'car', name: '차량', icon: Car, color: 'bg-purple-100 text-purple-600' },
-  { slug: 'game', name: '게임', icon: Gamepad2, color: 'bg-indigo-100 text-indigo-600' },
-  { slug: 'baby', name: '유아용품', icon: Baby, color: 'bg-red-100 text-red-600' },
-  { slug: 'sports', name: '스포츠', icon: Dumbbell, color: 'bg-teal-100 text-teal-600' },
-  { slug: 'music', name: '음악', icon: Music, color: 'bg-cyan-100 text-cyan-600' },
-  { slug: 'art', name: '미술품', icon: Palette, color: 'bg-lime-100 text-lime-600' },
-  { slug: 'beauty', name: '뷰티', icon: Heart, color: 'bg-rose-100 text-rose-600' },
 ]
 
 // 샘플 배너 데이터
@@ -72,7 +51,7 @@ const sampleBanners = [
  */
 export default function HomePage() {
   // 추천 상품 데이터 조회 (실제 API 연동 시 활성화)
-  const { data: itemsData, isLoading } = useQuery({
+  const { data: itemsData } = useQuery({
     queryKey: ['items', { page: 1, size: 6 }],
     queryFn: () => itemApi.getList({ page: 1, size: 6 }),
     // 개발 단계에서는 비활성화
@@ -190,11 +169,6 @@ export default function HomePage() {
       createdAt: '2024-04-15T16:20:00Z'
     }
   ]
-
-  // HOT 아이템 (조회수/찜 수 기준)
-  const hotItems = [...sampleItems]
-    .sort((a, b) => (b.viewCount + b.wishCount) - (a.viewCount + a.wishCount))
-    .slice(0, 3)
 
   const displayItems = itemsData?.data?.content || sampleItems
 

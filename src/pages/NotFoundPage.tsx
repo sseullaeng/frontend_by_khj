@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { Button } from '@/shared/ui/Button'
 
 export default function NotFoundPage() {
   return (
@@ -7,7 +6,9 @@ export default function NotFoundPage() {
       <p className="text-7xl font-bold text-gray-200">404</p>
       <h1 className="text-xl font-bold text-gray-800">페이지를 찾을 수 없어요</h1>
       <p className="text-sm text-gray-500">주소가 잘못됐거나 삭제된 페이지예요.</p>
-      <Button as={Link} to="/">홈으로 가기</Button>
+      <Link to="/" className="px-6 py-2.5 bg-primary-500 text-white text-sm font-semibold rounded-lg hover:bg-primary-600 transition-colors">
+        홈으로 가기
+      </Link>
     </div>
   )
 }

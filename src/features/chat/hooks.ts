@@ -10,7 +10,8 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query'
+import type { PageResponse } from '@/shared/types'
 import { Client, type IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { chatApi } from './api'
@@ -32,11 +33,15 @@ export function useChatRoom(roomId: number) {
     },
     getNextPageParam: (last) => (last.hasPrevious ? last.content[0]?.id : undefined),
     initialPageParam: undefined as number | undefined,
-    onSuccess: (data) => {
-      const all = data.pages.flatMap((p) => p.content).reverse()
-      setMessages(roomId, all)
-    },
   })
+
+  useEffect(() => {
+    if (historyQuery.data) {
+      const all = (historyQuery.data as InfiniteData<PageResponse<ChatMessage>>)
+        .pages.flatMap((p) => p.content).reverse()
+      setMessages(roomId, all)
+    }
+  }, [historyQuery.data, roomId, setMessages])
 
   // ── STOMP 연결 ────────────────────────────────────────────────────────────
   useEffect(() => {

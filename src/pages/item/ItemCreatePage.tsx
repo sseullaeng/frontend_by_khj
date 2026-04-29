@@ -3,12 +3,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'
 import { useCreateItem, useUploadImages } from '@/features/item/hooks'
+
+type ItemFormValues = Omit<ItemCreateRequest, 'imageKeys'>
 import { Button } from '@/shared/ui/Button'
 import { Input } from '@/shared/ui/Input'
 
 export default function ItemCreatePage() {
   const navigate = useNavigate()
-  const { mutateAsync: uploadImages, isPending: isUploading } = useUploadImages()
+  const { isPending: isUploading } = useUploadImages()
   const { mutate: createItem, isPending: isCreating } = useCreateItem()
 
   const {
@@ -16,12 +18,12 @@ export default function ItemCreatePage() {
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<ItemCreateRequest>({
+  } = useForm<ItemFormValues>({
     resolver: zodResolver(itemCreateSchema),
     defaultValues: { itemType: 'SELL', hashtags: [], price: 0 },
   })
 
-  const onSubmit = async (data: Omit<ItemCreateRequest, 'imageKeys'>) => {
+  const onSubmit = async (data: ItemFormValues) => {
     // TODO: 이미지 파일 업로드 후 imageKeys 전달
     createItem({ ...data, imageKeys: [] })
     navigate('/')
