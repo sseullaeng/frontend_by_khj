@@ -6,7 +6,10 @@ import '@/styles/globals.css'
 async function enableMocking() {
   if (import.meta.env.VITE_MSW_ENABLED !== 'true') return
   const { worker } = await import('@/mocks/browser')
-  return worker.start({ onUnhandledRequest: 'warn' }).catch(console.warn)
+  return worker.start({
+    serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+    onUnhandledRequest: 'warn',
+  }).catch(console.warn)
 }
 
 enableMocking().then(() => {
