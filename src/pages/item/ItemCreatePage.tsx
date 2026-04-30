@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'
 import { useCreateItem, useUploadImages } from '@/features/item/hooks'
 import { Search, X, Plus, MapPin } from 'lucide-react'
@@ -22,11 +22,17 @@ export default function ItemCreatePage() {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<{id: number, name: string} | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<{name: string, lat: number, lng: number} | null>(null)
+  const [isShare, setIsShare] = useState(false)
+  const [rentalPeriod, setRentalPeriod] = useState('일')
+  const [customRentalDate, setCustomRentalDate] = useState('')
+  const [showDepositSection, setShowDepositSection] = useState(false)
+  const [agreedToDamagePolicy, setAgreedToDamagePolicy] = useState(false)
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ItemFormValues>({
     resolver: zodResolver(itemCreateSchema),
@@ -43,6 +49,51 @@ export default function ItemCreatePage() {
       imageFiles: []
     },
   })
+
+  const sellPrice = watch('sellPrice')
+  const rentPrice = watch('rentPrice')
+  const depositRate = watch('depositRate')
+  const watchTitle = watch('title')
+  const watchDescription = watch('description')
+
+  const isFormValid =
+    !!watchTitle && watchTitle.length > 0 &&
+    !!selectedCategory &&
+    !!selectedLocation &&
+    !!watchDescription && watchDescription.length >= 20
+
+  // 나눔 체크박스 로직
+  React.useEffect(() => {
+    if (sellPrice === 0 && rentPrice === 0) {
+      setIsShare(true)
+    } else {
+      setIsShare(false)
+    }
+  }, [sellPrice, rentPrice])
+
+  // 대여 기간 선택 시 보증금 섹션 표시
+  React.useEffect(() => {
+    if (rentPrice > 0) {
+      setShowDepositSection(true)
+    } else {
+      setShowDepositSection(false)
+    }
+  }, [rentPrice])
+
+  // 보증금 계산
+  const calculateDeposit = () => {
+    if (rentPrice > 0 && depositRate > 0) {
+      let multiplier = 1
+      if (rentalPeriod === '주') multiplier = 7
+      else if (rentalPeriod === '월') multiplier = 30
+      else if (rentalPeriod === '날짜지정') {
+        const days = parseInt(customRentalDate) || 1
+        multiplier = days
+      }
+      return rentPrice * multiplier * (depositRate / 100)
+    }
+    return 0
+  }
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -123,7 +174,11 @@ export default function ItemCreatePage() {
         {/* 이미지 업로드 */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">사진 ({imageFiles.length}/10)</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${
+            imageFiles.length === 0 ? 'grid-cols-5' :
+            imageFiles.length <= 5 ? 'grid-cols-5' :
+            'grid-cols-5'
+          }`}>
             {imageFiles.map((file, index) => (
               <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <img 
@@ -163,7 +218,17 @@ export default function ItemCreatePage() {
           placeholder="0"
           helperText="판매할 경우에만 입력"
           error={errors.sellPrice?.message}
-          {...register('sellPrice', { valueAsNumber: true })}
+          {...register('sellPrice', { 
+            valueAsNumber: true, 
+            min: 0,
+            onChange: (e) => {
+              const value = parseFloat(e.target.value)
+              if (value < 0) {
+                e.target.value = '0'
+                setValue('sellPrice', 0)
+              }
+            }
+          })}
         />
 
         <Input
@@ -172,8 +237,63 @@ export default function ItemCreatePage() {
           placeholder="0"
           helperText="대여할 경우에만 입력"
           error={errors.rentPrice?.message}
-          {...register('rentPrice', { valueAsNumber: true })}
+          {...register('rentPrice', { 
+            valueAsNumber: true, 
+            min: 0,
+            onChange: (e) => {
+              const value = parseFloat(e.target.value)
+              if (value < 0) {
+                e.target.value = '0'
+                setValue('rentPrice', 0)
+              }
+            }
+          })}
         />
+
+        {/* 나눔 체크박스 */}
+        {isShare && (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="isShare"
+              checked={isShare}
+              onChange={(e) => setIsShare(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="isShare" className="text-sm font-medium text-blue-900">
+              나눔인가요?
+            </label>
+          </div>
+        )}
+
+        {/* 대여 기간 선택 */}
+        {rentPrice > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">대여 기간</label>
+            <div className="flex gap-2">
+              <select
+                value={rentalPeriod}
+                onChange={(e) => setRentalPeriod(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
+              >
+                <option value="일">일</option>
+                <option value="주">주</option>
+                <option value="월">월</option>
+                <option value="날짜지정">날짜지정</option>
+              </select>
+              {rentalPeriod === '날짜지정' && (
+                <input
+                  type="number"
+                  placeholder="며칠일"
+                  value={customRentalDate}
+                  onChange={(e) => setCustomRentalDate(e.target.value)}
+                  min="1"
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         <Input
           label="보증금율 (%)"
@@ -186,6 +306,18 @@ export default function ItemCreatePage() {
           error={errors.depositRate?.message}
           {...register('depositRate', { valueAsNumber: true })}
         />
+
+        {/* 보증금 계산 표시 */}
+        {showDepositSection && rentPrice > 0 && depositRate > 0 && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-800">
+              보증금: {calculateDeposit().toLocaleString()}원
+              <span className="text-xs text-green-600 ml-2">
+                (대여금액 {rentPrice.toLocaleString()}원 × {rentalPeriod === '일' ? '1' : rentalPeriod === '주' ? '7' : rentalPeriod === '월' ? '30' : customRentalDate + '일'} × 보증금율 {depositRate}%)
+              </span>
+            </p>
+          </div>
+        )}
 
         {/* 카테고리 검색 */}
         <div className="space-y-2">
@@ -291,23 +423,42 @@ export default function ItemCreatePage() {
           <label className="text-sm font-medium text-gray-700">상세 설명</label>
           <textarea
             className="h-32 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
-            placeholder="상품에 대한 설명을 입력해 주세요"
+            placeholder="상품에 대한 설명을 입력해 주세요 (최소 20자)"
             {...register('description')}
           />
           {errors.description && (
             <p className="text-xs text-red-500">{errors.description.message}</p>
           )}
+          {watchDescription && watchDescription.length > 0 && watchDescription.length < 20 && (
+            <p className="text-xs text-gray-400">{watchDescription.length}/20자 (20자 이상 입력 시 등록 가능)</p>
+          )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 max-w-screen-md mx-auto">
-          <Button
-            type="submit"
-            fullWidth
-            isLoading={isUploading || isCreating}
-          >
-            등록하기
-          </Button>
-        </div>
+        {/* 대여 파손/고장 보증금 청구 동의 */}
+        {rentPrice > 0 && (
+          <div className="space-y-2 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToDamagePolicy}
+                onChange={(e) => setAgreedToDamagePolicy(e.target.checked)}
+                className="mt-1 w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+              />
+              <span className="text-sm text-orange-900 leading-relaxed">
+                대여로 인한 파손, 고장 등 발생시, 보증금을 청구할 수 있습니다. 단, 대여 이전 물품의 하자가 없음을 증명하는 자료가 요구됩니다.
+              </span>
+            </label>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          fullWidth
+          isLoading={isUploading || isCreating}
+          disabled={!isFormValid || (rentPrice > 0 && !agreedToDamagePolicy)}
+        >
+          등록하기
+        </Button>
       </form>
     </div>
   )

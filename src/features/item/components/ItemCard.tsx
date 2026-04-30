@@ -12,12 +12,6 @@ interface ItemCardProps {
   className?: string
 }
 
-const typeLabels = {
-  SELL: '중고거래',
-  RENT: '대여',
-  SHARE: '나눔',
-} as const
-
 const statusColors = {
   ACTIVE: 'bg-green-100 text-green-800',
   RESERVED: 'bg-yellow-100 text-yellow-800',
@@ -28,6 +22,15 @@ const statusColors = {
 export default function ItemCard({ item, className }: ItemCardProps) {
   const [wished, setWished] = useState(item.isWished)
   const { mutate: toggleWish } = useToggleWish(item.id)
+  
+  // 여러 거래유형 태그 생성
+  const getTransactionTags = () => {
+    const tags = []
+    if (item.price > 0) tags.push({ label: '중고거래', color: 'bg-blue-100 text-blue-800' })
+    if (item.rentPrice > 0) tags.push({ label: '대여', color: 'bg-green-100 text-green-800' })
+    if (item.price === 0 && item.rentPrice === 0) tags.push({ label: '나눔', color: 'bg-purple-100 text-purple-800' })
+    return tags
+  }
   
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
@@ -47,10 +50,18 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           )}
           
           {/* 상품 타입 뱃지 */}
-          <div className="absolute top-2 left-2">
-            <span className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-medium">
-              {typeLabels[item.itemType]}
-            </span>
+          <div className="absolute top-2 left-2 flex flex-col gap-2 items-start">
+            {getTransactionTags().slice(0, 2).map((tag, index) => (
+              <span
+                key={index}
+                className={cn(
+                  'px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap',
+                  tag.color
+                )}
+              >
+                {tag.label}
+              </span>
+            ))}
           </div>
 
           {/* 찜하기 버튼 */}

@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { Calendar, Megaphone, ArrowLeft } from 'lucide-react'
+import { Calendar, Megaphone, ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react'
 
 interface NoticeItem {
   id: number
@@ -43,6 +43,9 @@ export default function NoticeDetailPage() {
   const noticeId = parseInt(id || '1')
   
   const notice = mockNotices.find((n: NoticeItem) => n.id === noticeId)
+  const currentIndex = mockNotices.findIndex((n: NoticeItem) => n.id === noticeId)
+  const previousNotice = currentIndex > 0 ? mockNotices[currentIndex - 1] : null
+  const nextNotice = currentIndex < mockNotices.length - 1 ? mockNotices[currentIndex + 1] : null
   
   if (!notice) {
     return (
@@ -101,14 +104,41 @@ export default function NoticeDetailPage() {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4">
+      {/* Navigation */}
+      <div className="flex gap-4 items-center">
         <Link 
           to="/notices"
-          className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+          className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
         >
           목록으로
         </Link>
+        
+        {/* Previous/Next Navigation */}
+        <div className="flex flex-col gap-2 flex-1">
+          {previousNotice && (
+            <Link
+              to={`/notices/${previousNotice.id}`}
+              className="flex items-center gap-2 px-4 py-1 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-xs min-w-0"
+            >
+              <ChevronUp size={14} />
+              <div className="text-left flex-1">
+                <div className="font-medium text-gray-900 line-clamp-1">{previousNotice.title}</div>
+              </div>
+            </Link>
+          )}
+          
+          {nextNotice && (
+            <Link
+              to={`/notices/${nextNotice.id}`}
+              className="flex items-center gap-2 px-4 py-1 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-xs min-w-0"
+            >
+              <ChevronDown size={14} />
+              <div className="text-left flex-1">
+                <div className="font-medium text-gray-900 line-clamp-1">{nextNotice.title}</div>
+              </div>
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   )

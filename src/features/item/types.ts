@@ -8,9 +8,12 @@ export interface Item {
   title: string
   description: string
   price: number
+  rentPrice: number
   itemType: ItemType
   status: ItemStatus
   category: string
+  brand?: string
+  isEscrow: boolean
   hashtags: string[]
   imageUrls: string[]
   wishCount: number

@@ -4,7 +4,8 @@
       "PowerShell(gh run list --repo Kim-Hyejin308/project2 --limit 10 2>&1)",
       "Bash(git -C \"c:/Users/kgpj9/Documents/Claude/Projects/project2\" log --oneline -10)",
       "Bash(git -C \"c:/Users/kgpj9/Documents/Claude/Projects/project2\" branch -a)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm run *)"
     ]
   }
 }

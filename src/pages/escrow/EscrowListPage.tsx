@@ -66,7 +66,7 @@ export default function EscrowListPage() {
   const [applications] = useState<EscrowApplication[]>(mockApplications)
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8">
+    <div className="px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-900">신청 목록</h1>
         <span className="text-sm text-gray-500">총 {applications.length}건</span>

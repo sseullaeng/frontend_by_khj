@@ -48,9 +48,11 @@ export default function HomePage() {
       title: '아이폰 14 프로 256GB',
       description: '1년 사용한 아이폰 14 프로입니다. 상태 매우 좋습니다.',
       price: 800000,
+      rentPrice: 0,
       itemType: 'SELL',
       status: 'ACTIVE',
       category: 'electronics',
+      isEscrow: false,
       hashtags: ['애플', '아이폰', '스마트폰'],
       imageUrls: [],
       wishCount: 23,
@@ -66,9 +68,11 @@ export default function HomePage() {
       title: '나이키 조던 1 레트로',
       description: '새상품 나이키 조던 1 레트로 사이즈 270입니다.',
       price: 150000,
+      rentPrice: 0,
       itemType: 'SELL',
       status: 'ACTIVE',
       category: 'fashion',
+      isEscrow: false,
       hashtags: ['나이키', '조던', '신발'],
       imageUrls: [],
       wishCount: 45,
@@ -83,10 +87,12 @@ export default function HomePage() {
       id: 3,
       title: '삼성 노트북 갤럭시 북3',
       description: '삼성 갤럭시 북3 15인치 대여 가능합니다.',
-      price: 5000,
+      price: 0,
+      rentPrice: 5000,
       itemType: 'RENT',
       status: 'ACTIVE',
       category: 'electronics',
+      isEscrow: false,
       hashtags: ['삼성', '노트북', '대여'],
       imageUrls: [],
       wishCount: 12,
@@ -102,9 +108,11 @@ export default function HomePage() {
       title: '아기 옷 50세트 나눔',
       description: '다 큰 아기 옷들 깨끗하게 세탁해서 나눔합니다.',
       price: 0,
+      rentPrice: 0,
       itemType: 'SHARE',
       status: 'ACTIVE',
       category: 'baby',
+      isEscrow: false,
       hashtags: ['아기옷', '나눔', '육아용품'],
       imageUrls: [],
       wishCount: 67,
@@ -120,9 +128,11 @@ export default function HomePage() {
       title: '갤럭시 S24 울트라',
       description: '개봉 3일된 갤럭시 S24 울트라 512GB',
       price: 1200000,
+      rentPrice: 0,
       itemType: 'SELL',
       status: 'ACTIVE',
       category: 'electronics',
+      isEscrow: false,
       hashtags: ['삼성', '갤럭시', '스마트폰'],
       imageUrls: [],
       wishCount: 89,
@@ -138,9 +148,11 @@ export default function HomePage() {
       title: '에어팟 프로 2세대',
       description: '거의 새것에 가까운 에어팟 프로 2세대입니다.',
       price: 180000,
+      rentPrice: 0,
       itemType: 'SELL',
       status: 'ACTIVE',
       category: 'electronics',
+      isEscrow: false,
       hashtags: ['애플', '에어팟', '이어폰'],
       imageUrls: [],
       wishCount: 34,
@@ -177,41 +189,6 @@ export default function HomePage() {
           </button>
         </div>
       </section>
-
-      {/* 사업자 정보 */}
-      <footer className="bg-white border-t border-gray-200 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">쓸랭</h3>
-              <p className="text-gray-600 text-sm">
-                중고거래·대여·나눔·배달대행 통합 C2C 플랫폼
-              </p>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">사업자 정보</h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>상호명: 쓸랭 주식회사</p>
-                <p>대표자: 김쓸랭</p>
-                <p>사업자등록번호: 123-45-67890</p>
-                <p>통신판매업신고: 제2024-서울강남-1234호</p>
-                <p>주소: 서울특별시 강남구 테헤란로 123</p>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">고객센터</h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>전화: 1234-5678</p>
-                <p>이메일: help@sseulang.com</p>
-                <p>운영시간: 평일 09:00-18:00</p>
-              </div>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-            © 2024 쓸랭 주식회사. All rights reserved.
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

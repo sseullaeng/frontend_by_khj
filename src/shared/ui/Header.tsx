@@ -18,34 +18,34 @@ export default function Header() {
           </Link>
           
           {/* 중앙 네비게이션 메뉴 */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="flex items-center gap-4 md:gap-8">
             <Link
               to="/items"
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <Search size={18} />
-              <span className="text-sm font-medium">물품찾기</span>
+              <span className="text-sm font-medium hidden md:block">물품찾기</span>
             </Link>
             <Link
               to="/items/new"
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <Package size={18} />
-              <span className="text-sm font-medium">물품등록</span>
+              <span className="text-sm font-medium hidden md:block">물품등록</span>
             </Link>
             <Link
               to="/escrow"
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <Truck size={18} />
-              <span className="text-sm font-medium">거래대행</span>
+              <span className="text-sm font-medium hidden md:block">거래대행</span>
             </Link>
             <Link
               to="/notices"
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <Megaphone size={18} />
-              <span className="text-sm font-medium">새소식/이벤트</span>
+              <span className="text-sm font-medium hidden md:block">새소식/이벤트</span>
             </Link>
           </nav>
 
