@@ -41,6 +41,8 @@ const UserProfilePage    = lazy(() => import('@/pages/mypage/UserProfilePage'))
 const BlockListPage      = lazy(() => import('@/pages/mypage/BlockListPage'))
 
 const NotificationPage   = lazy(() => import('@/pages/notification/NotificationPage'))
+const NoticePage          = lazy(() => import('@/pages/notice/NoticePage'))
+const NoticeDetailPage     = lazy(() => import('@/pages/notice/NoticeDetailPage'))
 
 // 관리자
 const AdminLoginPage     = lazy(() => import('@/pages/admin/AdminLoginPage'))
@@ -77,6 +79,8 @@ export const router = createBrowserRouter([
       { path: '/categories/:slug', element: <CategoryPage /> },
       { path: '/items',            element: <ItemListPage /> },
       { path: '/items/:id',        element: <ItemDetailPage /> },
+      { path: '/notices',          element: <NoticePage /> },
+      { path: '/notices/:id',      element: <NoticeDetailPage /> },
     ],
   },
 
