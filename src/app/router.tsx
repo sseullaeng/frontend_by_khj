@@ -53,6 +53,8 @@ const EscrowStartPage       = lazy(() => import('@/pages/escrow/EscrowStartPage'
 const EscrowLinkPage        = lazy(() => import('@/pages/escrow/EscrowLinkPage'))
 const EscrowInvitePage      = lazy(() => import('@/pages/escrow/EscrowInvitePage'))
 const EscrowApplicationPage = lazy(() => import('@/pages/escrow/EscrowApplicationPage'))
+const EscrowPaymentPage     = lazy(() => import('@/pages/escrow/EscrowPaymentPage'))
+const EscrowCompletePage    = lazy(() => import('@/pages/escrow/EscrowCompletePage'))
 
 // 관리자
 const AdminLoginPage     = lazy(() => import('@/pages/admin/AdminLoginPage'))
@@ -64,7 +66,8 @@ const AdminWithdrawPage  = lazy(() => import('@/pages/admin/AdminWithdrawPage'))
 const AdminDeliveryPage  = lazy(() => import('@/pages/admin/AdminDeliveryPage'))
 const AdminNoticePage    = lazy(() => import('@/pages/admin/AdminNoticePage'))
 const AdminBannerPage    = lazy(() => import('@/pages/admin/AdminBannerPage'))
-const AdminDepositPage   = lazy(() => import('@/pages/admin/AdminDepositPage'))
+const AdminDepositPage      = lazy(() => import('@/pages/admin/AdminDepositPage'))
+const AdminEscrowConfigPage = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
 
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage'))
 
@@ -94,8 +97,10 @@ export const router = createBrowserRouter([
       { path: '/support',          element: <SupportPage /> },
 
       // 거래대행 — 링크 공유 대상자도 접근 가능
-      { path: '/escrow/join/:linkId',      element: <EscrowInvitePage /> },
-      { path: '/escrow/join/:linkId/form', element: <EscrowApplicationPage /> },
+      { path: '/escrow/join/:linkId',          element: <EscrowInvitePage /> },
+      { path: '/escrow/join/:linkId/form',    element: <EscrowApplicationPage /> },
+      { path: '/escrow/join/:linkId/payment',  element: <EscrowPaymentPage /> },
+      { path: '/escrow/join/:linkId/complete', element: <EscrowCompletePage /> },
     ],
   },
 
@@ -154,7 +159,8 @@ export const router = createBrowserRouter([
       { path: '/admin/delivery',  element: <AdminDeliveryPage /> },
       { path: '/admin/notices',   element: <AdminNoticePage /> },
       { path: '/admin/banners',   element: <AdminBannerPage /> },
-      { path: '/admin/deposits',  element: <AdminDepositPage /> },
+      { path: '/admin/deposits',      element: <AdminDepositPage /> },
+      { path: '/admin/escrow-config', element: <AdminEscrowConfigPage /> },
     ],
   },
 
