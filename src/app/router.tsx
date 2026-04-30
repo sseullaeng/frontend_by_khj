@@ -43,6 +43,7 @@ const BlockListPage      = lazy(() => import('@/pages/mypage/BlockListPage'))
 const NotificationPage   = lazy(() => import('@/pages/notification/NotificationPage'))
 const NoticePage         = lazy(() => import('@/pages/notice/NoticePage'))
 const NoticeDetailPage   = lazy(() => import('@/pages/notice/NoticeDetailPage'))
+const SupportPage        = lazy(() => import('@/pages/support/SupportPage'))
 
 // 거래 대행
 const EscrowHubPage         = lazy(() => import('@/pages/escrow/EscrowHubPage'))
@@ -90,6 +91,7 @@ export const router = createBrowserRouter([
       { path: '/items/:id',        element: <ItemDetailPage /> },
       { path: '/notices',          element: <NoticePage /> },
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
+      { path: '/support',          element: <SupportPage /> },
 
       // 거래대행 — 링크 공유 대상자도 접근 가능
       { path: '/escrow/join/:linkId',      element: <EscrowInvitePage /> },
