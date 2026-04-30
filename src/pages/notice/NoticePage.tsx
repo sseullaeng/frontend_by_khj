@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Megaphone, Tag, ChevronRight } from 'lucide-react'
+import { Megaphone, Tag, ChevronRight } from 'lucide-react'
 
 interface NoticeItem {
   id: number
