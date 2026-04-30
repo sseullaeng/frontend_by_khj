@@ -34,7 +34,7 @@ export default function Header() {
               <span className="text-sm font-medium">물품등록</span>
             </Link>
             <Link
-              to="/delivery"
+              to="/escrow"
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <Truck size={18} />

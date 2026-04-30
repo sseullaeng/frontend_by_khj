@@ -41,8 +41,17 @@ const UserProfilePage    = lazy(() => import('@/pages/mypage/UserProfilePage'))
 const BlockListPage      = lazy(() => import('@/pages/mypage/BlockListPage'))
 
 const NotificationPage   = lazy(() => import('@/pages/notification/NotificationPage'))
-const NoticePage          = lazy(() => import('@/pages/notice/NoticePage'))
-const NoticeDetailPage     = lazy(() => import('@/pages/notice/NoticeDetailPage'))
+const NoticePage         = lazy(() => import('@/pages/notice/NoticePage'))
+const NoticeDetailPage   = lazy(() => import('@/pages/notice/NoticeDetailPage'))
+
+// 거래 대행
+const EscrowHubPage         = lazy(() => import('@/pages/escrow/EscrowHubPage'))
+const EscrowListPage        = lazy(() => import('@/pages/escrow/EscrowListPage'))
+const EscrowDetailPage      = lazy(() => import('@/pages/escrow/EscrowDetailPage'))
+const EscrowStartPage       = lazy(() => import('@/pages/escrow/EscrowStartPage'))
+const EscrowLinkPage        = lazy(() => import('@/pages/escrow/EscrowLinkPage'))
+const EscrowInvitePage      = lazy(() => import('@/pages/escrow/EscrowInvitePage'))
+const EscrowApplicationPage = lazy(() => import('@/pages/escrow/EscrowApplicationPage'))
 
 // 관리자
 const AdminLoginPage     = lazy(() => import('@/pages/admin/AdminLoginPage'))
@@ -81,6 +90,10 @@ export const router = createBrowserRouter([
       { path: '/items/:id',        element: <ItemDetailPage /> },
       { path: '/notices',          element: <NoticePage /> },
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
+
+      // 거래대행 — 링크 공유 대상자도 접근 가능
+      { path: '/escrow/join/:linkId',      element: <EscrowInvitePage /> },
+      { path: '/escrow/join/:linkId/form', element: <EscrowApplicationPage /> },
     ],
   },
 
@@ -113,6 +126,13 @@ export const router = createBrowserRouter([
           { path: '/mypage/blocks',         element: <BlockListPage /> },
 
           { path: '/notifications',         element: <NotificationPage /> },
+
+          // 거래대행 — 로그인 필수
+          { path: '/escrow',               element: <EscrowHubPage /> },
+          { path: '/escrow/list',          element: <EscrowListPage /> },
+          { path: '/escrow/list/:id',      element: <EscrowDetailPage /> },
+          { path: '/escrow/apply',         element: <EscrowStartPage /> },
+          { path: '/escrow/apply/link',    element: <EscrowLinkPage /> },
         ],
       },
     ],
