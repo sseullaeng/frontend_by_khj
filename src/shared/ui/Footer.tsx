@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Footer() {
   return (
@@ -25,7 +26,12 @@ export default function Footer() {
             </div>
           </div>
           <div>
-            <h4 className="font-medium mb-2 text-sm">고객센터</h4>
+            <Link 
+              to="/support" 
+              className="font-medium mb-2 text-sm hover:text-primary-600 transition-colors inline-block"
+            >
+              고객센터
+            </Link>
             <div className="text-xs text-gray-600 space-y-1">
               <p>전화: 1234-5678</p>
               <p>이메일: help@sseulang.com</p>
