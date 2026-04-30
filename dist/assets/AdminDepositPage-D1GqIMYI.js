@@ -1,0 +1,1 @@
+import{j as s}from"./index-KXcRUmIP.js";function t(){return s.jsxs("div",{className:"p-4",children:[s.jsx("h1",{className:"text-xl font-bold mb-4",children:"보증금 반환"}),s.jsx("p",{className:"text-gray-400 text-sm",children:"구현 예정"})]})}export{t as default};

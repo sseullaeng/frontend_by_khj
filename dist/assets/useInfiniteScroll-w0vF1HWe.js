@@ -1,0 +1,1 @@
+import{r as u}from"./index-KXcRUmIP.js";function o({onIntersect:r,enabled:n=!0,threshold:t=.1}){const e=u.useRef(null);return u.useEffect(()=>{if(!n||!e.current)return;const s=new IntersectionObserver(c=>{c[0].isIntersecting&&r()},{threshold:t});return s.observe(e.current),()=>s.disconnect()},[n,r,t]),e}export{o as u};
