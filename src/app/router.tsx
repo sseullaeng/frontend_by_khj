@@ -66,8 +66,19 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── 소셜 로그인 콜백 (인증 미들웨어 불필요)
+  // ── 소셜 로그인 콜백
   { path: '/auth/callback', element: <SocialCallbackPage /> },
+
+  // ── 비로그인 접근 가능 라우트
+  {
+    element: <RootLayout />,
+    children: [
+      { path: '/',                 element: <HomePage /> },
+      { path: '/categories/:slug', element: <CategoryPage /> },
+      { path: '/items',            element: <ItemListPage /> },
+      { path: '/items/:id',        element: <ItemDetailPage /> },
+    ],
+  },
 
   // ── 일반 사용자 라우트 (로그인 필수)
   {
@@ -76,33 +87,28 @@ export const router = createBrowserRouter([
       {
         element: <RootLayout />,
         children: [
-          { path: '/',                          element: <HomePage /> },
-          { path: '/categories/:slug',          element: <CategoryPage /> },
+          { path: '/items/new',             element: <ItemCreatePage /> },
+          { path: '/items/:id/edit',        element: <ItemEditPage /> },
 
-          { path: '/items',                     element: <ItemListPage /> },
-          { path: '/items/:id',                 element: <ItemDetailPage /> },
-          { path: '/items/new',                 element: <ItemCreatePage /> },
-          { path: '/items/:id/edit',            element: <ItemEditPage /> },
+          { path: '/chats',                 element: <ChatListPage /> },
+          { path: '/chats/:roomId',         element: <ChatRoomPage /> },
 
-          { path: '/chats',                     element: <ChatListPage /> },
-          { path: '/chats/:roomId',             element: <ChatRoomPage /> },
+          { path: '/transactions/:id',      element: <TransactionPage /> },
 
-          { path: '/transactions/:id',          element: <TransactionPage /> },
+          { path: '/point',                 element: <PointPage /> },
+          { path: '/point/charge',          element: <ChargePage /> },
+          { path: '/point/charge/callback', element: <ChargeCallbackPage /> },
+          { path: '/point/withdraw',        element: <WithdrawPage /> },
 
-          { path: '/point',                     element: <PointPage /> },
-          { path: '/point/charge',              element: <ChargePage /> },
-          { path: '/point/charge/callback',     element: <ChargeCallbackPage /> },
-          { path: '/point/withdraw',            element: <WithdrawPage /> },
+          { path: '/delivery',              element: <DeliveryPage /> },
+          { path: '/delivery/:id/track',    element: <DeliveryTrackPage /> },
 
-          { path: '/delivery',                  element: <DeliveryPage /> },
-          { path: '/delivery/:id/track',        element: <DeliveryTrackPage /> },
+          { path: '/mypage',                element: <MyPage /> },
+          { path: '/mypage/edit',           element: <ProfileEditPage /> },
+          { path: '/users/:id',             element: <UserProfilePage /> },
+          { path: '/mypage/blocks',         element: <BlockListPage /> },
 
-          { path: '/mypage',                    element: <MyPage /> },
-          { path: '/mypage/edit',               element: <ProfileEditPage /> },
-          { path: '/users/:id',                 element: <UserProfilePage /> },
-          { path: '/mypage/blocks',             element: <BlockListPage /> },
-
-          { path: '/notifications',             element: <NotificationPage /> },
+          { path: '/notifications',         element: <NotificationPage /> },
         ],
       },
     ],
@@ -113,19 +119,21 @@ export const router = createBrowserRouter([
   {
     element: <AdminRoute />,
     children: [
-      { path: '/admin',            element: <Navigate to="/admin/dashboard" replace /> },
-      { path: '/admin/dashboard',  element: <AdminDashboard /> },
-      { path: '/admin/users',      element: <AdminUserPage /> },
-      { path: '/admin/items',      element: <AdminItemPage /> },
-      { path: '/admin/reports',    element: <AdminReportPage /> },
-      { path: '/admin/withdraws',  element: <AdminWithdrawPage /> },
-      { path: '/admin/delivery',   element: <AdminDeliveryPage /> },
-      { path: '/admin/notices',    element: <AdminNoticePage /> },
-      { path: '/admin/banners',    element: <AdminBannerPage /> },
-      { path: '/admin/deposits',   element: <AdminDepositPage /> },
+      { path: '/admin',           element: <Navigate to="/admin/dashboard" replace /> },
+      { path: '/admin/dashboard', element: <AdminDashboard /> },
+      { path: '/admin/users',     element: <AdminUserPage /> },
+      { path: '/admin/items',     element: <AdminItemPage /> },
+      { path: '/admin/reports',   element: <AdminReportPage /> },
+      { path: '/admin/withdraws', element: <AdminWithdrawPage /> },
+      { path: '/admin/delivery',  element: <AdminDeliveryPage /> },
+      { path: '/admin/notices',   element: <AdminNoticePage /> },
+      { path: '/admin/banners',   element: <AdminBannerPage /> },
+      { path: '/admin/deposits',  element: <AdminDepositPage /> },
     ],
   },
 
   // ── 404
   { path: '*', element: <NotFoundPage /> },
-])
+], {
+  basename: import.meta.env.BASE_URL,
+})

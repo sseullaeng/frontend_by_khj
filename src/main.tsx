@@ -6,7 +6,7 @@ import '@/styles/globals.css'
 async function enableMocking() {
   if (import.meta.env.VITE_MSW_ENABLED !== 'true') return
   const { worker } = await import('@/mocks/browser')
-  return worker.start({ onUnhandledRequest: 'warn' })
+  return worker.start({ onUnhandledRequest: 'warn' }).catch(console.warn)
 }
 
 enableMocking().then(() => {
@@ -15,4 +15,4 @@ enableMocking().then(() => {
       <App />
     </React.StrictMode>
   )
-})
+}).catch(console.error)

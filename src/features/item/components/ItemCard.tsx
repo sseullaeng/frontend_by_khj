@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, MapPin } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Item } from '../types'
 import { cn } from '@/shared/lib/cn'
+import { useToggleWish } from '../hooks'
 
 interface ItemCardProps {
   item: Item
@@ -24,8 +26,8 @@ const statusColors = {
 } as const
 
 export default function ItemCard({ item, className }: ItemCardProps) {
-  const isFree = item.price === 0
-  const formattedPrice = isFree ? '무료' : `${item.price.toLocaleString()}원`
+  const [wished, setWished] = useState(item.isWished)
+  const { mutate: toggleWish } = useToggleWish(item.id)
   
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
@@ -55,15 +57,14 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           <button
             onClick={(e) => {
               e.preventDefault()
-              // TODO: 찜하기 API 호출
+              setWished((prev) => !prev)
+              toggleWish()
             }}
             className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
           >
             <Heart
               size={16}
-              className={cn(
-                item.isWished ? 'fill-red-500 text-red-500' : 'text-gray-600'
-              )}
+              className={cn(wished ? 'fill-red-500 text-red-500' : 'text-gray-600')}
             />
           </button>
 

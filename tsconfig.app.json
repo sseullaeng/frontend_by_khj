@@ -20,6 +20,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
+    /* Vite 환경변수 타입 */
+    "types": ["vite/client"],
+
     /* Path alias */
     "baseUrl": ".",
     "paths": {

@@ -7,7 +7,6 @@
  * 3. 결제 완료 → ChargeCallbackPage로 redirect
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { paymentApi } from '@/features/payment/api'
 import { Button } from '@/shared/ui/Button'
 import { toast } from 'sonner'
@@ -17,12 +16,11 @@ const AMOUNTS = [1_000, 5_000, 10_000, 30_000, 50_000, 100_000]
 export default function ChargePage() {
   const [amount, setAmount] = useState(10_000)
   const [isLoading, setIsLoading] = useState(false)
-  const navigate = useNavigate()
 
   const handleCharge = async () => {
     setIsLoading(true)
     try {
-      const { data } = await paymentApi.initCharge(amount)
+      await paymentApi.initCharge(amount)
       // TODO: 토스 위젯 SDK 초기화 + 결제 요청
       // const paymentWidget = await loadPaymentWidget(import.meta.env.VITE_TOSS_CLIENT_KEY, data.customerKey)
       // await paymentWidget.requestPayment({ ... })
