@@ -1,0 +1,1 @@
+import{l as t}from"./index-g7g3bGld.js";const p={initCharge:a=>t.post("/api/v1/payments/charge",{amount:a}),confirmCharge:a=>t.post("/api/v1/payments/charge/confirm",a),getBalance:()=>t.get("/api/v1/point/balance"),getHistory:a=>t.get("/api/v1/point/history",{params:a}),withdraw:a=>t.post("/api/v1/point/withdraw",a)};export{p};

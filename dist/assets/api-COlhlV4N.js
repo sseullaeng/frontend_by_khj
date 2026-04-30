@@ -1,1 +1,0 @@
-import{l as t}from"./index-Dvi0ytJi.js";const e={getRooms:()=>t.get("/api/v1/chat-rooms"),getRoom:o=>t.get(`/api/v1/chat-rooms/${o}`),getMessages:(o,a)=>t.get(`/api/v1/chat-rooms/${o}/messages`,{params:a}),createRoom:o=>t.post("/api/v1/chat-rooms",{itemId:o})};export{e as c};

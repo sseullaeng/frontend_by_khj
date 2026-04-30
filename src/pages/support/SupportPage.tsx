@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Headphones, MessageCircle, HelpCircle, Search, ChevronDown, ChevronUp, Phone, Mail, Clock } from 'lucide-react'
+import { Headphones, MessageCircle, HelpCircle, Search, ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react'
 
 const faqCategories = [
   {

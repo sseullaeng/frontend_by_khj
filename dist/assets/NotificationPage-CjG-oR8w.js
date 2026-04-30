@@ -1,1 +1,0 @@
-import{j as t}from"./index-Dvi0ytJi.js";function e(){return t.jsxs("div",{className:"p-4",children:[t.jsx("h1",{className:"text-xl font-bold mb-4",children:"알림"}),t.jsx("p",{className:"text-gray-400 text-sm",children:"구현 예정"})]})}export{e as default};
