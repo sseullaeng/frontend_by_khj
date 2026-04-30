@@ -1,1 +1,0 @@
-import{l as a}from"./index-g7g3bGld.js";const i={login:t=>a.post("/api/v1/auth/login",t),signup:t=>a.post("/api/v1/auth/signup",t),logout:()=>a.post("/api/v1/auth/logout"),refresh:()=>a.post("/api/v1/auth/refresh"),me:()=>a.get("/api/v1/auth/me"),socialCallback:(t,p)=>a.get(`/api/v1/auth/oauth/${p}/callback`,{params:{code:t}})};export{i as a};
