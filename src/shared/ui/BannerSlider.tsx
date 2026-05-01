@@ -54,7 +54,7 @@ export default function BannerSlider({
 
   if (banners.length === 0) {
     return (
-      <div className={cn("h-40 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400", className)}>
+      <div className={cn("h-52 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400", className)}>
         배너가 없습니다
       </div>
     )
@@ -63,7 +63,7 @@ export default function BannerSlider({
   const currentBanner = banners[currentIndex]
 
   return (
-    <div className={cn("relative h-40 rounded-2xl overflow-hidden", className)}>
+    <div className={cn("relative h-52 rounded-2xl overflow-hidden", className)}>
       {/* 배너 컨텐츠 */}
       <div
         className="absolute inset-0 flex items-center justify-center text-white"

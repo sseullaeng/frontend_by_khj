@@ -176,6 +176,20 @@ export default function HomePage() {
 
       {/* 상품 그리드 */}
       <section>
+        {/* HOT ITEM 헤더 */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="relative flex items-center gap-2">
+            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
+              HOT ITEM
+            </span>
+            {/* 반짝이 별들 */}
+            <span className="absolute -top-2 -left-2 text-yellow-400 text-sm animate-bounce" style={{ animationDelay: '0ms' }}>✦</span>
+            <span className="absolute -top-1 -right-3 text-pink-400 text-xs animate-bounce" style={{ animationDelay: '200ms' }}>✦</span>
+            <span className="absolute -bottom-2 left-1/2 text-orange-400 text-xs animate-bounce" style={{ animationDelay: '400ms' }}>✦</span>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-orange-300 via-pink-300 to-transparent" />
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {displayItems.map((item) => (
             <ItemCard key={item.id} item={item} />

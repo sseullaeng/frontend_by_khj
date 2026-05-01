@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
-import { MessageCircle, User, Search, Package, Truck, Megaphone } from 'lucide-react'
+import { MessageCircle, Bell, User, Search, Package, Truck, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
-import NotificationDropdown from '@/features/notification/components/NotificationDropdown'
-import { useState } from 'react'
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
 export default function Header() {
-  const user = useAuthStore((s) => s.user)
-  const [showNotif, setShowNotif] = useState(false)
+  const user      = useAuthStore((s) => s.user)
+  const { toggle, activeTab } = useDrawerStore()
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -16,58 +15,57 @@ export default function Header() {
           <Link to="/" className="text-2xl font-bold text-primary-600">
             쓸랭
           </Link>
-          
+
           {/* 중앙 네비게이션 메뉴 */}
           <nav className="flex items-center gap-4 md:gap-8">
-            <Link
-              to="/items"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
-            >
+            <Link to="/items" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
               <Search size={18} />
               <span className="text-sm font-medium hidden md:block">물품찾기</span>
             </Link>
-            <Link
-              to="/items/new"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
-            >
+            <Link to="/items/new" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
               <Package size={18} />
               <span className="text-sm font-medium hidden md:block">물품등록</span>
             </Link>
-            <Link
-              to="/escrow"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
-            >
+            <Link to="/escrow" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
               <Truck size={18} />
               <span className="text-sm font-medium hidden md:block">거래대행</span>
             </Link>
-            <Link
-              to="/notices"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
-            >
+            <Link to="/notices" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
               <Megaphone size={18} />
               <span className="text-sm font-medium hidden md:block">새소식/이벤트</span>
             </Link>
           </nav>
 
           {/* 우측 메뉴 */}
-          <div className="flex items-center gap-4">
-            {/* 채팅과 알림 합치기 */}
+          <div className="flex items-center gap-3">
             {user && (
-              <div className="relative">
+              <>
+                {/* 채팅 */}
                 <button
-                  onClick={() => setShowNotif((v) => !v)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+                  onClick={() => toggle('chat')}
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    activeTab === 'chat'
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                  }`}
                 >
-                  <div className="relative">
-                    <MessageCircle size={20} />
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                  </div>
-                  <span className="text-sm">채팅/알림</span>
+                  <MessageCircle size={20} />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </button>
-                {showNotif && (
-                  <NotificationDropdown onClose={() => setShowNotif(false)} />
-                )}
-              </div>
+
+                {/* 알림 */}
+                <button
+                  onClick={() => toggle('notification')}
+                  className={`relative p-2 rounded-lg transition-colors ${
+                    activeTab === 'notification'
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Bell size={20} />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                </button>
+              </>
             )}
 
             <Link
@@ -75,7 +73,7 @@ export default function Header() {
               className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
             >
               <User size={20} />
-              <span className="text-sm">{user ? user.nickname : '마이페이지'}</span>
+              <span className="text-sm hidden sm:block">{user ? user.nickname : '마이페이지'}</span>
             </Link>
 
             {!user && (

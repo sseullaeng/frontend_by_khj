@@ -1,0 +1,1 @@
+import{j as e}from"./index-NqnOiuzQ.js";function t(){return e.jsxs("div",{className:"p-4",children:[e.jsx("h1",{className:"text-xl font-bold mb-4",children:"신고 처리"}),e.jsx("p",{className:"text-gray-400 text-sm",children:"구현 예정"})]})}export{t as default};
