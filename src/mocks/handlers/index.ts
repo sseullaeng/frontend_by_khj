@@ -2,6 +2,7 @@ import { authHandlers }         from './auth.handlers'
 import { itemHandlers }         from './item.handlers'
 import { chatHandlers }         from './chat.handlers'
 import { notificationHandlers } from './notification.handlers'
+import { tradeHandlers }        from './trade.handlers'
 
 /**
  * 전체 MSW 핸들러 통합
@@ -14,4 +15,5 @@ export const handlers = [
   ...itemHandlers,
   ...chatHandlers,
   ...notificationHandlers,
+  ...tradeHandlers,
 ]

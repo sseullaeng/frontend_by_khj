@@ -1,31 +1,50 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Camera, ChevronLeft } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useAuthStore } from '@/features/auth/store'
-import { useUpdateProfile } from '@/features/auth/hooks'
-import { Button } from '@/shared/ui/Button'
-import { Input } from '@/shared/ui/Input'
+// 프로필 수정 페이지 컴포넌트: 사용자 프로필 정보 수정 기능 제공
+import { useRef, useState } from 'react'  // React 훅들
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import { Camera, ChevronLeft } from 'lucide-react'  // Lucide 아이콘들
+import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
+import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
+import { z } from 'zod'  // Zod 스키마 라이브러리
+import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
+import { useUpdateProfile } from '@/features/auth/hooks'  // 프로필 업데이트 훅
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
+import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
 
+// 프로필 수정 폼 스키마: 닉네임 유효성 검증
 const schema = z.object({
   nickname: z.string().min(2, '닉네임은 2자 이상이에요.').max(20, '닉네임은 20자 이하예요.'),
 })
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof schema>  // 폼 데이터 타입
 
+/**
+ * 프로필 수정 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 닉네임 수정
+ * - 프로필 이미지 업로드 및 미리보기
+ * - 폼 유효성 검증 (Zod 스키마)
+ * - 프로필 정보 API 업데이트
+ * - 수정 완료 후 마이페이지로 이동
+ * 
+ * UI 구조:
+ * - 상단: 페이지 제목 및 뒤로가기 버튼
+ * - 중단: 프로필 이미지 업로드 및 닉네임 입력
+ * - 하단: 저장 버튼
+ */
 export default function ProfileEditPage() {
-  const navigate = useNavigate()
-  const user = useAuthStore((s) => s.user)
-  const { mutate: updateProfile, isPending } = useUpdateProfile()
+  const navigate = useNavigate()  // 페이지 네비게이션 함수
+  const user = useAuthStore((s) => s.user)  // 현재 사용자 정보
+  const { mutate: updateProfile, isPending } = useUpdateProfile()  // 프로필 업데이트 훅
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(user?.profileImageUrl ?? null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // 이미지 상태 관리
+  const [previewUrl, setPreviewUrl] = useState<string | null>(user?.profileImageUrl ?? null)  // 이미지 미리보기 URL
+  const [imageFile, setImageFile] = useState<File | null>(null)  // 업로드된 이미지 파일
+  const fileInputRef = useRef<HTMLInputElement>(null)  // 파일 입력 참조
 
+  // 폼 상태 관리
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { nickname: user?.nickname ?? '' },
+    resolver: zodResolver(schema),  // Zod 스키마 리졸버 설정
+    defaultValues: { nickname: user?.nickname ?? '' },  // 기본값 설정
   })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

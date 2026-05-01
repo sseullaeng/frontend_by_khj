@@ -154,6 +154,7 @@ export default function ReviewWritePage() {
         <p className="text-xs text-gray-400 text-right mt-1">{content.length}자</p>
       </div>
 
+      {/* 제출 버튼 */}
       <Button
         fullWidth
         disabled={rating === 0}

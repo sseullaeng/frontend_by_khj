@@ -1,7 +1,12 @@
 import { z } from 'zod'
 
+// 거래대행 역할: 구매자, 판매자
 export type EscrowRole = 'buyer' | 'seller'
+
+// 거래대행 상태: 대기중, 확인됨, 진행중, 완료, 취소됨
 export type EscrowStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+
+// 수수료료 부담자: 구매자, 판매자, 둘다
 export type FeePayer = 'buyer' | 'seller' | 'both'
 
 export interface EscrowApplication {

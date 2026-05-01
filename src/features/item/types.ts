@@ -1,4 +1,5 @@
-import { z } from 'zod'
+// 물품 관련 타입: 물품 정보 및 필터링 데이터 타입 정의
+import { z } from 'zod'  // Zod 스키마 라이브러리
 
 // 물품 거래 유형: 중고거래, 대여, 나눔
 export type ItemType     = 'SELL' | 'RENT' | 'SHARE'
@@ -6,7 +7,14 @@ export type ItemType     = 'SELL' | 'RENT' | 'SHARE'
 // 물품 상태: 활성, 예약됨, 판매완료, 숨김
 export type ItemStatus   = 'ACTIVE' | 'RESERVED' | 'SOLD' | 'HIDDEN'
 
-// 물품 기본 정보 인터페이스
+// 거래 상태: 진행중, 거래완료, 거래취소
+export type TradeStatus  = 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+
+/**
+ * 물품 기본 정보 인터페이스
+ * 
+ * 물품의 모든 정보를 포함하는 기본 데이터 구조
+ */
 export interface Item {
   id: number                    // 물품 고유 ID
   title: string                 // 물품 제목
@@ -57,8 +65,28 @@ export const itemCreateSchema = z.object({
   locationLng:  z.number({ invalid_type_error: '위치 정보가 필요합니다.' }),
   hashtags:    z.array(z.string()).max(5, '해시태그는 5개까지 가능해요.'),
   imageFiles:  z.array(z.instanceof(File)).max(10, '사진은 최대 10장까지 가능해요.'),
-  isEscrow:    z.boolean().default(false),
+  isEscrow:    z.boolean(),
 })
+
+// 거래 상대방 정보 인터페이스
+export interface Counterpart {
+  id: number                    // 상대방 ID
+  nickname: string              // 상대방 닉네임
+  profileImageUrl: string | null  // 상대방 프로필 이미지
+  trustScore?: number           // 신뢰 지수
+}
+
+// 거래 내역 인터페이스
+export interface Trade {
+  id: number                    // 거래 고유 ID
+  status: TradeStatus           // 거래 상태
+  isBuyer: boolean             // 현재 사용자가 구매자인지 여부 (true: 구매, false: 판매)
+  item: Item                   // 거래된 물품 정보
+  counterpart: Counterpart     // 거래 상대방 정보
+  location?: string            // 거래 장소
+  createdAt: string            // 거래 생성일시
+  completedAt?: string         // 거래 완료일시
+}
 
 export type ItemCreateRequest = z.infer<typeof itemCreateSchema> & { imageKeys: string[] }
 export type ItemUpdateRequest = Partial<ItemCreateRequest>

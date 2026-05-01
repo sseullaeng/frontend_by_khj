@@ -1,32 +1,37 @@
-import { useState, useCallback, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Upload, X, MapPin, Info, AlertTriangle, Truck, ShieldAlert } from 'lucide-react'
-import { Button } from '@/shared/ui/Button'
-import { getAdminConfig } from '@/features/escrow/adminConfig'
+// 에스크로 신청 페이지 컴포넌트: 거래대행 서비스 신청 및 배달비 계산
+import { useState, useCallback, useMemo } from 'react'  // React 훅들
+import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
+import { Upload, X, MapPin, Info, AlertTriangle, Truck, ShieldAlert } from 'lucide-react'  // Lucide 아이콘들
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
+import { getAdminConfig } from '@/features/escrow/adminConfig'  // 에스크로 관리자 설정
 
+// 관리자 설정값 가져오기: 배달비 계산 기준
 const ADMIN_CONFIG = getAdminConfig()
 
+// 무게 옵션: 물품 무게별 배달비 배수 및 차량 타입
 const WEIGHT_OPTIONS = [
-  { value: 'lt1',   label: '1kg 미만',  multiplier: 1.0, isVan: false },
-  { value: '1to3',  label: '1~3kg',     multiplier: 1.2, isVan: false },
-  { value: '3to5',  label: '3~5kg',     multiplier: 1.5, isVan: false },
-  { value: '5to10', label: '5~10kg',    multiplier: 2.0, isVan: true  },
-  { value: 'gt10',  label: '10kg 이상', multiplier: 2.5, isVan: true  },
+  { value: 'lt1',   label: '1kg 미만',  multiplier: 1.0, isVan: false },  // 1kg 미만: 기본 요금, 오토바이
+  { value: '1to3',  label: '1~3kg',     multiplier: 1.2, isVan: false },  // 1~3kg: 1.2배, 오토바이
+  { value: '3to5',  label: '3~5kg',     multiplier: 1.5, isVan: false },  // 3~5kg: 1.5배, 오토바이
+  { value: '5to10', label: '5~10kg',    multiplier: 2.0, isVan: true  },  // 5~10kg: 2배, 용달차
+  { value: 'gt10',  label: '10kg 이상', multiplier: 2.5, isVan: true  },  // 10kg 이상: 2.5배, 용달차
 ] as const
 
+// 부피 옵션: 물품 크기별 배달비 배수 및 차량 타입
 const VOLUME_OPTIONS = [
-  { value: 's', label: '소형', sub: '30cm 미만', multiplier: 1.0, isVan: false },
-  { value: 'm', label: '중형', sub: '50cm 미만', multiplier: 1.2, isVan: false },
-  { value: 'l', label: '대형', sub: '50cm 이상', multiplier: 1.5, isVan: true  },
+  { value: 's', label: '소형', sub: '30cm 미만', multiplier: 1.0, isVan: false },  // 소형: 기본 요금, 오토바이
+  { value: 'm', label: '중형', sub: '50cm 미만', multiplier: 1.2, isVan: false },  // 중형: 1.2배, 오토바이
+  { value: 'l', label: '대형', sub: '50cm 이상', multiplier: 1.5, isVan: true  },  // 대형: 1.5배, 용달차
 ] as const
 
+// 파손 위험 옵션: 물품 취급 난이도별 배달비 배수 및 색상
 const FRAGILITY_OPTIONS = [
   {
     value: 'f1',
     label: '안전',
     examples: '의류·책·플라스틱',
     multiplier: 1.0,
-    color: { active: 'bg-green-500 border-green-500', icon: 'text-green-400' },
+    color: { active: 'bg-green-500 border-green-500', icon: 'text-green-400' },  // 안전 물품: 기본 요금, 녹색
   },
   {
     value: 'f2',
@@ -273,13 +278,11 @@ export default function EscrowApplicationPage() {
         <p className="text-sm text-gray-500">항목을 모두 입력해야 신청이 가능합니다.</p>
       </div>
 
-      {/* ── 반응형 2열 레이아웃 (lg+) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
 
-        {/* ══ 왼쪽 열 ══ */}
         <div className="flex flex-col gap-6">
 
-          {/* ① 물품 이미지 */}
+          {/* 물품 이미지 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <p className="text-sm font-semibold text-gray-900 mb-3">
               물품 이미지 <span className="text-red-500">*</span>
@@ -307,7 +310,7 @@ export default function EscrowApplicationPage() {
             </div>
           </section>
 
-          {/* ② 물품 정보 */}
+          {/* 물품 정보 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
             <p className="text-sm font-semibold text-gray-900">물품 정보</p>
             <div>
@@ -337,7 +340,6 @@ export default function EscrowApplicationPage() {
             </div>
           </section>
 
-          {/* ③④ 주소 — md 이상에서 나란히 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
               <AddressSearch
@@ -359,7 +361,6 @@ export default function EscrowApplicationPage() {
             </div>
           </div>
 
-          {/* ⑦ 배달원 요청사항 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <label className="text-sm font-semibold text-gray-900 mb-2 block">배달원에게 요청사항</label>
             <textarea
@@ -372,10 +373,8 @@ export default function EscrowApplicationPage() {
           </section>
         </div>
 
-        {/* ══ 오른쪽 열 ══ */}
         <div className="flex flex-col gap-6">
 
-          {/* ⑤ 수수료 & 배달료 계산기 */}
           <section className="bg-gray-50 rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-900">수수료 & 배달료 계산기</p>
@@ -385,7 +384,6 @@ export default function EscrowApplicationPage() {
               </div>
             </div>
 
-            {/* 관리자 설정값 */}
             <div className="bg-white rounded-lg p-3 border border-gray-200 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-gray-600">
               <div className="flex justify-between col-span-2 sm:col-span-1">
                 <span>대행 수수료율</span>

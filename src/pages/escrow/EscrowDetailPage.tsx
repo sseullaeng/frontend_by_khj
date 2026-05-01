@@ -1,33 +1,36 @@
-import { useParams, Link } from 'react-router-dom'
-import { useState } from 'react'
-import { ArrowLeft, Receipt, MapPin, Clock, Package } from 'lucide-react'
-import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'
+// 에스크로 상세 페이지 컴포넌트: 에스크로 신청 상세 정보 표시 및 관리
+import { useParams, Link } from 'react-router-dom'  // React Router 훅 및 컴포넌트
+import { useState } from 'react'  // React 상태 훅
+import { ArrowLeft, Receipt, MapPin, Clock, Package } from 'lucide-react'  // Lucide 아이콘들
+import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'  // 에스크로 관련 타입
 
+// 모의 에스크로 신청 데이터: 개발용 샘플 데이터
 const mockApplication: EscrowApplication = {
-  id: 'ESC-001',
-  role: 'buyer',
-  feePayer: 'buyer',
+  id: 'ESC-001',  // 에스크로 신청 ID
+  role: 'buyer',  // 사용자 역할 (구매자)
+  feePayer: 'buyer',  // 수수료 부담자 (구매자)
   itemInfo: {
-    id: 1,
-    title: '맥북 프로 14인치 2023',
-    imageUrl: 'https://placehold.co/400x400/e2e8f0/94a3b8?text=Item',
-    price: 1_800_000,
+    id: 1,  // 물품 ID
+    title: '맥북 프로 14인치 2023',  // 물품 제목
+    imageUrl: 'https://placehold.co/400x400/e2e8f0/94a3b8?text=Item',  // 물품 이미지
+    price: 1_800_000,  // 물품 가격
   },
   deliveryInfo: {
-    address: '서울 강남구 테헤란로 123',
-    lat: 37.5665,
-    lng: 126.9780,
+    address: '서울 강남구 테헤란로 123',  // 배달 주소
+    lat: 37.5665,  // 위도
+    lng: 126.9780,  // 경도
   },
-  status: 'in_progress',
-  linkId: 'LINK-001',
-  createdAt: '2026-04-28T10:00:00Z',
-  updatedAt: '2026-04-28T10:00:00Z',
+  status: 'in_progress',  // 진행 상태
+  linkId: 'LINK-001',  // 연결 ID
+  createdAt: '2026-04-28T10:00:00Z',  // 생성 시간
+  updatedAt: '2026-04-28T10:00:00Z',  // 업데이트 시간
 }
 
+// 에스크로 상태 라벨 맵핑: 상태별 한글 라벨
 const STATUS_LABEL: Record<EscrowStatus, string> = {
-  pending:     '신청 중',
-  confirmed:   '확인 완료',
-  in_progress: '대행 진행 중',
+  pending:     '신청 중',      // 신청 대기 상태
+  confirmed:   '확인 완료',    // 확인 완료 상태
+  in_progress: '대행 진행 중',  // 대행 진행 상태
   completed:   '완료',
   cancelled:   '취소',
 }

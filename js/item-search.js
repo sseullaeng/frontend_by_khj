@@ -1,24 +1,28 @@
+// 물품 검색 앱 클래스: 순수 JavaScript로 구현된 물품 검색 및 필터링 기능
 class ItemSearchApp {
     constructor() {
-        this.items = [];
-        this.filteredItems = [];
-        this.currentPage = 1;
-        this.itemsPerPage = 12;
-        this.searchQuery = '';
-        this.selectedCategory = 'all';
-        this.selectedType = 'all';
-        this.sortBy = 'recent';
+        // 애플리케이션 상태 초기화
+        this.items = [];              // 전체 물품 데이터
+        this.filteredItems = [];       // 필터링된 물품 데이터
+        this.currentPage = 1;          // 현재 페이지 번호
+        this.itemsPerPage = 12;        // 페이지당 물품 수
+        this.searchQuery = '';         // 검색어
+        this.selectedCategory = 'all'; // 선택된 카테고리
+        this.selectedType = 'all';     // 선택된 거래 유형
+        this.sortBy = 'recent';        // 정렬 기준
 
-        this.init();
+        this.init();  // 애플리케이션 초기화
     }
 
+    // 애플리케이션 초기화 메서드
     init() {
-        this.items = this.getMockItems();
-        this.filteredItems = [...this.items];
-        this.bindEvents();
-        this.render();
+        this.items = this.getMockItems();        // 모의 데이터 로드
+        this.filteredItems = [...this.items];    // 필터링된 데이터 초기화
+        this.bindEvents();                       // 이벤트 리스너 바인딩
+        this.render();                          // 초기 렌더링
     }
 
+    // 모의 물품 데이터 생성 메서드
     getMockItems() {
         return [
             {

@@ -1,4 +1,4 @@
-/* Item Search Page Styles */
+/* 물품 검색 페이지 스타일 */
 * {
     margin: 0;
     padding: 0;
@@ -12,7 +12,7 @@ body {
     line-height: 1.6;
 }
 
-/* Navigation */
+/* 네비게이션 */
 .navbar {
     background: #ffffff;
     border-bottom: 1px solid #e1e8ed;

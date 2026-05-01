@@ -1,117 +1,153 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ShoppingBag, ChevronLeft, Trash2, User, Shield, Handshake } from 'lucide-react'
-import { useMyItems, useDeleteItem } from '@/features/item/hooks'
-import { fromNow } from '@/shared/lib/date'
-import { cn } from '@/shared/lib/cn'
-import type { Item, ItemStatus } from '@/features/item/types'
+// 내 거래 목록 페이지 컴포넌트: 사용자의 거래 내역 목록 관리
+import { useState } from 'react'  // React 상태 훅
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import { ShoppingBag, ChevronLeft, User, Shield, Handshake } from 'lucide-react'  // Lucide 아이콘들
+import { useMyTrades } from '@/features/trade/hooks'  // 거래 관련 훅
+import { fromNow } from '@/shared/lib/date'  // 날짜 포맷팅 유틸리티
+import { cn } from '@/shared/lib/cn'  // Tailwind CSS 클래스 유틸리티
+import type { Trade, TradeStatus } from '@/features/item/types'  // 거래 관련 타입
 
-const STATUS_CONFIG: Record<ItemStatus, { label: string; color: string }> = {
-  ACTIVE:   { label: '판매중',   color: 'text-green-600 bg-green-100' },
-  RESERVED: { label: '예약중',   color: 'text-yellow-600 bg-yellow-100' },
-  SOLD:     { label: '판매완료', color: 'text-gray-500 bg-gray-100' },
-  HIDDEN:   { label: '숨김',     color: 'text-red-600 bg-red-100' },
+// 탭 필터 타입 정의
+type TabFilter = 'ALL' | 'RENT_PROVIDE' | 'RENT_STATUS' | 'USED_BUY' | 'USED_SELL'  // 전체/대여제공/대여현황/중고구매/중고판매
+
+// 탭 필터 설정: 각 탭의 라벨 및 필터링 조건 정의
+const TAB_FILTERS: Record<TabFilter, { label: string; icon?: React.ComponentType<any> }> = {
+  ALL: { label: '전체보기' },           // 전체 거래 보기
+  RENT_PROVIDE: { label: '대여제공' },   // 내가 제공하는 대여 (내가 판매자인 대여)
+  RENT_STATUS: { label: '대여현황' },   // 내가 대여중인 현황 (내가 구매자인 대여)
+  USED_BUY: { label: '중고구매' },      // 내가 구매한 중고거래
+  USED_SELL: { label: '중고판매' },     // 내가 판매한 중고거래
 }
 
+// 거래 상태 설정: 상태별 라벨 및 색상 정의
+const TRADE_STATUS_CONFIG: Record<TradeStatus, { label: string; color: string }> = {
+  ACTIVE:   { label: '진행중',   color: 'text-green-600 bg-green-100' },    // 진행 중 상태
+  COMPLETED: { label: '거래완료', color: 'text-blue-600 bg-blue-100' },    // 거래 완료
+  CANCELLED: { label: '거래취소', color: 'text-red-600 bg-red-100' },      // 거래 취소
+}
+
+// 거래 유형 라벨 맵핑
 const TYPE_LABEL: Record<string, string> = {
-  SELL: '중고거래', RENT: '대여', SHARE: '나눔',
+  SELL: '중고거래',  // 판매
+  RENT: '대여',      // 대여
+  SHARE: '나눔',    // 나눔
 }
+
+// 거래 유형 색상 맵핑
 const TYPE_COLOR: Record<string, string> = {
-  SELL: 'bg-blue-100 text-blue-700',
-  RENT: 'bg-green-100 text-green-700',
-  SHARE: 'bg-purple-100 text-purple-700',
+  SELL: 'bg-blue-100 text-blue-700',    // 판매 색상
+  RENT: 'bg-green-100 text-green-700',  // 대여 색상
+  SHARE: 'bg-purple-100 text-purple-700', // 나눔 색상
 }
 
 export default function MyItemsPage() {
   const navigate = useNavigate()
-  const { data, isLoading } = useMyItems()
-  const { mutate: deleteItem, isPending: isDeleting } = useDeleteItem()
-  const [confirmId, setConfirmId] = useState<number | null>(null)
-  const items = data?.content ?? []
+  const [activeTab, setActiveTab] = useState<TabFilter>('ALL')  // 활성 탭 상태 관리 (기본값: 전체보기)
+  const { data, isLoading } = useMyTrades()
+  const trades = data ?? []
 
-  const handleDelete = (id: number) => {
-    deleteItem(id, { onSuccess: () => setConfirmId(null) })
+  /**
+   * 거래 필터링 함수
+   * @param trades - 전체 거래 배열
+   * @param filter - 필터 타입
+   * @returns 필터링된 거래 배열
+   */
+  const filterTrades = (trades: Trade[], filter: TabFilter): Trade[] => {
+    switch (filter) {
+      case 'ALL':
+        return trades  // 전체 거래 반환
+      case 'RENT_PROVIDE':
+        return trades.filter(trade => !trade.isBuyer && trade.item.itemType === 'RENT')  // 내가 제공하는 대여 (판매자인 대여)
+      case 'RENT_STATUS':
+        return trades.filter(trade => trade.isBuyer && trade.item.itemType === 'RENT')   // 내가 대여중인 현황 (구매자인 대여)
+      case 'USED_BUY':
+        return trades.filter(trade => trade.isBuyer && trade.item.itemType === 'SELL')  // 내가 구매한 중고거래
+      case 'USED_SELL':
+        return trades.filter(trade => !trade.isBuyer && trade.item.itemType === 'SELL') // 내가 판매한 중고거래
+      default:
+        return trades
+    }
   }
+
+  // 활성 탭에 따라 필터링된 거래 목록
+  const filteredTrades = filterTrades(trades, activeTab)
 
   return (
     <div className="pb-10">
+      {/* 상단 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
           <ChevronLeft size={22} />
         </button>
         <h1 className="text-lg font-bold text-gray-900">내 거래</h1>
-        <span className="text-sm text-gray-400 ml-auto">총 {items.length}건</span>
+        <span className="text-sm text-gray-400 ml-auto">총 {trades.length}건</span>
       </div>
 
-      {isLoading && (
-        <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>
-      )}
+      {/* 탭 필터 */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8">
+          {(Object.keys(TAB_FILTERS) as TabFilter[]).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveTab(filter)}
+              className={cn(
+                'py-2 px-1 border-b-2 font-medium text-sm transition-colors',
+                activeTab === filter
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              )}
+            >
+              {TAB_FILTERS[filter].label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
-      {!isLoading && items.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-          <ShoppingBag size={48} className="mb-4 opacity-30" />
-          <p className="text-sm">완료된 거래가 없어요</p>
+      {/* 거래 목록 */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <p className="text-gray-500">거래 내역을 불러오는 중...</p>
         </div>
-      )}
-
-      {items.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {items.map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              onView={() => navigate(`/items/${item.id}`)}
-              onDelete={() => setConfirmId(item.id)}
+      ) : filteredTrades.length === 0 ? (
+        <div className="text-center py-8">
+          <ShoppingBag size={48} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">
+            {activeTab === 'ALL' 
+              ? '거래 내역이 없습니다' 
+              : `${TAB_FILTERS[activeTab].label} 내역이 없습니다`
+            }
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {filteredTrades.map((trade) => (
+            <TradeRow
+              key={trade.id}
+              trade={trade}
+              onView={() => navigate(`/trades/${trade.id}`)}
             />
           ))}
         </ul>
-      )}
-
-      {/* 삭제 확인 모달 */}
-      {confirmId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-1">거래 내역을 삭제할까요?</h3>
-            <p className="text-sm text-gray-500 mb-5">삭제된 내역은 복구할 수 없어요.</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmId(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => handleDelete(confirmId)}
-                disabled={isDeleting}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold disabled:opacity-60 transition-colors"
-              >
-                {isDeleting ? '삭제 중...' : '삭제'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
 }
 
-function ItemRow({
-  item,
+function TradeRow({
+  trade,
   onView,
-  onDelete,
 }: {
-  item: Item
+  trade: Trade
   onView: () => void
-  onDelete: () => void
 }) {
-  const status = STATUS_CONFIG[item.status]
+  const status = TRADE_STATUS_CONFIG[trade.status]
 
   return (
     <li className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl">
-      {/* 이미지 — 클릭 시 상품 상세 */}
+      {/* 이미지 — 클릭 시 거래 상세 */}
       <button onClick={onView} className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0 hover:opacity-90 transition-opacity">
-        {item.imageUrls[0] ? (
-          <img src={item.imageUrls[0]} alt={item.title} className="w-full h-full object-cover" />
+        {trade.item.imageUrls[0] ? (
+          <img src={trade.item.imageUrls[0]} alt={trade.item.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ShoppingBag size={20} className="text-gray-300" />
@@ -126,16 +162,22 @@ function ItemRow({
           <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', status.color)}>
             {status.label}
           </span>
-          <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', TYPE_COLOR[item.itemType])}>
-            {TYPE_LABEL[item.itemType]}
+          <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', TYPE_COLOR[trade.item.itemType])}>
+            {TYPE_LABEL[trade.item.itemType]}
+          </span>
+          <span className={cn(
+            'px-2 py-0.5 text-xs font-medium rounded-full',
+            trade.isBuyer ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+          )}>
+            {trade.isBuyer ? '구매' : '판매'}
           </span>
           <span className={cn(
             'flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full',
-            item.isEscrow
+            trade.item.isEscrow
               ? 'bg-indigo-100 text-indigo-700'
               : 'bg-gray-100 text-gray-500'
           )}>
-            {item.isEscrow
+            {trade.item.isEscrow
               ? <><Shield size={10} /> 거래대행</>
               : <><Handshake size={10} /> 직접거래</>
             }
@@ -143,32 +185,21 @@ function ItemRow({
         </div>
 
         {/* 제목 */}
-        <p className="font-medium text-gray-900 truncate text-sm mb-1">{item.title}</p>
+        <p className="font-medium text-gray-900 truncate text-sm mb-1">{trade.item.title}</p>
 
         {/* 가격 */}
         <p className="text-sm font-semibold text-gray-900 mb-1.5">
-          {item.itemType === 'SHARE' ? '무료 나눔' : `${item.price.toLocaleString()}원`}
+          {trade.item.itemType === 'SHARE' ? '무료 나눔' : `${trade.item.price.toLocaleString()}원`}
         </p>
 
-        {/* 거래자 + 날짜 */}
+        {/* 거래 상대방 + 날짜 */}
         <div className="flex items-center gap-3 text-xs text-gray-400">
-          {item.buyerNickname && (
-            <span className="flex items-center gap-1">
-              <User size={11} />
-              <span className="text-gray-600 font-medium">{item.buyerNickname}</span>
-            </span>
-          )}
-          <span>{fromNow(item.createdAt)}</span>
+          <span className="flex items-center gap-1">
+            <User size={11} />
+            <span className="text-gray-600 font-medium">{trade.counterpart.nickname}</span>
+          </span>
+          <span>{fromNow(trade.createdAt)}</span>
         </div>
-      </button>
-
-      {/* 삭제 버튼 */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete() }}
-        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-        aria-label="삭제"
-      >
-        <Trash2 size={17} />
       </button>
     </li>
   )

@@ -1,31 +1,38 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate, useParams } from 'react-router-dom'
-import { escrowStartSchema, type EscrowStartRequest, type EscrowRole, type FeePayer } from '@/features/escrow/types'
-import { Button } from '@/shared/ui/Button'
-import { Shield, Users, AlertCircle, CheckCircle } from 'lucide-react'
+// 에스크로 초대 페이지 컴포넌트: 에스크로 신청 초대 및 참여 기능
+import { useState } from 'react'  // React 상태 훅
+import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
+import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
+import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
+import { escrowStartSchema, type EscrowStartRequest, type EscrowRole, type FeePayer } from '@/features/escrow/types'  // 에스크로 관련 타입
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
+import { Shield, Users, AlertCircle, CheckCircle } from 'lucide-react'  // Lucide 아이콘들
 
-// TODO: API 연동 시 linkId로 서버에서 조회
+// TODO: API 연동 시 linkId로 서버에서 조회 - 현재는 모의 데이터 사용
+// 모의 링크 데이터: 개발용 샘플 데이터
 const MOCK_LINK_DATA = {
-  initiatorRole: 'buyer' as EscrowRole,
-  feePayer: 'buyer' as FeePayer,
-  initiatorName: '김철수',
-  expiresAt: '2026-05-01T10:00:00Z',
+  initiatorRole: 'buyer' as EscrowRole,  // 신청자 역할
+  feePayer: 'buyer' as FeePayer,        // 수수료 부담자
+  initiatorName: '김철수',             // 신청자 이름
+  expiresAt: '2026-05-01T10:00:00Z',   // 만료 시간
 }
 
+// 역할 옵션: 사용자 역할 선택 옵션
 const ROLE_OPTIONS = [
-  { value: 'buyer' as const, label: '구매자', desc: '상대방에게 물품을 구매합니다.' },
-  { value: 'seller' as const, label: '판매자', desc: '상대방에게 물품을 판매합니다.' },
+  { value: 'buyer' as const, label: '구매자', desc: '상대방에게 물품을 구매합니다.' },  // 구매자 역할
+  { value: 'seller' as const, label: '판매자', desc: '상대방에게 물품을 판매합니다.' },  // 판매자 역할
 ]
 
+// 수수료 부담 옵션: 수수료 부담 방식 선택 옵션
 const FEE_OPTIONS = [
-  { value: 'buyer' as const, label: '구매자가 부담', desc: '수수료 전액을 구매자가 냅니다.' },
-  { value: 'seller' as const, label: '판매자가 부담', desc: '수수료 전액을 판매자가 냅니다.' },
-  { value: 'both' as const, label: '반반 부담', desc: '수수료를 구매자·판매자가 절반씩 냅니다.' },
+  { value: 'buyer' as const, label: '구매자가 부담', desc: '수수료 전액을 구매자가 냅니다.' },  // 구매자 부담
+  { value: 'seller' as const, label: '판매자가 부담', desc: '수수료 전액을 판매자가 냅니다.' },  // 판매자 부담
+  { value: 'both' as const, label: '반반 부담', desc: '수수료를 구매자·판매자가 절반씩 냅니다.' },  // 반반 부담
 ]
 
+// 역할 라벨 맵핑: 역할별 한글 라벨
 const ROLE_LABEL: Record<EscrowRole, string> = { buyer: '구매자', seller: '판매자' }
+
+// 수수료 부담 라벨 맵핑: 부담 방식별 한글 라벨
 const FEE_LABEL: Record<FeePayer, string> = { buyer: '구매자 부담', seller: '판매자 부담', both: '반반 부담' }
 
 export default function EscrowInvitePage() {

@@ -1,32 +1,35 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
-import { escrowStartSchema, type EscrowStartRequest } from '@/features/escrow/types'
-import { Button } from '@/shared/ui/Button'
+// 에스크로 시작 페이지 컴포넌트: 에스크로 서비스 시작 및 기본 정보 입력
+import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
+import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import { escrowStartSchema, type EscrowStartRequest } from '@/features/escrow/types'  // 에스크로 관련 타입
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 
+// 역할 옵션: 사용자 역할 선택 옵션
 const ROLE_OPTIONS = [
   {
-    value: 'buyer' as const,
-    label: '구매자',
-    desc: '상대방에게 물품을 구매합니다.',
+    value: 'buyer' as const,  // 구매자 역할
+    label: '구매자',          // 역할 라벨
+    desc: '상대방에게 물품을 구매합니다.',  // 역할 설명
   },
   {
-    value: 'seller' as const,
-    label: '판매자',
-    desc: '상대방에게 물품을 판매합니다.',
+    value: 'seller' as const, // 판매자 역할
+    label: '판매자',          // 역할 라벨
+    desc: '상대방에게 물품을 판매합니다.',  // 역할 설명
   },
 ]
 
+// 수수료 부담 옵션: 수수료 부담 방식 선택 옵션
 const FEE_OPTIONS = [
   {
-    value: 'buyer' as const,
-    label: '구매자가 부담',
-    desc: '수수료 전액을 구매자가 냅니다.',
+    value: 'buyer' as const,  // 구매자 부담
+    label: '구매자가 부담',  // 부담 방식 라벨
+    desc: '수수료 전액을 구매자가 냅니다.',  // 부담 방식 설명
   },
   {
-    value: 'seller' as const,
-    label: '판매자가 부담',
-    desc: '수수료 전액을 판매자가 냅니다.',
+    value: 'seller' as const, // 판매자 부담
+    label: '판매자가 부담',  // 부담 방식 라벨
+    desc: '수수료 전액을 판매자가 냅니다.',  // 부담 방식 설명
   },
   {
     value: 'both' as const,
