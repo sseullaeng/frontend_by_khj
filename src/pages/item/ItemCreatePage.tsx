@@ -1,32 +1,49 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from 'react-router-dom'
-import React, { useState, useCallback } from 'react'
-import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'
-import { useCreateItem, useUploadImages } from '@/features/item/hooks'
-import { Search, X, Plus, MapPin } from 'lucide-react'
+// 물품 등록 페이지 컴포넌트: 새로운 물품을 등록하는 복합 폼 페이지
+import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
+import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import React, { useState, useCallback } from 'react'  // React 훅들
+import { z } from 'zod'  // Zod 스키마 라이브러리
+import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'  // 물품 관련 타입
+import { useCreateItem, useUploadImages } from '@/features/item/hooks'  // 물품 관련 훅
+import { Search, X, Plus, MapPin } from 'lucide-react'  // Lucide 아이콘들
 
-type ItemFormValues = Omit<ItemCreateRequest, 'imageKeys'>
-import { Button } from '@/shared/ui/Button'
-import { Input } from '@/shared/ui/Input'
+// Zod 스키마를 기반으로 폼 데이터 타입을 정확히 추출
+type ItemFormValues = z.infer<typeof itemCreateSchema>
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
+import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
 
+/**
+ * 물품 등록 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 물품 기본 정보 입력 (제목, 설명, 가격 등)
+ * - 이미지 다중 업로드 및 미리보기
+ * - 카테고리 선택 (검색 기능 포함)
+ * - 위치 선택 (지도 기능 포함)
+ * - 거래 유형 선택 (판매/대여/나눔)
+ * - 대여 기간 설정 (대여 선택 시)
+ * - 폼 유효성 검증 (Zod 스키마)
+ * - 이미지 업로드 및 물품 생성 API 호출
+ */
 export default function ItemCreatePage() {
-  const navigate = useNavigate()
-  const { isPending: isUploading } = useUploadImages()
-  const { mutate: createItem, isPending: isCreating } = useCreateItem()
+  const navigate = useNavigate()                                // 페이지 네비게이션 함수
+  const { isPending: isUploading } = useUploadImages()  // 이미지 업로드 상태
+  const { mutate: createItem, isPending: isCreating } = useCreateItem()  // 물품 생성 뮤테이션
   
-  const [imageFiles, setImageFiles] = useState<File[]>([])
-  const [categorySearch, setCategorySearch] = useState('')
-  const [locationSearch, setLocationSearch] = useState('')
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<{id: number, name: string} | null>(null)
-  const [selectedLocation, setSelectedLocation] = useState<{name: string, lat: number, lng: number} | null>(null)
-  const [isShare, setIsShare] = useState(false)
-  const [rentalPeriod, setRentalPeriod] = useState('일')
-  const [customRentalDate, setCustomRentalDate] = useState('')
-  const [showDepositSection, setShowDepositSection] = useState(false)
-  const [agreedToDamagePolicy, setAgreedToDamagePolicy] = useState(false)
+  // 폼 상태 관리
+  const [imageFiles, setImageFiles] = useState<File[]>([])                     // 업로드된 이미지 파일들
+  const [categorySearch, setCategorySearch] = useState('')                     // 카테고리 검색어
+  const [locationSearch, setLocationSearch] = useState('')                     // 위치 검색어
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)         // 카테고리 드롭다운 표시 여부
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false)         // 위치 드롭다운 표시 여부
+  const [selectedCategory, setSelectedCategory] = useState<{id: number, name: string} | null>(null)  // 선택된 카테고리
+  const [selectedLocation, setSelectedLocation] = useState<{name: string, lat: number, lng: number} | null>(null)  // 선택된 위치
+  const [isShare, setIsShare] = useState(false)                             // 나눔 여부
+  const [rentalPeriod, setRentalPeriod] = useState('일')                       // 대여 기간
+  const [customRentalDate, setCustomRentalDate] = useState('')                     // 커스텀 대여 기간
+  const [showDepositSection, setShowDepositSection] = useState(false)               // 보증금 섹션 표시 여부
+  const [agreedToDamagePolicy, setAgreedToDamagePolicy] = useState(false)         // 손해 보험 정책 동의 여부
 
   const {
     register,
@@ -37,17 +54,18 @@ export default function ItemCreatePage() {
   } = useForm<ItemFormValues>({
     resolver: zodResolver(itemCreateSchema),
     defaultValues: {
-      hashtags: [],
       sellPrice: 0,
       rentPrice: 0,
-      depositRate: 0,
-      categoryId: 0,
+      depositRate: 10,
+      category: '',
       categoryName: '',
+      categoryId: 0,
       locationName: '',
       locationLat: 0,
       locationLng: 0,
+      hashtags: [],
       imageFiles: [],
-      isEscrow: false,
+      isEscrow: false as boolean,
     },
   })
 
@@ -131,9 +149,14 @@ export default function ItemCreatePage() {
   }, [setValue])
 
   const onSubmit = async (data: ItemFormValues) => {
-    // TODO: 이미지 파일 업로드 후 imageKeys 전달
-    createItem({ ...data, imageKeys: [] })
-    navigate('/')
+    // 스키마 타입(data)을 API 요청 타입(ItemCreateRequest)으로 변환
+    const requestData: ItemCreateRequest = {
+      ...data,
+      imageKeys: [], // 업로드 후 받은 키값들
+    };
+    
+    createItem(requestData);
+    navigate('/');
   }
 
   // Mock categories data (실제로는 API 호출)
@@ -172,7 +195,6 @@ export default function ItemCreatePage() {
       <h1 className="text-xl font-bold">상품 등록</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        {/* 이미지 업로드 */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">사진 ({imageFiles.length}/10)</label>
           <div className={`grid gap-2 ${
@@ -251,23 +273,27 @@ export default function ItemCreatePage() {
           })}
         />
 
-        {/* 나눔 체크박스 */}
-        {isShare && (
-          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <input
-              type="checkbox"
-              id="isShare"
-              checked={isShare}
-              onChange={(e) => setIsShare(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="isShare" className="text-sm font-medium text-blue-900">
-              나눔인가요?
-            </label>
-          </div>
-        )}
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <input
+            type="checkbox"
+            id="isShare"
+            checked={isShare}
+            onChange={(e) => {
+              const isChecked = e.target.checked
+              setIsShare(isChecked)
+              // 나눔 체크 시 가격을 0으로 초기화
+              if (isChecked) {
+                setValue('sellPrice', 0)
+                setValue('rentPrice', 0)
+              }
+            }}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="isShare" className="text-sm font-medium text-blue-900">
+            나눔인가요?
+          </label>
+        </div>
 
-        {/* 거래대행 사용 여부 */}
         <div className="flex items-start gap-3 p-3.5 bg-indigo-50 border border-indigo-200 rounded-lg">
           <input
             type="checkbox"
@@ -326,7 +352,6 @@ export default function ItemCreatePage() {
           {...register('depositRate', { valueAsNumber: true })}
         />
 
-        {/* 보증금 계산 표시 */}
         {showDepositSection && rentPrice > 0 && depositRate > 0 && (
           <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm text-green-800">
@@ -338,7 +363,6 @@ export default function ItemCreatePage() {
           </div>
         )}
 
-        {/* 카테고리 검색 */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">카테고리</label>
           <div className="relative">
@@ -453,7 +477,7 @@ export default function ItemCreatePage() {
           )}
         </div>
 
-        {/* 대여 파손/고장 보증금 청구 동의 */}
+        {/* 대여 기간 선택 */}
         {rentPrice > 0 && (
           <div className="space-y-2 p-4 bg-orange-50 border border-orange-200 rounded-lg">
             <label className="flex items-start gap-3 cursor-pointer">

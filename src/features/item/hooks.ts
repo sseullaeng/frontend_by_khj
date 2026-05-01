@@ -1,33 +1,45 @@
+// 물품 관련 훅: 물품 목록 조회, 생성, 수정, 삭제 등 물품 관련 상태 관리
 import {
   useQuery,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
-} from '@tanstack/react-query'
-import { toast } from 'sonner'
-import axios from 'axios'
-import { itemApi } from './api'
-import { itemKeys } from './keys'
-import { compressImage } from '@/shared/lib/imageCompress'
-import type { ItemCreateRequest, ItemFilter, ItemUpdateRequest } from './types'
-import { MOCK_ITEMS } from './mockData'
+} from '@tanstack/react-query'  // React Query 훅
+import { toast } from 'sonner'  // 토스트 알림 라이브러리
+import axios from 'axios'  // HTTP 클라이언트
+import { itemApi } from './api'  // 물품 API
+import { itemKeys } from './keys'  // 물품 쿼리 키
+import { compressImage } from '@/shared/lib/imageCompress'  // 이미지 압축 유틸리티
+import type { ItemCreateRequest, ItemFilter, ItemUpdateRequest } from './types'  // 물품 관련 타입
+import { MOCK_ITEMS } from './mockData'  // 모의 데이터
 
+// 모의 데이터 사용 여부: MSW 활성화 시 모의 데이터 사용
 const isMock = import.meta.env.VITE_MSW_ENABLED === 'true'
 
+/**
+ * 물품 목록 훅
+ * 
+ * 기능:
+ * - 무한 스크롤 물품 목록 조회
+ * - 필터링 (키워드, 카테고리, 타입)
+ * - 모의 데이터 또는 API 데이터 사용
+ * - 페이지네이션 처리
+ */
 export function useItemList(filter: ItemFilter) {
   return useInfiniteQuery({
-    queryKey: itemKeys.list(filter),
+    queryKey: itemKeys.list(filter),  // 쿼리 키
     queryFn: async ({ pageParam = 0 }) => {
       if (isMock) {
+        // 모의 데이터 필터링
         const keyword = filter.keyword?.toLowerCase() ?? ''
         const filtered = MOCK_ITEMS.filter((item) => {
           const matchKeyword = !keyword || item.title.toLowerCase().includes(keyword) ||
-            item.hashtags.some((t) => t.toLowerCase().includes(keyword))
-          const matchCategory = !filter.category || item.category === filter.category
-          const matchType = !filter.itemType || item.itemType === filter.itemType
+            item.hashtags.some((t) => t.toLowerCase().includes(keyword))  // 키워드 매칭
+          const matchCategory = !filter.category || item.category === filter.category  // 카테고리 매칭
+          const matchType = !filter.itemType || item.itemType === filter.itemType  // 타입 매칭
           return matchKeyword && matchCategory && matchType
         })
-        const size = filter.size ?? 10
+        const size = filter.size ?? 10  // 페이지 크기
         const start = (pageParam as number) * size
         const content = filtered.slice(start, start + size)
         return { content, page: pageParam as number, size, totalElements: filtered.length,

@@ -1,42 +1,51 @@
-import BannerSlider from '@/shared/ui/BannerSlider'
-import ItemCard from '@/features/item/components/ItemCard'
-import { itemApi } from '@/features/item/api'
-import { useQuery } from '@tanstack/react-query'
-import type { Item } from '@/features/item/types'
+// 메인 홈페이지 컴포넌트: 배너 슬라이더와 추천 상품 그리드를 표시하는 메인 페이지
+import BannerSlider from '@/shared/ui/BannerSlider'  // 배너 슬라이더 컴포넌트
+import ItemCard from '@/features/item/components/ItemCard'  // 물품 카드 컴포넌트
+import { itemApi } from '@/features/item/api'  // 물품 API
+import { useQuery } from '@tanstack/react-query'  // React Query 훅
+import type { Item } from '@/features/item/types'  // 물품 타입
 
-// 샘플 배너 데이터
+// 샘플 배너 데이터: 이벤트 및 공지사항 배너
 const sampleBanners = [
   {
     id: 1,
     title: '🎉 쓸랭 오픈 기념 이벤트',
     description: '첫 거래 시 포인트 1000원 지급!',
-    backgroundColor: '#6366f1'
+    backgroundColor: '#6366f1'  // 파란색 배경
   },
   {
     id: 2,
     title: '🌱 지구살리기 나눔 챌린지',
     description: '안 쓰는 물건 나누고 포인트 받자',
-    backgroundColor: '#10b981'
+    backgroundColor: '#10b981'  // 초록색 배경
   },
   {
     id: 3,
     title: '📦 배달대행 서비스 오픈',
     description: '동네 배달대행 최대 30% 할인',
-    backgroundColor: '#f59e0b'
+    backgroundColor: '#f59e0b'  // 주황색 배경
   }
 ]
 
 /**
- * 메인 홈 페이지
- * - 배너 슬라이더 (공지/이벤트)
- * - 카테고리 그리드
- * - 추천 상품 그리드
+ * 메인 홈 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 배너 슬라이더: 이벤트/공지사항 배너 자동 재생 및 수동 제어
+ * - 상품 그리드: 추천 상품 2열 그리드로 표시
+ * - 더보기 버튼: 전체 상품 보기로 이동
+ * - 반응형 디자인: 모바일과 데스크톱 모두 지원
+ * 
+ * 데이터 흐름:
+ * 1. 배너: 샘플 데이터 사용 (향후 CMS 연동 예정)
+ * 2. 상품: API를 통해 추천 상품 6개 조회
+ * 3. 상태 관리: React Query로 데이터 캐싱 및 로딩 상태 관리
  */
 export default function HomePage() {
   // 추천 상품 데이터 조회 (실제 API 연동 시 활성화)
   const { data: itemsData } = useQuery({
-    queryKey: ['items', { page: 1, size: 6 }],
-    queryFn: () => itemApi.getList({ page: 1, size: 6 }),
+    queryKey: ['items', { page: 1, size: 6 }],  // 쿼리 키: 페이지와 사이즈
+    queryFn: () => itemApi.getList({ page: 1, size: 6 }),  // API 호출 함수
     // 개발 단계에서는 비활성화
     enabled: false
   })

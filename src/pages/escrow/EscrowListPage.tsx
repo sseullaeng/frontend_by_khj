@@ -1,33 +1,35 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Shield, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
-import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'
+// 에스크로 목록 페이지 컴포넌트: 에스크로 신청 내역 목록 표시 및 관리
+import { useState } from 'react'  // React 상태 훅
+import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
+import { Shield, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react'  // Lucide 아이콘들
+import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'  // 에스크로 관련 타입
 
+// 모의 에스크로 신청 데이터: 개발용 샘플 데이터
 const mockApplications: EscrowApplication[] = [
   {
-    id: 'ESC-001',
-    role: 'buyer',
-    feePayer: 'buyer',
+    id: 'ESC-001',  // 에스크로 신청 ID
+    role: 'buyer',  // 사용자 역할 (구매자)
+    feePayer: 'buyer',  // 수수료 부담자 (구매자)
     itemInfo: {
-      id: 1,
-      title: '맥북 프로 14인치 2023',
-      imageUrl: 'https://placehold.co/150x150/e2e8f0/94a3b8?text=Item',
-      price: 1_800_000,
+      id: 1,  // 물품 ID
+      title: '맥북 프로 14인치 2023',  // 물품 제목
+      imageUrl: 'https://placehold.co/150x150/e2e8f0/94a3b8?text=Item',  // 물품 이미지
+      price: 1_800_000,  // 물품 가격
     },
-    deliveryInfo: { address: '서울 강남구 테헤란로', lat: 37.5665, lng: 126.9780 },
-    status: 'in_progress',
-    linkId: 'LINK-001',
-    createdAt: '2026-04-28T10:00:00Z',
-    updatedAt: '2026-04-28T10:00:00Z',
+    deliveryInfo: { address: '서울 강남구 테헤란로', lat: 37.5665, lng: 126.9780 },  // 배달 정보
+    status: 'in_progress',  // 진행 상태
+    linkId: 'LINK-001',  // 연결 ID
+    createdAt: '2026-04-28T10:00:00Z',  // 생성 시간
+    updatedAt: '2026-04-28T10:00:00Z',  // 업데이트 시간
   },
   {
-    id: 'ESC-002',
-    role: 'seller',
-    feePayer: 'both',
+    id: 'ESC-002',  // 에스크로 신청 ID
+    role: 'seller',  // 사용자 역할 (판매자)
+    feePayer: 'both',  // 수수료 부담자 (양측)
     itemInfo: {
-      id: 2,
-      title: '아이패드 에어 5세대',
-      imageUrl: 'https://placehold.co/150x150/e2e8f0/94a3b8?text=Item',
+      id: 2,  // 물품 ID
+      title: '아이패드 에어 5세대',  // 물품 제목
+      imageUrl: 'https://placehold.co/150x150/e2e8f0/94a3b8?text=Item',  // 물품 이미지
       price: 650_000,
     },
     deliveryInfo: { address: '서울 서초구 반포대로', lat: 37.5172, lng: 127.0473 },

@@ -1,33 +1,53 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Copy, Share2, CheckCircle, ArrowLeft } from 'lucide-react'
-import { Button } from '@/shared/ui/Button'
+// 에스크로 링크 페이지 컴포넌트: 에스크로 신청 링크 생성 및 공유 기능
+import { useState } from 'react'  // React 상태 훅
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import { Copy, Share2, CheckCircle, ArrowLeft } from 'lucide-react'  // Lucide 아이콘들
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 
-// TODO: API 연동 시 실제 생성된 linkId로 교체
+// TODO: API 연동 시 실제 생성된 linkId로 교체 - 현재는 모의 데이터 사용
+// 모의 링크 ID: 개발용 샘플 데이터
 const MOCK_LINK_ID = 'LINK-ABC123'
 
+/**
+ * 에스크로 링크 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 에스크로 신청 링크 생성
+ * - 링크 복사 기능
+ * - 네이티브 공유 기능
+ * - 링크 유효성 확인
+ * - 초대 메시지 제공
+ * 
+ * UI 구조:
+ * - 상단: 뒤로가기 버튼 및 제목
+ * - 중단: 링크 생성 완료 안내
+ * - 하단: 복사 및 공유 버튼
+ */
 export default function EscrowLinkPage() {
-  const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
+  const navigate = useNavigate()  // 페이지 네비게이션 함수
+  const [copied, setCopied] = useState(false)  // 복사 완료 상태
 
+  // 생성된 에스크로 링크
   const generatedLink = `${window.location.origin}${import.meta.env.BASE_URL}escrow/join/${MOCK_LINK_ID}`
 
+  // 링크 복사 처리 함수
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(generatedLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(generatedLink)  // 클립보드에 링크 복사
+      setCopied(true)  // 복사 완료 상태 설정
+      setTimeout(() => setCopied(false), 2000)  // 2초 후 상태 초기화
     } catch {
       // 클립보드 API 미지원 시 무시
     }
   }
 
+  // 링크 공유 처리 함수 (네이티브 공유 API)
   const handleShare = async () => {
     if (navigator.share) {
       await navigator.share({
-        title: '쓸랭 거래 대행 신청',
-        text: '아래 링크를 통해 거래 대행 서비스를 함께 신청해 주세요.',
-        url: generatedLink,
+        title: '쓸랭 거래 대행 신청',  // 공유 제목
+        text: '아래 링크를 통해 거래 대행 서비스를 함께 신청해 주세요.',  // 공유 설명
+        url: generatedLink,  // 공유 링크
       }).catch(() => null)
     } else {
       handleCopy()

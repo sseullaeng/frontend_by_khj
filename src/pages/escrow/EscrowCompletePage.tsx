@@ -1,17 +1,33 @@
-import { useLocation, useNavigate } from 'react-router-dom'
-import { CheckCircle, MapPin, List } from 'lucide-react'
-import { Button } from '@/shared/ui/Button'
+// 에스크로 신청 완료 페이지 컴포넌트: 에스크로 신청 완료 정보 표시
+import { useLocation, useNavigate } from 'react-router-dom'  // React Router 훅
+import { CheckCircle, MapPin, List } from 'lucide-react'  // Lucide 아이콘들
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 
+// 완료 상태 인터페이스: 신청 완료 후 전달되는 데이터 타입
 interface CompleteState {
-  totalFee: number
-  pickupAddress: string
-  deliveryAddress: string
+  totalFee: number        // 총 배달비
+  pickupAddress: string   // 픽업 주소
+  deliveryAddress: string // 배달 주소
 }
 
+/**
+ * 에스크로 신청 완료 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 에스크로 신청 완료 확인
+ * - 배달비 및 주소 정보 표시
+ * - 다음 안내 메시지 제공
+ * - 목록 페이지로 이동
+ * 
+ * UI 구조:
+ * - 상단: 완료 아이콘 및 메시지
+ * - 중단: 배달 정보 요약
+ * - 하단: 네비게이션 버튼
+ */
 export default function EscrowCompletePage() {
-  const { state } = useLocation()
-  const navigate  = useNavigate()
-  const data = state as CompleteState | null
+  const { state } = useLocation()  // 이전 페이지에서 전달된 상태 데이터
+  const navigate  = useNavigate()  // 페이지 네비게이션 함수
+  const data = state as CompleteState | null  // 완료 상태 데이터
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16 flex flex-col items-center gap-6 text-center">
@@ -20,6 +36,7 @@ export default function EscrowCompletePage() {
         <CheckCircle size={44} className="text-green-500" />
       </div>
 
+      {/* 완료 메시지 */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">신청 완료</h1>
         <p className="text-sm text-gray-500">

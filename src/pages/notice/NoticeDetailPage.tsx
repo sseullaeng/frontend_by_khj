@@ -1,32 +1,35 @@
-import { useParams, Link } from 'react-router-dom'
-import { Calendar, Megaphone, ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react'
+// 공지사항 상세 페이지 컴포넌트: 특정 공지사항의 전체 내용을 표시하는 페이지
+import { useParams, Link } from 'react-router-dom'  // React Router 훅 및 컴포넌트
+import { Calendar, Megaphone, ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react'  // Lucide 아이콘들
 
+// 공지사항 아이템 인터페이스: 공지사항 데이터 구조 정의
 interface NoticeItem {
-  id: number
-  title: string
-  content: string
-  type: 'notice' | 'event'
-  date: string
-  isRead: boolean
-  tags?: string[]
+  id: number                    // 공지사항 고유 ID
+  title: string                 // 공지사항 제목
+  content: string               // 공지사항 내용
+  type: 'notice' | 'event'     // 공지사항 타입 (공지/이벤트)
+  date: string                  // 게시일
+  isRead: boolean              // 읽음 여부
+  tags?: string[]              // 태그 목록 (선택사항)
 }
 
+// 모의 공지사항 데이터: 개발용 샘플 데이터
 const mockNotices: NoticeItem[] = [
   {
     id: 1,
     title: '2024 여름 세일',
     content: '이번 여름, 엄선된 품목을 최대 50% 할인된 가격으로 만나보세요!',
-    type: 'event',
+    type: 'event',  // 이벤트 타입
     date: '2024-04-15',
-    isRead: false
+    isRead: false   // 읽지 않은 상태
   },
   {
     id: 2,
     title: '새로운 기능 추가',
     content: '더 나은 사용자 경험을 위해 새로운 기능이 추가되었습니다.',
-    type: 'notice',
+    type: 'notice',  // 공지 타입
     date: '2024-04-10',
-    isRead: true
+    isRead: true    // 읽은 상태
   },
   {
     id: 3,
