@@ -1,33 +1,52 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Heart, MapPin } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { ko } from 'date-fns/locale'
-import type { Item } from '../types'
-import { cn } from '@/shared/lib/cn'
-import { useToggleWish } from '../hooks'
+// 물품 카드 컴포넌트: 물품 정보 카드 UI 표시 및 상호작용
+import { useState } from 'react'  // React 상태 훅
+import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
+import { Heart, MapPin } from 'lucide-react'  // Lucide 아이콘들
+import { formatDistanceToNow } from 'date-fns'  // 날짜 포맷팅 라이브러리
+import { ko } from 'date-fns/locale'  // 한국어 로케일
+import type { Item } from '../types'  // 물품 타입
+import { cn } from '@/shared/lib/cn'  // Tailwind CSS 클래스 유틸리티
+import { useToggleWish } from '../hooks'  // 찜하기 훅
 
+// 물품 카드 props 타입
 interface ItemCardProps {
-  item: Item
-  className?: string
+  item: Item          // 물품 정보
+  className?: string  // 추가 CSS 클래스
 }
 
+// 물품 상태별 색상 설정
 const statusColors = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  RESERVED: 'bg-yellow-100 text-yellow-800',
-  SOLD: 'bg-gray-100 text-gray-800',
-  HIDDEN: 'bg-red-100 text-red-800',
+  ACTIVE: 'bg-green-100 text-green-800',    // 판매중: 녹색
+  RESERVED: 'bg-yellow-100 text-yellow-800',  // 예약중: 노란색
+  SOLD: 'bg-gray-100 text-gray-800',        // 판매완료: 회색
+  HIDDEN: 'bg-red-100 text-red-800',        // 숨김: 빨간색
 } as const
 
+/**
+ * 물품 카드 컴포넌트
+ * 
+ * 기능:
+ * - 물품 정보 카드 표시
+ * - 찜하기 토글 기능
+ * - 거래 유형 태그 표시
+ * - 상태 배지 표시
+ * - 상세 페이지 링크
+ * - 위치 및 시간 정보
+ * 
+ * UI 구조:
+ * - 상단: 물품 이미지
+ * - 중단: 물품 정보 (제목, 가격, 위치)
+ * - 하단: 상태 및 태그
+ */
 export default function ItemCard({ item, className }: ItemCardProps) {
-  const [wished, setWished] = useState(item.isWished)
-  const { mutate: toggleWish } = useToggleWish(item.id)
+  const [wished, setWished] = useState(item.isWished)  // 찜하기 상태
+  const { mutate: toggleWish } = useToggleWish(item.id)  // 찜하기 토글 훅
   
-  // 여러 거래유형 태그 생성
+  // 여러 거래유형 태그 생성 함수
   const getTransactionTags = () => {
     const tags = []
-    if (item.price > 0) tags.push({ label: '중고거래', color: 'bg-blue-100 text-blue-800' })
-    if (item.rentPrice > 0) tags.push({ label: '대여', color: 'bg-green-100 text-green-800' })
+    if (item.price > 0) tags.push({ label: '중고거래', color: 'bg-blue-100 text-blue-800' })  // 판매 가격이 있으면 중고거래 태그
+    if (item.rentPrice > 0) tags.push({ label: '대여', color: 'bg-green-100 text-green-800' })  // 대여 가격이 있으면 대여 태그
     if (item.price === 0 && item.rentPrice === 0) tags.push({ label: '나눔', color: 'bg-purple-100 text-purple-800' })
     if (item.isEscrow) tags.push({ label: '거래대행', color: 'bg-indigo-100 text-indigo-700' })
     return tags
@@ -36,7 +55,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-        {/* 이미지 */}
+        {/* 상품 이미지 */}
         <div className="relative aspect-square bg-gray-100">
           {item.imageUrls.length > 0 ? (
             <img
@@ -50,7 +69,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
             </div>
           )}
           
-          {/* 상품 타입 뱃지 */}
+          {/* 거래 태그 */}
           <div className="absolute top-2 left-2 flex flex-col gap-2 items-start">
             {getTransactionTags().slice(0, 2).map((tag, index) => (
               <span
@@ -65,7 +84,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
             ))}
           </div>
 
-          {/* 찜하기 버튼 */}
+          {/* 찜 버튼 */}
           <button
             onClick={(e) => {
               e.preventDefault()

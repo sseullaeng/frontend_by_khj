@@ -1,33 +1,39 @@
-import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Receipt, Building2, MapPin, Package, Smartphone } from 'lucide-react'
-import { Button } from '@/shared/ui/Button'
+// 에스크로 결제 페이지 컴포넌트: 에스크로 서비스 수수료 결제 처리
+import { useState } from 'react'  // React 상태 훅
+import { useLocation, useNavigate } from 'react-router-dom'  // React Router 훅
+import { ArrowLeft, Receipt, Building2, MapPin, Package, Smartphone } from 'lucide-react'  // Lucide 아이콘들
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 
+// 결제 상태 인터페이스: 결제 페이지로 전달되는 데이터 타입
 interface PaymentState {
-  itemPrice: number
-  itemDescription: string
-  imageUrl: string
-  pickupAddress: string
-  deliveryAddress: string
-  distanceKm: number
-  weightLabel: string
-  volumeLabel: string
-  fragilityLabel?: string
-  isVan?: boolean
-  deliveryFee: number
-  commissionFee: number
-  totalFee: number
-  deliveryNotes: string
-  linkId: string
+  itemPrice: number        // 물품 가격
+  itemDescription: string  // 물품 설명
+  imageUrl: string         // 물품 이미지
+  pickupAddress: string   // 픽업 주소
+  deliveryAddress: string  // 배달 주소
+  distanceKm: number      // 거리 (km)
+  weightLabel: string     // 무게 라벨
+  volumeLabel: string     // 부피 라벨
+  fragilityLabel?: string // 파손 위험 라벨
+  isVan?: boolean         // 용달차 사용 여부
+  deliveryFee: number     // 배달비
+  commissionFee: number   // 수수료
+  totalFee: number        // 총 비용
+  deliveryNotes: string   // 배달 메모
+  linkId: string          // 링크 ID
 }
 
+// 결제 방식 타입: 은행 송금 또는 간편 결제
 type Method = 'bank' | 'pay'
+
+// 간편 결제 브랜드 타입: 지원하는 간편 결제 서비스
 type PayBrand = 'kakao' | 'naver' | 'toss'
 
+// 간편 결제 브랜드 설정: 브랜드별 라벨 및 스타일
 const PAY_BRANDS: { value: PayBrand; label: string; bg: string; text: string }[] = [
-  { value: 'kakao', label: '카카오페이', bg: 'bg-yellow-400',  text: 'text-gray-900' },
-  { value: 'naver', label: '네이버페이', bg: 'bg-green-500',   text: 'text-white'   },
-  { value: 'toss',  label: '토스',       bg: 'bg-blue-500',    text: 'text-white'   },
+  { value: 'kakao', label: '카카오페이', bg: 'bg-yellow-400',  text: 'text-gray-900' },  // 카카오페이: 노란색 배경
+  { value: 'naver', label: '네이버페이', bg: 'bg-green-500',   text: 'text-white'   },  // 네이버페이: 초록색 배경
+  { value: 'toss',  label: '토스',       bg: 'bg-blue-500',    text: 'text-white'   },  // 토스: 파란색 배경
 ]
 
 export default function EscrowPaymentPage() {

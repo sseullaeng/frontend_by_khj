@@ -1,32 +1,35 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Megaphone, Tag, ChevronRight } from 'lucide-react'
+// 공지사항 페이지 컴포넌트: 공지사항과 이벤트를 필터링하고 표시하는 페이지
+import { useState } from 'react'  // React 상태 훅
+import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
+import { Megaphone, Tag, ChevronRight } from 'lucide-react'  // Lucide 아이콘들
 
+// 공지사항 아이템 인터페이스: 공지사항 데이터 구조 정의
 interface NoticeItem {
-  id: number
-  title: string
-  content: string
-  type: 'notice' | 'event'
-  date: string
-  isRead: boolean
-  tags?: string[]
+  id: number                    // 공지사항 고유 ID
+  title: string                 // 공지사항 제목
+  content: string               // 공지사항 내용
+  type: 'notice' | 'event'     // 공지사항 타입 (공지/이벤트)
+  date: string                  // 게시일
+  isRead: boolean              // 읽음 여부
+  tags?: string[]              // 태그 목록 (선택사항)
 }
 
+// 모의 공지사항 데이터: 개발용 샘플 데이터
 const mockNotices: NoticeItem[] = [
   {
     id: 1,
     title: '2024 여름 세일',
     content: '선택된 상품 최대 50% 할인을 즐겨보세요!',
-    type: 'event',
+    type: 'event',  // 이벤트 타입
     date: '2024-04-15',
-    isRead: false,
-    tags: ['세일', '여름']
+    isRead: false,  // 읽지 않은 상태
+    tags: ['세일', '여름']  // 관련 태그
   },
   {
     id: 2,
     title: '새로운 기능 추가',
     content: '더 나은 사용자 경험을 위해 새로운 기능이 추가되었습니다.',
-    type: 'notice',
+    type: 'notice',  // 공지 타입
     date: '2024-04-10',
     isRead: true,
     tags: ['업데이트', '기능']
@@ -51,7 +54,7 @@ export default function NoticePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* 페이지 헤더 */}
       <div className="flex items-center">
         <div className="flex items-center gap-3">
           <Megaphone className="text-primary-500" size={24} />
@@ -59,7 +62,7 @@ export default function NoticePage() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* 필터 탭 */}
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setSelectedType('all')}
@@ -93,7 +96,7 @@ export default function NoticePage() {
         </button>
       </div>
 
-      {/* Notice List */}
+      {/* 공지사항 목록 */}
       <div className="space-y-4">
         {filteredNotices.map((notice) => (
           <Link

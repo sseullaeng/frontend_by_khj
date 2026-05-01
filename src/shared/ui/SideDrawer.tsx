@@ -157,7 +157,7 @@ const REPORT_REASONS = [
 function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoom; onBack: () => void }) {
   const navigate = useNavigate()
   const currentUser = useAuthStore(s => s.user)
-  const close = useDrawerStore(s => s.close)
+  const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
   const { messages, sendMessage } = useChatRoom(roomId)
   const { appendMessage } = useChatStore()
   const { statusByRoom, useEscrowByRoom, setStatus, setUseEscrow } = useTransactionStore()
@@ -175,6 +175,27 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const txStatus = statusByRoom[roomId] ?? 'none'
   const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
+
+  // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
+  useEffect(() => {
+    if (!pendingFirstMessage) return
+    const content = pendingFirstMessage
+    setPendingFirstMessage(null)  // 중복 전송 방지를 위해 즉시 초기화
+    if (isMock) {
+      appendMessage(roomId, {
+        id: Date.now(),
+        roomId,
+        senderId: currentUser?.id ?? 0,
+        content,
+        imageUrl: null,
+        sentAt: new Date().toISOString(),
+      })
+    } else {
+      sendMessage(content)
+    }
+  // pendingFirstMessage가 바뀔 때만 실행 (roomId 변경 시 재실행 방지)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFirstMessage])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

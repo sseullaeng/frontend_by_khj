@@ -1,7 +1,7 @@
-/* Component Styles */
-/* Additional reusable components for the item search page */
+/* 컴포넌트 스타일 */
+/* 물품 검색 페이지용 재사용 가능한 컴포넌트 */
 
-/* Badge Component */
+/* 뱃지 컴포넌트 */
 .badge {
     display: inline-block;
     padding: 4px 8px;
@@ -12,22 +12,25 @@
     letter-spacing: 0.5px;
 }
 
+/* 새로운 상품 뱃지 */
 .badge-new {
     background: #28a745;
     color: white;
 }
 
+/* 인기 상품 뱃지 */
 .badge-hot {
     background: #dc3545;
     color: white;
 }
 
+/* 할인 상품 뱃지 */
 .badge-sale {
     background: #ffc107;
     color: #212529;
 }
 
-/* Card Component */
+/* 카드 컴포넌트 */
 .card {
     background: white;
     border-radius: 12px;
@@ -36,27 +39,31 @@
     transition: all 0.3s ease;
 }
 
+/* 카드 호버 효과 */
 .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
 
+/* 카드 헤더 */
 .card-header {
     padding: 20px;
     border-bottom: 1px solid #e1e8ed;
 }
 
+/* 카드 본문 */
 .card-body {
     padding: 20px;
 }
 
+/* 카드 푸터 */
 .card-footer {
     padding: 20px;
     border-top: 1px solid #e1e8ed;
     background: #f8f9fa;
 }
 
-/* Tag Component */
+/* 태그 컴포넌트 */
 .tag {
     display: inline-block;
     padding: 6px 12px;
@@ -69,17 +76,19 @@
     margin-bottom: 8px;
 }
 
+/* 기본 태그 */
 .tag-primary {
     background: #e8420a;
     color: white;
 }
 
+/* 보조 태그 */
 .tag-secondary {
     background: #6c757d;
     color: white;
 }
 
-/* Alert Component */
+/* 알림 컴포넌트 */
 .alert {
     padding: 16px 20px;
     border-radius: 8px;
@@ -87,31 +96,35 @@
     border-left: 4px solid;
 }
 
+/* 성공 알림 */
 .alert-success {
     background: #d4edda;
     border-color: #28a745;
     color: #155724;
 }
 
+/* 경고 알림 */
 .alert-warning {
     background: #fff3cd;
     border-color: #ffc107;
     color: #856404;
 }
 
+/* 오류 알림 */
 .alert-error {
     background: #f8d7da;
     border-color: #dc3545;
     color: #721c24;
 }
 
+/* 정보 알림 */
 .alert-info {
     background: #d1ecf1;
     border-color: #17a2b8;
     color: #0c5460;
 }
 
-/* Modal Component */
+/* 모달 컴포넌트 */
 .modal {
     display: none;
     position: fixed;
@@ -125,10 +138,12 @@
     justify-content: center;
 }
 
+/* 활성화된 모달 */
 .modal.active {
     display: flex;
 }
 
+/* 모달 컨텐츠 */
 .modal-content {
     background: white;
     border-radius: 12px;
@@ -139,6 +154,7 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
+/* 모달 헤더 */
 .modal-header {
     padding: 24px;
     border-bottom: 1px solid #e1e8ed;
@@ -147,12 +163,14 @@
     align-items: center;
 }
 
+/* 모달 제목 */
 .modal-title {
     font-size: 20px;
     font-weight: 700;
     color: #2c3e50;
 }
 
+/* 모달 닫기 버튼 */
 .modal-close {
     background: none;
     border: none;
@@ -169,15 +187,18 @@
     transition: all 0.2s ease;
 }
 
+/* 모달 닫기 버튼 호버 효과 */
 .modal-close:hover {
     background: #f8f9fa;
     color: #2c3e50;
 }
 
+/* 모달 본문 */
 .modal-body {
     padding: 24px;
 }
 
+/* 모달 푸터 */
 .modal-footer {
     padding: 24px;
     border-top: 1px solid #e1e8ed;
@@ -186,12 +207,13 @@
     gap: 12px;
 }
 
-/* Tooltip Component */
+/* 툴팁 컴포넌트 */
 .tooltip {
     position: relative;
     cursor: help;
 }
 
+/* 툴팁 텍스트 */
 .tooltip::before {
     content: attr(data-tooltip);
     position: absolute;
@@ -210,6 +232,7 @@
     z-index: 1000;
 }
 
+/* 툴팁 화살표 */
 .tooltip::after {
     content: '';
     position: absolute;
@@ -223,12 +246,13 @@
     transition: opacity 0.2s ease;
 }
 
+/* 툴팁 호버 효과 */
 .tooltip:hover::before,
 .tooltip:hover::after {
     opacity: 1;
 }
 
-/* Skeleton Loading */
+/* 스켈레톤 로딩 */
 .skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
@@ -236,30 +260,35 @@
     border-radius: 4px;
 }
 
+/* 로딩 애니메이션 키프레임 */
 @keyframes loading {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
 
+/* 스켈레톤 텍스트 */
 .skeleton-text {
     height: 16px;
     margin-bottom: 8px;
 }
 
+/* 큰 스켈레톤 텍스트 */
 .skeleton-text.large {
     height: 20px;
 }
 
+/* 작은 스켈레톤 텍스트 */
 .skeleton-text.small {
     height: 12px;
 }
 
+/* 스켈레톤 이미지 */
 .skeleton-image {
     height: 200px;
     margin-bottom: 16px;
 }
 
-/* Progress Bar */
+/* 진행 바 */
 .progress {
     width: 100%;
     height: 8px;
@@ -268,13 +297,14 @@
     overflow: hidden;
 }
 
+/* 진행 바 바 */
 .progress-bar {
     height: 100%;
     background: #e8420a;
     transition: width 0.3s ease;
 }
 
-/* Breadcrumb */
+/* 브레드크럼 */
 .breadcrumb {
     display: flex;
     align-items: center;
@@ -283,37 +313,43 @@
     flex-wrap: wrap;
 }
 
+/* 브레드크럼 아이템 */
 .breadcrumb-item {
     color: #6c757d;
     text-decoration: none;
     transition: color 0.2s ease;
 }
 
+/* 브레드크럼 아이템 호버 효과 */
 .breadcrumb-item:hover {
     color: #e8420a;
 }
 
+/* 활성화된 브레드크럼 아이템 */
 .breadcrumb-item.active {
     color: #2c3e50;
     font-weight: 600;
 }
 
+/* 브레드크럼 구분자 */
 .breadcrumb-separator {
     color: #6c757d;
     font-size: 14px;
 }
 
-/* Tabs */
+/* 탭 */
 .tabs {
     border-bottom: 2px solid #e1e8ed;
     margin-bottom: 24px;
 }
 
+/* 탭 목록 */
 .tab-list {
     display: flex;
     gap: 4px;
 }
 
+/* 탭 버튼 */
 .tab-button {
     padding: 12px 20px;
     border: none;
@@ -325,24 +361,28 @@
     transition: all 0.2s ease;
 }
 
+/* 탭 버튼 호버 효과 */
 .tab-button:hover {
     color: #2c3e50;
 }
 
+/* 활성화된 탭 버튼 */
 .tab-button.active {
     color: #e8420a;
     border-bottom-color: #e8420a;
 }
 
+/* 탭 컨텐츠 */
 .tab-content {
     display: none;
 }
 
+/* 활성화된 탭 컨텐츠 */
 .tab-content.active {
     display: block;
 }
 
-/* Accordion */
+/* 아코디언 */
 .accordion-item {
     border: 1px solid #e1e8ed;
     border-radius: 8px;
@@ -350,6 +390,7 @@
     overflow: hidden;
 }
 
+/* 아코디언 헤더 */
 .accordion-header {
     background: #f8f9fa;
     padding: 16px 20px;
@@ -360,23 +401,28 @@
     transition: background 0.2s ease;
 }
 
+/* 아코디언 헤더 호버 효과 */
 .accordion-header:hover {
     background: #e9ecef;
 }
 
+/* 아코디언 제목 */
 .accordion-title {
     font-weight: 600;
     color: #2c3e50;
 }
 
+/* 아코디언 아이콘 */
 .accordion-icon {
     transition: transform 0.2s ease;
 }
 
+/* 활성화된 아코디언 아이콘 회전 */
 .accordion-item.active .accordion-icon {
     transform: rotate(180deg);
 }
 
+/* 아코디언 컨텐츠 */
 .accordion-content {
     padding: 0 20px;
     max-height: 0;
@@ -384,16 +430,18 @@
     transition: max-height 0.3s ease, padding 0.3s ease;
 }
 
+/* 활성화된 아코디언 컨텐츠 */
 .accordion-item.active .accordion-content {
     padding: 20px;
     max-height: 500px;
 }
 
-/* Form Components */
+/* 폼 컴포넌트 */
 .form-group {
     margin-bottom: 20px;
 }
 
+/* 폼 라벨 */
 .form-label {
     display: block;
     margin-bottom: 8px;
@@ -401,6 +449,7 @@
     color: #2c3e50;
 }
 
+/* 폼 입력 필드 */
 .form-input {
     width: 100%;
     padding: 12px 16px;
@@ -410,17 +459,20 @@
     transition: border-color 0.2s ease;
 }
 
+/* 폼 입력 필드 포커스 효과 */
 .form-input:focus {
     outline: none;
     border-color: #e8420a;
     box-shadow: 0 0 0 3px rgba(232, 66, 10, 0.1);
 }
 
+/* 폼 텍스트 영역 */
 .form-textarea {
     resize: vertical;
     min-height: 100px;
 }
 
+/* 폼 선택 필드 */
 .form-select {
     width: 100%;
     padding: 12px 16px;
@@ -431,26 +483,31 @@
     cursor: pointer;
 }
 
+/* 폼 체크박스 및 라디오 */
 .form-checkbox,
 .form-radio {
     margin-right: 8px;
 }
 
+/* 폼 에러 메시지 */
 .form-error {
     color: #dc3545;
     font-size: 14px;
     margin-top: 4px;
 }
 
-/* Utility Classes */
+/* 유틸리티 클래스 */
+/* 텍스트 정렬 */
 .text-center { text-align: center; }
 .text-left { text-align: left; }
 .text-right { text-align: right; }
 
+/* 디스플레이 */
 .d-flex { display: flex; }
 .d-block { display: block; }
 .d-none { display: none; }
 
+/* 정렬 */
 .justify-center { justify-content: center; }
 .justify-between { justify-content: space-between; }
 .justify-end { justify-content: flex-end; }
@@ -459,26 +516,31 @@
 .align-start { align-items: flex-start; }
 .align-end { align-items: flex-end; }
 
+/* 간격 */
 .gap-1 { gap: 4px; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
 .gap-4 { gap: 16px; }
 
+/* 마진 */
 .m-0 { margin: 0; }
 .m-1 { margin: 4px; }
 .m-2 { margin: 8px; }
 .m-3 { margin: 12px; }
 .m-4 { margin: 16px; }
 
+/* 패딩 */
 .p-0 { padding: 0; }
 .p-1 { padding: 4px; }
 .p-2 { padding: 8px; }
 .p-3 { padding: 12px; }
 .p-4 { padding: 16px; }
 
+/* 너비 및 높이 */
 .w-100 { width: 100%; }
 .h-100 { height: 100%; }
 
+/* 텍스트 색상 */
 .text-primary { color: #e8420a; }
 .text-secondary { color: #6c757d; }
 .text-success { color: #28a745; }

@@ -1,33 +1,37 @@
-import { useState } from 'react'
-import { useDebounce } from '@/shared/hooks/useDebounce'
-import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll'
-import { useItemList } from '@/features/item/hooks'
-import ItemCard from '@/features/item/components/ItemCard'
-import ItemListItem from '@/features/item/components/ItemListItem'
+// 물품 목록 페이지 컴포넌트: 검색, 필터링, 무한 스크롤 기능을 제공하는 물품 목록 페이지
+import { useState } from 'react'  // React 상태 훅
+import { useDebounce } from '@/shared/hooks/useDebounce'  // 디바운스 훅
+import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll'  // 무한 스크롤 훅
+import { useItemList } from '@/features/item/hooks'  // 물품 목록 조회 훅
+import ItemCard from '@/features/item/components/ItemCard'  // 물품 카드 컴포넌트
+import ItemListItem from '@/features/item/components/ItemListItem'  // 물품 리스트 아이템 컴포넌트
 
-import { Grid, List } from 'lucide-react'
+import { Grid, List } from 'lucide-react'  // 그리드/리스트 뷰 전환 아이콘
 
+// 카테고리 필터 옵션: 물품 카테고리별 필터링
 const CATEGORIES = [
-  { value: '',             label: '전체' },
-  { value: 'electronics', label: '전자기기' },
-  { value: 'clothing',    label: '의류' },
-  { value: 'household',   label: '생활용품' },
-  { value: 'books',       label: '도서' },
-  { value: 'sports',      label: '스포츠/레저' },
-  { value: 'furniture',   label: '가구/인테리어' },
-  { value: 'other',       label: '기타' },
+  { value: '',             label: '전체' },           // 모든 카테고리
+  { value: 'electronics', label: '전자기기' },       // 전자기기 카테고리
+  { value: 'clothing',    label: '의류' },          // 의류 카테고리
+  { value: 'household',   label: '생활용품' },       // 생활용품 카테고리
+  { value: 'books',       label: '도서' },          // 도서 카테고리
+  { value: 'sports',      label: '스포츠/레저' },    // 스포츠/레저 카테고리
+  { value: 'furniture',   label: '가구/인테리어' },  // 가구/인테리어 카테고리
+  { value: 'other',       label: '기타' },          // 기타 카테고리
 ]
 
+// 거래 유형 필터 옵션: 판매, 대여, 나눔 등 거래 방식별 필터링
 const TRANSACTION_TYPES = [
-  { value: '',      label: '전체' },
-  { value: 'sell',  label: '중고거래' },
-  { value: 'rent',  label: '대여' },
-  { value: 'share', label: '나눔' },
+  { value: '',      label: '전체' },      // 모든 거래 유형
+  { value: 'sell',  label: '중고거래' },  // 판매 거래
+  { value: 'rent',  label: '대여' },      // 대여 거래
+  { value: 'share', label: '나눔' },      // 무료 나눔
 ]
 
+// 거래 방식 필터 옵션: 직접거래, 배달대행 등 거래 방법별 필터링
 const TRANSACTION_METHODS = [
-  { value: '',      label: '전체' },
-  { value: 'direct', label: '직접거래' },
+  { value: '',      label: '전체' },      // 모든 거래 방식
+  { value: 'direct', label: '직접거래' },  // 직접 만나서 거래
   { value: 'escrow', label: '거래대행' },
 ]
 
@@ -117,7 +121,6 @@ export default function ItemListPage() {
 
       {/* 검색 + 카테고리 필터 */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 -mx-4">
-        {/* 검색바 */}
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 mb-3 focus-within:border-primary-500 focus-within:bg-white transition-colors">
           <span className="text-gray-400 text-base">🔍</span>
           <input
@@ -137,7 +140,7 @@ export default function ItemListPage() {
           )}
         </div>
 
-        {/* 카테고리 칩 */}
+        {/* 검색바 */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {CATEGORIES.map((cat) => (
             <button
@@ -157,7 +160,6 @@ export default function ItemListPage() {
 
       {/* 필터링 옵션 */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 -mx-4">
-        {/* 거래 유형 */}
         <div className="mb-3">
           <p className="text-xs font-medium text-gray-700 mb-2">거래 유형</p>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -246,7 +248,6 @@ export default function ItemListPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* 보기 형식 토글 */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}

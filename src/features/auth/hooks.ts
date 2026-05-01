@@ -1,29 +1,39 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { authApi } from './api'
-import { useAuthStore } from './store'
-import { getErrorMessage } from '@/shared/lib/errorMessages'
-import { BusinessError } from '@/shared/types'
-import type { LoginRequest, SignupRequest, UpdateProfileRequest } from './types'
+// 인증 관련 훅: 로그인, 회원가입, 프로필 관리 등 인증 관련 상태 관리
+import { useMutation, useQuery } from '@tanstack/react-query'  // React Query 훅
+import { useEffect } from 'react'  // React 훅
+import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
+import { toast } from 'sonner'  // 토스트 알림 라이브러리
+import { authApi } from './api'  // 인증 API
+import { useAuthStore } from './store'  // 인증 상태 스토어
+import { getErrorMessage } from '@/shared/lib/errorMessages'  // 에러 메시지 유틸리티
+import { BusinessError } from '@/shared/types'  // 비즈니스 에러 타입
+import type { LoginRequest, SignupRequest, UpdateProfileRequest } from './types'  // 인증 관련 타입
 
+/**
+ * 로그인 훅
+ * 
+ * 기능:
+ * - 로그인 API 호출
+ * - 사용자 정보 저장
+ * - 로그인 성공 시 홈으로 이동
+ * - 에러 처리 및 토스트 알림
+ */
 export function useLogin() {
-  const setUser = useAuthStore((s) => s.setUser)
-  const navigate = useNavigate()
+  const setUser = useAuthStore((s) => s.setUser)  // 사용자 정보 저장 함수
+  const navigate = useNavigate()  // 페이지 네비게이션 함수
 
   return useMutation({
-    mutationFn: (body: LoginRequest) => authApi.login(body).then((r) => r.data),
+    mutationFn: (body: LoginRequest) => authApi.login(body).then((r) => r.data),  // 로그인 API 호출
     onSuccess: (data) => {
-      setUser(data.user)
-      navigate('/')
+      setUser(data.user)  // 사용자 정보 저장
+      navigate('/')      // 홈 페이지로 이동
     },
     onError: (err) => {
       const msg =
         err instanceof BusinessError
-          ? getErrorMessage(err.code)
-          : '로그인에 실패했어요.'
-      toast.error(msg)
+          ? getErrorMessage(err.code)  // 비즈니스 에러 메시지
+          : '로그인에 실패했어요.'      // 기본 에러 메시지
+      toast.error(msg)  // 에러 토스트 알림
     },
   })
 }

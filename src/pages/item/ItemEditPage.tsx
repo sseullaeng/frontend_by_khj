@@ -1,24 +1,41 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate, useParams } from 'react-router-dom'
-import React, { useState, useCallback } from 'react'
-import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'
-import { useItemDetail, useUpdateItem } from '@/features/item/hooks'
-import { Search, X, Plus, MapPin, ChevronLeft } from 'lucide-react'
-import { Button } from '@/shared/ui/Button'
-import { Input } from '@/shared/ui/Input'
+// 물품 수정 페이지 컴포넌트: 등록된 물품 정보 수정 기능 제공
+import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
+import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
+import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
+import React, { useState, useCallback } from 'react'  // React 훅들
+import { itemCreateSchema, type ItemCreateRequest } from '@/features/item/types'  // 물품 관련 타입
+import { useItemDetail, useUpdateItem } from '@/features/item/hooks'  // 물품 관련 훅
+import { Search, X, Plus, MapPin, ChevronLeft } from 'lucide-react'  // Lucide 아이콘들
+import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
+import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
 
+// 폼 데이터 타입: 이미지 키를 제외한 물품 생성 요청 타입
 type ItemFormValues = Omit<ItemCreateRequest, 'imageKeys'>
 
+/**
+ * 물품 수정 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 기존 물품 정보 불러오기
+ * - 물품 정보 수정 폼 표시
+ * - 이미지 업로드 및 관리
+ * - 카테고리 및 위치 선택
+ * - 수정 정보 API 전송
+ * - 수정 완료 후 상세 페이지로 이동
+ */
 export default function ItemEditPage() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const { data: item, isLoading } = useItemDetail(Number(id))
-  const { mutate: updateItem, isPending: isUpdating } = useUpdateItem(Number(id))
+  const { id } = useParams<{ id: string }>()  // URL 파라미터에서 물품 ID 추출
+  const navigate = useNavigate()  // 페이지 네비게이션 함수
+  const { data: item, isLoading } = useItemDetail(Number(id))  // 물품 상세 정보 조회
+  const { mutate: updateItem, isPending: isUpdating } = useUpdateItem(Number(id))  // 물품 업데이트 훅
 
+  // 로딩 중 상태 표시
   if (isLoading) return <div className="py-20 text-center text-gray-400">불러오는 중...</div>
+  
+  // 물품이 없을 경우 에러 메시지 표시
   if (!item) return <div className="py-20 text-center text-gray-400">상품을 찾을 수 없어요</div>
 
+  // 수정 폼 컴포넌트 렌더링
   return <ItemEditForm item={item} onUpdate={updateItem} isUpdating={isUpdating} navigate={navigate} />
 }
 
@@ -183,7 +200,7 @@ function ItemEditForm({
           </div>
         )}
 
-        {/* 새 이미지 추가 */}
+        {/* 이미지 추가 */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">사진 추가 ({imageFiles.length}/10)</label>
           <div className="flex gap-2 flex-wrap">
@@ -365,6 +382,7 @@ function ItemEditForm({
           </div>
         </div>
 
+        {/* 상세 설명 */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">상세 설명</label>
           <textarea
@@ -375,6 +393,7 @@ function ItemEditForm({
           {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
         </div>
 
+        {/* 대여 파손/고장 보증금 청구 동의 */}
         {rentPrice > 0 && (
           <div className="space-y-2 p-4 bg-orange-50 border border-orange-200 rounded-lg">
             <label className="flex items-start gap-3 cursor-pointer">
@@ -391,6 +410,7 @@ function ItemEditForm({
           </div>
         )}
 
+        {/* 수정 완료 버튼 */}
         <Button
           type="submit"
           fullWidth

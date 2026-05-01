@@ -1,29 +1,51 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Heart, ChevronLeft, ArrowRight, MapPin } from 'lucide-react'
-import { useWishList } from '@/features/item/hooks'
-import { useAuthStore } from '@/features/auth/store'
-import { fromNow } from '@/shared/lib/date'
-import { cn } from '@/shared/lib/cn'
+// 찜 목록 페이지 컴포넌트: 사용자가 찜한 물품 목록 표시 및 관리
+import { Link, useNavigate } from 'react-router-dom'  // React Router 훅 및 컴포넌트
+import { Heart, ChevronLeft, ArrowRight, MapPin } from 'lucide-react'  // Lucide 아이콘들
+import { useWishList } from '@/features/item/hooks'  // 찜 목록 조회 훅
+import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
+import { fromNow } from '@/shared/lib/date'  // 날짜 포맷팅 유틸리티
+import { cn } from '@/shared/lib/cn'  // Tailwind CSS 클래스 유틸리티
 
+// 거래 유형 라벨 맵핑
 const TYPE_LABEL: Record<string, string> = {
-  SELL: '중고거래',
-  RENT: '대여',
-  SHARE: '나눔',
-}
-const TYPE_COLOR: Record<string, string> = {
-  SELL: 'bg-blue-100 text-blue-700',
-  RENT: 'bg-green-100 text-green-700',
-  SHARE: 'bg-purple-100 text-purple-700',
+  SELL: '중고거래',  // 판매
+  RENT: '대여',      // 대여
+  SHARE: '나눔',    // 나눔
 }
 
+// 거래 유형 색상 맵핑
+const TYPE_COLOR: Record<string, string> = {
+  SELL: 'bg-blue-100 text-blue-700',    // 판매 색상
+  RENT: 'bg-green-100 text-green-700',  // 대여 색상
+  SHARE: 'bg-purple-100 text-purple-700', // 나눔 색상
+}
+
+/**
+ * 찜 목록 페이지 컴포넌트
+ * 
+ * 기능:
+ * - 사용자가 찜한 물품 목록 표시
+ * - 자신이 등록한 물품 필터링
+ * - 물품 상세 페이지로 이동
+ * - 찜 해제 기능
+ * - 거래 유형별 색상 구분
+ * 
+ * UI 구조:
+ * - 상단: 페이지 제목 및 뒤로가기 버튼
+ * - 중단: 찜한 물품 카드 목록
+ * - 각 카드: 물품 이미지, 정보, 가격, 상태 등
+ */
 export default function WishListPage() {
-  const navigate = useNavigate()
-  const currentUser = useAuthStore((s) => s.user)
-  const { data, isLoading } = useWishList()
+  const navigate = useNavigate()  // 페이지 네비게이션 함수
+  const currentUser = useAuthStore((s) => s.user)  // 현재 사용자 정보
+  const { data, isLoading } = useWishList()  // 찜 목록 조회 훅
+  
+  // 자신이 등록한 물품은 제외한 찜 목록 필터링
   const items = (data?.content ?? []).filter((item) => item.sellerId !== currentUser?.id)
 
   return (
     <div className="pb-10">
+      {/* 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">
           <ChevronLeft size={22} />
