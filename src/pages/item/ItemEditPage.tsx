@@ -89,7 +89,6 @@ function ItemEditForm({
     },
   })
 
-  const sellPrice = watch('sellPrice')
   const rentPrice = watch('rentPrice')
   const depositRate = watch('depositRate')
   const watchTitle = watch('title')
