@@ -13,7 +13,12 @@ async function enableMocking() {
   const { worker } = await import('@/mocks/browser')
   return worker.start({
     serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` }, // 서비스 워커 URL 설정
-    onUnhandledRequest: 'warn', // 처리되지 않은 요청에 대해 경고 표시
+    // API 요청만 경고, 내비게이션·정적 에셋은 조용히 통과
+    onUnhandledRequest(req) {
+      if (req.url.includes('/api/')) {
+        console.warn(`[MSW] 핸들러 없는 API 요청: ${req.method} ${req.url}`)
+      }
+    },
   }).catch(console.warn) // 워커 시작 실패 시 경고 로그
 }
 
