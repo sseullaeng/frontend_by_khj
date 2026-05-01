@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { MessageCircle, Bell, User, Search, Package, Truck, Megaphone } from 'lucide-react'
+import { Bell, User, Search, Package, Truck, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 
@@ -39,33 +39,20 @@ export default function Header() {
           {/* 우측 메뉴 */}
           <div className="flex items-center gap-3">
             {user && (
-              <>
-                {/* 채팅 */}
-                <button
-                  onClick={() => toggle('chat')}
-                  className={`relative p-2 rounded-lg transition-colors ${
-                    activeTab === 'chat'
-                      ? 'bg-primary-50 text-primary-600'
-                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <MessageCircle size={20} />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                </button>
-
-                {/* 알림 */}
-                <button
-                  onClick={() => toggle('notification')}
-                  className={`relative p-2 rounded-lg transition-colors ${
-                    activeTab === 'notification'
-                      ? 'bg-primary-50 text-primary-600'
-                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
-                  }`}
-                >
+              <button
+                onClick={() => toggle('notification')}
+                className={`relative flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
+                  activeTab === 'notification'
+                    ? 'bg-primary-50 text-primary-600'
+                    : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                }`}
+              >
+                <span className="relative">
                   <Bell size={20} />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                </button>
-              </>
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                </span>
+                <span className="text-sm font-medium hidden md:block">채팅/알림</span>
+              </button>
             )}
 
             <Link
