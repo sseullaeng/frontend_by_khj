@@ -75,6 +75,16 @@ export const itemHandlers = [
     return HttpResponse.json({ success: true, data: newItem }, { status: 201 })
   }),
 
+  http.get(`${BASE}/wished`, () => {
+    const wished = mockItems.slice(0, 5).map((i) => ({ ...i, isWished: true }))
+    return HttpResponse.json({ success: true, data: { content: wished, page: 0, size: 5, totalElements: 5, totalPages: 1, hasNext: false, hasPrevious: false } })
+  }),
+
+  http.get(`${BASE}/my`, () => {
+    const mine = mockItems.filter((i) => i.sellerId === 1)
+    return HttpResponse.json({ success: true, data: { content: mine, page: 0, size: mine.length, totalElements: mine.length, totalPages: 1, hasNext: false, hasPrevious: false } })
+  }),
+
   http.post(`${BASE}/:id/wish`, ({ params }) => {
     const item = mockItems.find((i) => i.id === Number(params.id))
     if (item) item.isWished = !item.isWished

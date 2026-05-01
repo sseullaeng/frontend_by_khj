@@ -5,11 +5,10 @@ import { Button } from '@/shared/ui/Button'
 import { ChevronRight } from 'lucide-react'
 
 const MENU_ITEMS = [
-  { label: '내 거래', to: '/transactions' },
-  { label: '찜 목록', to: '/items?tab=wished' },
+  { label: '내 거래', to: '/mypage/items' },
+  { label: '찜 목록', to: '/mypage/wishes' },
   { label: '리뷰 관리', to: '/reviews' },
   { label: '차단 목록', to: '/mypage/blocks' },
-  { label: '알림', to: '/notifications' },
 ]
 
 export default function MyPage() {

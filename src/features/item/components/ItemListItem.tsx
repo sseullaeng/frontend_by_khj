@@ -29,6 +29,7 @@ export default function ItemListItem({ item, className }: ItemListItemProps) {
     if (item.price > 0) tags.push({ label: '중고거래', color: 'bg-blue-100 text-blue-800' })
     if (item.rentPrice > 0) tags.push({ label: '대여', color: 'bg-green-100 text-green-800' })
     if (item.price === 0 && item.rentPrice === 0) tags.push({ label: '나눔', color: 'bg-purple-100 text-purple-800' })
+    if (item.isEscrow) tags.push({ label: '거래대행', color: 'bg-indigo-100 text-indigo-700' })
     return tags
   }
   

@@ -22,6 +22,7 @@ export interface Item {
   sellerId: number
   sellerNickname: string
   sellerProfileImageUrl: string | null
+  buyerNickname?: string | null
   createdAt: string
 }
 
@@ -51,6 +52,7 @@ export const itemCreateSchema = z.object({
   locationLng:  z.number({ invalid_type_error: '위치 정보가 필요합니다.' }),
   hashtags:    z.array(z.string()).max(5, '해시태그는 5개까지 가능해요.'),
   imageFiles:  z.array(z.instanceof(File)).max(10, '사진은 최대 10장까지 가능해요.'),
+  isEscrow:    z.boolean().default(false),
 })
 
 export type ItemCreateRequest = z.infer<typeof itemCreateSchema> & { imageKeys: string[] }

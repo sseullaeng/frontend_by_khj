@@ -24,6 +24,9 @@ export const itemApi = {
   getWishList: () =>
     api.get<PageResponse<Item>>('/api/v1/items/wished'),
 
+  getMyItems: () =>
+    api.get<PageResponse<Item>>('/api/v1/items/my'),
+
   report: (id: number, reason: string) =>
     api.post<void>(`/api/v1/items/${id}/report`, { reason }),
 

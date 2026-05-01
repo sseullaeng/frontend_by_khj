@@ -26,3 +26,8 @@ export type SignupRequest  = z.infer<typeof signupSchema>
 export interface LoginResponse {
   user: User
 }
+
+export interface UpdateProfileRequest {
+  nickname: string
+  profileImageKey?: string
+}

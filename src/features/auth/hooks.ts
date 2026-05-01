@@ -6,7 +6,7 @@ import { authApi } from './api'
 import { useAuthStore } from './store'
 import { getErrorMessage } from '@/shared/lib/errorMessages'
 import { BusinessError } from '@/shared/types'
-import type { LoginRequest, SignupRequest } from './types'
+import type { LoginRequest, SignupRequest, UpdateProfileRequest } from './types'
 
 export function useLogin() {
   const setUser = useAuthStore((s) => s.setUser)
@@ -57,6 +57,21 @@ export function useLogout() {
       logout()
       navigate('/login')
     },
+  })
+}
+
+export function useUpdateProfile() {
+  const setUser = useAuthStore((s) => s.setUser)
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: (body: UpdateProfileRequest) => authApi.updateProfile(body).then((r) => r.data),
+    onSuccess: (user) => {
+      setUser(user)
+      toast.success('프로필이 수정됐어요!')
+      navigate('/mypage')
+    },
+    onError: () => toast.error('프로필 수정에 실패했어요.'),
   })
 }
 
