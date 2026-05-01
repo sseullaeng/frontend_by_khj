@@ -86,6 +86,18 @@ export interface Trade {
   location?: string            // 거래 장소
   createdAt: string            // 거래 생성일시
   completedAt?: string         // 거래 완료일시
+  // 대여 전용 필드 (itemType === 'RENT' 일 때 사용)
+  rentStartDate?: string        // 대여 시작일 (ISO 날짜 문자열, YYYY-MM-DD)
+  rentEndDate?: string          // 반납 예정일 (ISO 날짜 문자열, YYYY-MM-DD)
+  isReturned?: boolean          // 반납 완료 여부 (판매자가 반납 확인 시 true)
+}
+
+// 차단된 사용자 정보 인터페이스 (UC-12: 차단 사용자 관리)
+export interface BlockedUser {
+  id: number                    // 차단된 사용자 ID
+  nickname: string              // 차단된 사용자 닉네임
+  profileImageUrl: string | null  // 프로필 이미지 URL
+  blockedAt: string             // 차단 일시 (ISO 날짜 문자열)
 }
 
 export type ItemCreateRequest = z.infer<typeof itemCreateSchema> & { imageKeys: string[] }

@@ -3,6 +3,7 @@ import { itemHandlers }         from './item.handlers'
 import { chatHandlers }         from './chat.handlers'
 import { notificationHandlers } from './notification.handlers'
 import { tradeHandlers }        from './trade.handlers'
+import { blockHandlers }        from './block.handlers'  // 차단 관련 핸들러
 
 /**
  * 전체 MSW 핸들러 통합
@@ -16,4 +17,5 @@ export const handlers = [
   ...chatHandlers,
   ...notificationHandlers,
   ...tradeHandlers,
+  ...blockHandlers,  // UC-12: 차단 사용자 관리 핸들러
 ]
