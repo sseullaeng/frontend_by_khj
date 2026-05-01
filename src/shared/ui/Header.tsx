@@ -5,7 +5,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 
 export default function Header() {
   const user      = useAuthStore((s) => s.user)
-  const { toggleOpen, activeTab } = useDrawerStore()
+  const { toggle, activeTab } = useDrawerStore()
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -40,9 +40,9 @@ export default function Header() {
           <div className="flex items-center gap-3">
             {user && (
               <button
-                onClick={toggleOpen}
+                onClick={() => toggle('notification')}
                 className={`relative flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
-                  activeTab !== null
+                  activeTab === 'notification'
                     ? 'bg-primary-50 text-primary-600'
                     : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
                 }`}
