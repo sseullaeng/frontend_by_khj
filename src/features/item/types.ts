@@ -1,41 +1,46 @@
 import { z } from 'zod'
 
+// 물품 거래 유형: 중고거래, 대여, 나눔
 export type ItemType     = 'SELL' | 'RENT' | 'SHARE'
+
+// 물품 상태: 활성, 예약됨, 판매완료, 숨김
 export type ItemStatus   = 'ACTIVE' | 'RESERVED' | 'SOLD' | 'HIDDEN'
 
+// 물품 기본 정보 인터페이스
 export interface Item {
-  id: number
-  title: string
-  description: string
-  price: number
-  rentPrice: number
-  itemType: ItemType
-  status: ItemStatus
-  category: string
-  brand?: string
-  isEscrow: boolean
-  hashtags: string[]
-  imageUrls: string[]
-  wishCount: number
-  viewCount: number
-  isWished: boolean
-  sellerId: number
-  sellerNickname: string
-  sellerProfileImageUrl: string | null
-  buyerNickname?: string | null
-  createdAt: string
+  id: number                    // 물품 고유 ID
+  title: string                 // 물품 제목
+  description: string           // 물품 상세 설명
+  price: number               // 중고거래 가격 (원)
+  rentPrice: number            // 대여 가격 (원/일)
+  itemType: ItemType           // 거래 유형 (중고/대여/나눔)
+  status: ItemStatus           // 물품 상태 (활성/예약/판매/숨김)
+  category: string             // 물품 카테고리
+  brand?: string              // 브랜드 (선택사항)
+  isEscrow: boolean          // 거래대행 사용 여부
+  hashtags: string[]          // 해시태그 목록
+  imageUrls: string[]         // 물품 이미지 URL 목록
+  wishCount: number           // 찜하기 수
+  viewCount: number           // 조회수
+  isWished: boolean          // 현재 사용자 찜하기 여부
+  sellerId: number            // 판매자 ID
+  sellerNickname: string       // 판매자 닉네임
+  sellerProfileImageUrl: string | null  // 판매자 프로필 이미지
+  buyerNickname?: string | null    // 구매자 닉네임 (선택사항)
+  createdAt: string           // 생성일시
 }
 
+// 물품 필터링 인터페이스
 export interface ItemFilter {
-  keyword?: string
-  category?: string
-  itemType?: ItemType
-  status?: ItemStatus
-  hashtag?: string
-  minPrice?: number
-  maxPrice?: number
-  page?: number
-  size?: number
+  keyword?: string      // 검색 키워드
+  category?: string     // 카테고리 필터
+  itemType?: ItemType    // 거래 유형 필터
+  status?: ItemStatus    // 상태 필터
+  hashtag?: string      // 해시태그 필터
+  minPrice?: number     // 최소 가격
+  maxPrice?: number     // 최대 가격
+  page?: number         // 페이지 번호
+  size?: number         // 페이지 크기
 }
 
 export const itemCreateSchema = z.object({
