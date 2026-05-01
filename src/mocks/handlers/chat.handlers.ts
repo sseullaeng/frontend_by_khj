@@ -11,7 +11,7 @@ const mockRooms: ChatRoom[] = [
   {
     id: 1,
     itemId: 1,
-    itemTitle: '아이폰 14',
+    itemTitle: '아이폰 14 Pro 256GB',
     itemImageUrl: null,
     opponentId: 2,
     opponentNickname: '판매자A',
@@ -19,6 +19,20 @@ const mockRooms: ChatRoom[] = [
     lastMessage: '안녕하세요! 아직 판매 중인가요?',
     lastMessageAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
     unreadCount: 2,
+    isSeller: false,
+  },
+  {
+    id: 2,
+    itemId: 3,
+    itemTitle: '맥북 프로 M3',
+    itemImageUrl: null,
+    opponentId: 3,
+    opponentNickname: '구매희망자',
+    opponentProfileImageUrl: null,
+    lastMessage: '혹시 직거래 가능한가요?',
+    lastMessageAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    unreadCount: 0,
+    isSeller: true,
   },
 ]
 
@@ -70,6 +84,7 @@ export const chatHandlers = [
       lastMessage: null,
       lastMessageAt: null,
       unreadCount: 0,
+      isSeller: false,
     }
     mockRooms.push(newRoom)
     return HttpResponse.json({ success: true, data: newRoom }, { status: 201 })

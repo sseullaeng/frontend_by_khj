@@ -22,8 +22,6 @@ const ItemDetailPage     = lazy(() => import('@/pages/item/ItemDetailPage'))
 const ItemCreatePage     = lazy(() => import('@/pages/item/ItemCreatePage'))
 const ItemEditPage       = lazy(() => import('@/pages/item/ItemEditPage'))
 
-const ChatListPage       = lazy(() => import('@/pages/chat/ChatListPage'))
-const ChatRoomPage       = lazy(() => import('@/pages/chat/ChatRoomPage'))
 
 const TransactionPage    = lazy(() => import('@/pages/transaction/TransactionPage'))
 
@@ -39,8 +37,12 @@ const MyPage             = lazy(() => import('@/pages/mypage/MyPage'))
 const ProfileEditPage    = lazy(() => import('@/pages/mypage/ProfileEditPage'))
 const UserProfilePage    = lazy(() => import('@/pages/mypage/UserProfilePage'))
 const BlockListPage      = lazy(() => import('@/pages/mypage/BlockListPage'))
+const WishListPage       = lazy(() => import('@/pages/mypage/WishListPage'))
+const MyItemsPage        = lazy(() => import('@/pages/mypage/MyItemsPage'))
 
 const NotificationPage   = lazy(() => import('@/pages/notification/NotificationPage'))
+const ReviewManagePage   = lazy(() => import('@/pages/review/ReviewManagePage'))
+const ReviewWritePage    = lazy(() => import('@/pages/review/ReviewWritePage'))
 const NoticePage         = lazy(() => import('@/pages/notice/NoticePage'))
 const NoticeDetailPage   = lazy(() => import('@/pages/notice/NoticeDetailPage'))
 const SupportPage        = lazy(() => import('@/pages/support/SupportPage'))
@@ -114,10 +116,7 @@ export const router = createBrowserRouter([
           { path: '/items/new',             element: <ItemCreatePage /> },
           { path: '/items/:id/edit',        element: <ItemEditPage /> },
 
-          { path: '/chats',                 element: <ChatListPage /> },
-          { path: '/chats/:roomId',         element: <ChatRoomPage /> },
-
-          { path: '/transactions/:id',      element: <TransactionPage /> },
+{ path: '/transactions/:id',      element: <TransactionPage /> },
 
           { path: '/point',                 element: <PointPage /> },
           { path: '/point/charge',          element: <ChargePage /> },
@@ -129,10 +128,14 @@ export const router = createBrowserRouter([
 
           { path: '/mypage',                element: <MyPage /> },
           { path: '/mypage/edit',           element: <ProfileEditPage /> },
+          { path: '/mypage/items',          element: <MyItemsPage /> },
+          { path: '/mypage/wishes',         element: <WishListPage /> },
           { path: '/users/:id',             element: <UserProfilePage /> },
           { path: '/mypage/blocks',         element: <BlockListPage /> },
 
           { path: '/notifications',         element: <NotificationPage /> },
+          { path: '/reviews',               element: <ReviewManagePage /> },
+          { path: '/reviews/write',         element: <ReviewWritePage /> },
 
           // 거래대행 — 로그인 필수
           { path: '/escrow',               element: <EscrowHubPage /> },

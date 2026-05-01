@@ -9,6 +9,7 @@ export interface ChatRoom {
   lastMessage: string | null
   lastMessageAt: string | null
   unreadCount: number
+  isSeller: boolean
 }
 
 export interface ChatMessage {

@@ -79,13 +79,71 @@ export function useUpdateItem(id: number) {
   })
 }
 
+export function useWishList() {
+  return useQuery({
+    queryKey: itemKeys.wished(),
+    queryFn: () => {
+      if (isMock) {
+        return { content: MOCK_ITEMS.slice(0, 5).map(i => ({ ...i, isWished: true })), page: 0, size: 5, totalElements: 5, totalPages: 1, hasNext: false, hasPrevious: false }
+      }
+      return itemApi.getWishList().then((r) => r.data)
+    },
+  })
+}
+
+export function useMyItems() {
+  const MOCK_BUYERS = ['이서아', '박지호', '최하은', '정현우']
+  return useQuery({
+    queryKey: [...itemKeys.lists(), 'my'],
+    queryFn: () => {
+      if (isMock) {
+        const mine = MOCK_ITEMS.filter((i) => i.sellerId === 1).map((item, idx) => ({
+          ...item,
+          status: 'SOLD' as const,
+          buyerNickname: MOCK_BUYERS[idx % MOCK_BUYERS.length],
+        }))
+        return { content: mine, page: 0, size: mine.length, totalElements: mine.length, totalPages: 1, hasNext: false, hasPrevious: false }
+      }
+      return itemApi.getMyItems().then((r) => r.data)
+    },
+  })
+}
+
+export function useDeleteItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => itemApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
+      toast.success('상품이 삭제됐어요.')
+    },
+    onError: () => toast.error('상품 삭제에 실패했어요.'),
+  })
+}
+
 export function useToggleWish(id: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => itemApi.toggleWish(id).then((r) => r.data),
+    mutationFn: () => {
+      if (isMock) return Promise.resolve(null)
+      return itemApi.toggleWish(id).then((r) => r.data)
+    },
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: itemKeys.detail(id) })
+      const prev = qc.getQueryData(itemKeys.detail(id))
+      qc.setQueryData(itemKeys.detail(id), (old: any) =>
+        old ? { ...old, isWished: !old.isWished, wishCount: old.wishCount + (old.isWished ? -1 : 1) } : old
+      )
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(itemKeys.detail(id), ctx.prev)
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
-      qc.invalidateQueries({ queryKey: itemKeys.wished() })
+      if (!isMock) {
+        qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+        qc.invalidateQueries({ queryKey: itemKeys.wished() })
+      }
     },
   })
 }

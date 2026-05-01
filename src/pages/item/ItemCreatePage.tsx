@@ -36,9 +36,9 @@ export default function ItemCreatePage() {
     formState: { errors },
   } = useForm<ItemFormValues>({
     resolver: zodResolver(itemCreateSchema),
-    defaultValues: { 
-      hashtags: [], 
-      sellPrice: 0, 
+    defaultValues: {
+      hashtags: [],
+      sellPrice: 0,
       rentPrice: 0,
       depositRate: 0,
       categoryId: 0,
@@ -46,7 +46,8 @@ export default function ItemCreatePage() {
       locationName: '',
       locationLat: 0,
       locationLng: 0,
-      imageFiles: []
+      imageFiles: [],
+      isEscrow: false,
     },
   })
 
@@ -265,6 +266,24 @@ export default function ItemCreatePage() {
             </label>
           </div>
         )}
+
+        {/* 거래대행 사용 여부 */}
+        <div className="flex items-start gap-3 p-3.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <input
+            type="checkbox"
+            id="isEscrow"
+            {...register('isEscrow')}
+            className="mt-0.5 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+          />
+          <div>
+            <label htmlFor="isEscrow" className="text-sm font-medium text-indigo-900 cursor-pointer">
+              거래대행 사용
+            </label>
+            <p className="text-xs text-indigo-600 mt-0.5">
+              쓸랭이 중간에서 안전하게 거래를 도와드려요
+            </p>
+          </div>
+        </div>
 
         {/* 대여 기간 선택 */}
         {rentPrice > 0 && (

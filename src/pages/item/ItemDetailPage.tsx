@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Heart, MapPin, Eye, Clock, ChevronLeft, Flag } from 'lucide-react'
-import { useItemDetail, useToggleWish } from '@/features/item/hooks'
+import { Heart, MapPin, Eye, Clock, ChevronLeft, Flag, Pencil, Trash2 } from 'lucide-react'
+import { useItemDetail, useToggleWish, useDeleteItem } from '@/features/item/hooks'
+import { useDrawerStore } from '@/shared/store/drawerStore'
+import { useAuthStore } from '@/features/auth/store'
+import { chatApi } from '@/features/chat/api'
 import { cn } from '@/shared/lib/cn'
 import { fromNow } from '@/shared/lib/date'
 
@@ -22,6 +26,28 @@ export default function ItemDetailPage() {
   const navigate   = useNavigate()
   const { data: item, isLoading } = useItemDetail(Number(id))
   const { mutate: toggleWish }    = useToggleWish(Number(id))
+  const { mutate: deleteItem, isPending: isDeleting } = useDeleteItem()
+  const { open, openChatRoom }    = useDrawerStore()
+  const currentUser = useAuthStore((s) => s.user)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+
+  const isOwner = !!currentUser && item?.sellerId === currentUser.id
+
+  const handleDelete = () => {
+    deleteItem(Number(id), {
+      onSuccess: () => navigate('/items'),
+    })
+  }
+
+  const handleChat = async () => {
+    open('chat')
+    try {
+      const res = await chatApi.createRoom(item!.id)
+      openChatRoom(res.data.id)
+    } catch {
+      // drawer가 이미 열려 있으므로 채팅 목록 표시
+    }
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-32">
@@ -166,24 +192,43 @@ export default function ItemDetailPage() {
 
           {/* 데스크탑 액션 버튼 */}
           <div className="hidden lg:flex items-center gap-2 pt-2">
-            <button
-              onClick={() => toggleWish()}
-              className={cn(
-                'p-3 border rounded-xl transition-colors flex-shrink-0',
-                item.isWished
-                  ? 'border-red-300 text-red-500 bg-red-50'
-                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
-              )}
-              aria-label="찜하기"
-            >
-              <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              onClick={() => navigate('/chats', { state: { itemId: item.id } })}
-              className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
-            >
-              채팅하기
-            </button>
+            {isOwner ? (
+              <>
+                <button
+                  onClick={() => navigate(`/items/${id}/edit`)}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-gray-200 text-gray-600 hover:border-primary-300 hover:text-primary-600 rounded-xl text-sm font-semibold transition-colors flex-1"
+                >
+                  <Pencil size={16} /> 수정
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors flex-1"
+                >
+                  <Trash2 size={16} /> 삭제
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => toggleWish()}
+                  className={cn(
+                    'p-3 border rounded-xl transition-colors flex-shrink-0',
+                    item.isWished
+                      ? 'border-red-300 text-red-500 bg-red-50'
+                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  )}
+                  aria-label="찜하기"
+                >
+                  <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
+                </button>
+                <button
+                  onClick={handleChat}
+                  className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                >
+                  채팅하기
+                </button>
+              </>
+            )}
           </div>
 
         </div>
@@ -191,23 +236,67 @@ export default function ItemDetailPage() {
 
       {/* 모바일 하단 고정 CTA */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
-        <button
-          onClick={() => toggleWish()}
-          className={cn(
-            'p-3 border rounded-xl transition-colors flex-shrink-0',
-            item.isWished ? 'border-red-300 text-red-500 bg-red-50' : 'border-gray-200 text-gray-400'
-          )}
-          aria-label="찜하기"
-        >
-          <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
-        </button>
-        <button
-          onClick={() => navigate('/chats', { state: { itemId: item.id } })}
-          className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold"
-        >
-          채팅하기
-        </button>
+        {isOwner ? (
+          <>
+            <button
+              onClick={() => navigate(`/items/${id}/edit`)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold"
+            >
+              <Pencil size={16} /> 수정
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold"
+            >
+              <Trash2 size={16} /> 삭제
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => toggleWish()}
+              className={cn(
+                'p-3 border rounded-xl transition-colors flex-shrink-0',
+                item.isWished ? 'border-red-300 text-red-500 bg-red-50' : 'border-gray-200 text-gray-400'
+              )}
+              aria-label="찜하기"
+            >
+              <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              onClick={handleChat}
+              className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold"
+            >
+              채팅하기
+            </button>
+          </>
+        )}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 mb-1">상품을 삭제할까요?</h3>
+            <p className="text-sm text-gray-500 mb-5">삭제된 상품은 복구할 수 없어요.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold disabled:opacity-60 transition-colors"
+              >
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -91,4 +91,18 @@ export const authHandlers = [
     }
     return HttpResponse.json({ success: true, data: currentUser })
   }),
+
+  http.patch('/api/v1/users/me', async ({ request }) => {
+    if (!currentUser) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'AUTH_UNAUTHORIZED', message: '로그인이 필요합니다', traceId: 'mock-trace' } },
+        { status: 401 }
+      )
+    }
+    const body = await request.json() as { nickname?: string; profileImageKey?: string }
+    if (body.nickname) currentUser = { ...currentUser, nickname: body.nickname }
+    const stored = userStore.get(currentUser.email)
+    if (stored) userStore.set(currentUser.email, { ...stored, user: currentUser })
+    return HttpResponse.json({ success: true, data: currentUser })
+  }),
 ]
