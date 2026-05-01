@@ -22,8 +22,6 @@ const ItemDetailPage     = lazy(() => import('@/pages/item/ItemDetailPage'))
 const ItemCreatePage     = lazy(() => import('@/pages/item/ItemCreatePage'))
 const ItemEditPage       = lazy(() => import('@/pages/item/ItemEditPage'))
 
-const ChatListPage       = lazy(() => import('@/pages/chat/ChatListPage'))
-const ChatRoomPage       = lazy(() => import('@/pages/chat/ChatRoomPage'))
 
 const TransactionPage    = lazy(() => import('@/pages/transaction/TransactionPage'))
 
@@ -114,10 +112,7 @@ export const router = createBrowserRouter([
           { path: '/items/new',             element: <ItemCreatePage /> },
           { path: '/items/:id/edit',        element: <ItemEditPage /> },
 
-          { path: '/chats',                 element: <ChatListPage /> },
-          { path: '/chats/:roomId',         element: <ChatRoomPage /> },
-
-          { path: '/transactions/:id',      element: <TransactionPage /> },
+{ path: '/transactions/:id',      element: <TransactionPage /> },
 
           { path: '/point',                 element: <PointPage /> },
           { path: '/point/charge',          element: <ChargePage /> },

@@ -82,10 +82,26 @@ export function useUpdateItem(id: number) {
 export function useToggleWish(id: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => itemApi.toggleWish(id).then((r) => r.data),
+    mutationFn: () => {
+      if (isMock) return Promise.resolve(null)
+      return itemApi.toggleWish(id).then((r) => r.data)
+    },
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: itemKeys.detail(id) })
+      const prev = qc.getQueryData(itemKeys.detail(id))
+      qc.setQueryData(itemKeys.detail(id), (old: any) =>
+        old ? { ...old, isWished: !old.isWished, wishCount: old.wishCount + (old.isWished ? -1 : 1) } : old
+      )
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(itemKeys.detail(id), ctx.prev)
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
-      qc.invalidateQueries({ queryKey: itemKeys.wished() })
+      if (!isMock) {
+        qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+        qc.invalidateQueries({ queryKey: itemKeys.wished() })
+      }
     },
   })
 }

@@ -1,6 +1,8 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Heart, MapPin, Eye, Clock, ChevronLeft, Flag } from 'lucide-react'
 import { useItemDetail, useToggleWish } from '@/features/item/hooks'
+import { useDrawerStore } from '@/shared/store/drawerStore'
+import { chatApi } from '@/features/chat/api'
 import { cn } from '@/shared/lib/cn'
 import { fromNow } from '@/shared/lib/date'
 
@@ -22,6 +24,17 @@ export default function ItemDetailPage() {
   const navigate   = useNavigate()
   const { data: item, isLoading } = useItemDetail(Number(id))
   const { mutate: toggleWish }    = useToggleWish(Number(id))
+  const { open, openChatRoom }    = useDrawerStore()
+
+  const handleChat = async () => {
+    open('chat')
+    try {
+      const res = await chatApi.createRoom(item!.id)
+      openChatRoom(res.data.id)
+    } catch {
+      // drawer가 이미 열려 있으므로 채팅 목록 표시
+    }
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-32">
@@ -179,7 +192,7 @@ export default function ItemDetailPage() {
               <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
             </button>
             <button
-              onClick={() => navigate('/chats', { state: { itemId: item.id } })}
+              onClick={handleChat}
               className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
             >
               채팅하기
@@ -202,7 +215,7 @@ export default function ItemDetailPage() {
           <Heart size={20} fill={item.isWished ? 'currentColor' : 'none'} />
         </button>
         <button
-          onClick={() => navigate('/chats', { state: { itemId: item.id } })}
+          onClick={handleChat}
           className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold"
         >
           채팅하기
