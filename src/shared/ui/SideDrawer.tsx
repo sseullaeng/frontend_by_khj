@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -171,6 +172,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const [blockOpen, setBlockOpen] = useState(false)
   const [escrowOpen, setEscrowOpen] = useState(false)
   const [escrowChoice, setEscrowChoice] = useState<boolean | null>(null)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
   const txStatus = statusByRoom[roomId] ?? 'none'
   const useEscrow = useEscrowByRoom[roomId] ?? false
@@ -388,15 +391,20 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
         {room && (
           <>
-            {/* 상대방 프로필 */}
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-              {room.opponentProfileImageUrl ? (
-                <img src={room.opponentProfileImageUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
-              )}
-            </div>
-            <p className="text-sm font-semibold text-gray-900 shrink-0">{room.opponentNickname}</p>
+            {/* 상대방 프로필 — 클릭 시 프로필 플로팅 패널 오픈 */}
+            <button
+              onClick={() => setProfileUserId(room.opponentId)}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity shrink-0"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                {room.opponentProfileImageUrl ? (
+                  <img src={room.opponentProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-gray-900">{room.opponentNickname}</p>
+            </button>
 
             {/* 물품 이미지 + 제목 */}
             <Link
@@ -546,6 +554,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           <Send size={18} />
         </button>
       </div>
+
+      {/* 유저 프로필 플로팅 패널 */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
+      )}
     </div>
   )
 }
