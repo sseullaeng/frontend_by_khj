@@ -55,6 +55,7 @@ const ReviewWritePage    = lazy(() => import('@/pages/review/ReviewWritePage')) 
 // 공지 및 지원 관련
 const NoticePage         = lazy(() => import('@/pages/notice/NoticePage'))         // 공지사항 페이지
 const NoticeDetailPage   = lazy(() => import('@/pages/notice/NoticeDetailPage'))   // 공지 상세 페이지
+const NoticeWritePage    = lazy(() => import('@/pages/notice/NoticeWritePage'))    // 공지 글쓰기·수정 페이지 (관리자)
 const SupportPage        = lazy(() => import('@/pages/support/SupportPage'))        // 고객 지원 페이지
 
 // 거래 대행(Escrow) 관련 페이지
@@ -106,6 +107,8 @@ export const router = createBrowserRouter([
       { path: '/items',            element: <ItemListPage /> },
       { path: '/items/:id',        element: <ItemDetailPage /> },
       { path: '/notices',          element: <NoticePage /> },
+      { path: '/notices/write',    element: <NoticeWritePage /> },
+      { path: '/notices/:id/edit', element: <NoticeWritePage /> },
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
       { path: '/support',          element: <SupportPage /> },
 
