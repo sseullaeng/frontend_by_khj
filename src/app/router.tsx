@@ -14,6 +14,7 @@ import PublicOnlyRoute from '@/shared/ui/PublicOnlyRoute'    // 비로그인 사
 const LoginPage          = lazy(() => import('@/pages/auth/LoginPage'))          // 로그인 페이지
 const SignupPage         = lazy(() => import('@/pages/auth/SignupPage'))         // 회원가입 페이지
 const SocialCallbackPage = lazy(() => import('@/pages/auth/SocialCallbackPage')) // 소셜 로그인 콜백 페이지
+const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'))    // 이메일 인증 페이지
 
 // 홈 관련 페이지
 const HomePage           = lazy(() => import('@/pages/home/HomePage'))           // 메인 홈페이지
@@ -94,8 +95,11 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── 소셜 로그인 콜백
-  { path: '/auth/callback', element: <SocialCallbackPage /> },
+  // ── 소셜 로그인 콜백 (카카오/구글 공용)
+  { path: '/auth/:provider/callback', element: <SocialCallbackPage /> },
+
+  // ── 이메일 인증 (메일 링크에서 진입, 비로그인도 접근 가능)
+  { path: '/auth/verify-email', element: <VerifyEmailPage /> },
 
   // ── 비로그인 접근 가능 라우트
   {

@@ -1,64 +1,71 @@
-// 에러 메시지 유틸리티: 백엔드 ErrorCode를 한국어 사용자 친화적 메시지로 변환
-/**
- * 백엔드에서 전달하는 ErrorCode를 한국어 메시지로 매핑하여 사용자에게 표시합니다.
- * 추후 백엔드와 ErrorCode enum을 공유하여 일관성을 확보할 예정입니다.
- */
+// 백엔드 ErrorCode → 한국어 메시지 (가이드 §4 전체 정합)
+//
+// 백엔드는 error.message 자체가 한국어이지만, 프론트가 UX-맞춤 멘트로
+// 갈아치우고 싶은 경우만 여기 매핑. 나머지는 BusinessError.message 사용.
 
-// 에러 코드별 한국어 메시지 매핑 테이블
 const ERROR_MESSAGES: Record<string, string> = {
-  // ── 인증 관련 에러 ──
-  AUTH_TOKEN_EXPIRED:       '로그인이 만료됐어요. 다시 로그인해 주세요.',        // 토큰 만료
-  AUTH_INVALID_CREDENTIALS: '이메일 또는 비밀번호가 올바르지 않아요.',        // 로그인 실패
-  AUTH_UNAUTHORIZED:        '로그인이 필요한 서비스예요.',                    // 인증 필요
-  AUTH_FORBIDDEN:           '접근 권한이 없어요.',                          // 권한 없음
+  // ── 인증/권한 ─────────────────────────────────────────────
+  AUTH_LOGIN_FAILED:                                '이메일 또는 비밀번호가 올바르지 않아요.',
+  AUTH_TOKEN_MISSING:                               '로그인이 필요해요.',
+  AUTH_TOKEN_EXPIRED:                               '로그인이 만료됐어요. 다시 로그인해 주세요.',
+  AUTH_TOKEN_INVALID:                               '로그인 정보가 잘못됐어요. 다시 로그인해 주세요.',
+  AUTH_TOKEN_REVOKED:                               '로그아웃된 세션이에요. 다시 로그인해 주세요.',
+  AUTH_REFRESH_TOKEN_INVALID:                       '세션이 만료됐어요. 다시 로그인해 주세요.',
+  AUTH_OAUTH_FAILED:                                '소셜 로그인에 실패했어요. 다시 시도해 주세요.',
+  AUTH_EMAIL_NOT_VERIFIED:                          '이메일 인증이 필요해요. 가입 시 받은 메일을 확인해 주세요.',
+  AUTH_VERIFICATION_TOKEN_INVALID:                  '잘못된 인증 링크예요.',
+  AUTH_VERIFICATION_TOKEN_EXPIRED:                  '만료된 인증 링크예요. 메일을 다시 받아 주세요.',
+  AUTH_VERIFICATION_RESEND_TOO_SOON:                '잠시 후 다시 시도해 주세요.',
+  AUTH_EMAIL_ALREADY_LINKED_TO_DIFFERENT_PROVIDER:  '다른 SNS로 이미 가입된 이메일이에요.',
+  USER_BLOCKED:                                     '차단된 계정이에요.',
 
-  // ── 사용자 관련 에러 ──
-  USER_NOT_FOUND:           '사용자를 찾을 수 없어요.',                      // 사용자 없음
-  USER_ALREADY_EXISTS:      '이미 가입된 이메일이에요.',                    // 중복 가입
-  USER_BLOCKED:             '차단된 사용자예요.',                            // 사용자 차단됨
+  // ── 물품 ──────────────────────────────────────────────────
+  ITEM_NOT_FOUND:               '상품을 찾을 수 없어요.',
+  ITEM_FORBIDDEN:               '본인 물품에서만 가능한 동작이에요.',
+  ITEM_INVALID_STATE:           '현재 상태에서는 가능한 동작이 아니에요.',
+  ITEM_IMAGE_LIMIT_EXCEEDED:    '이미지는 최대 5장까지 등록할 수 있어요.',
+  ITEM_IMAGE_NOT_FOUND:         '해당 이미지를 찾을 수 없어요.',
+  ITEM_IMAGE_ORDER_MISMATCH:    '이미지 순서가 기존 목록과 일치하지 않아요.',
 
-  // ── 물품 관련 에러 ──
-  ITEM_NOT_FOUND:           '상품을 찾을 수 없어요.',                        // 물품 없음
-  ITEM_ALREADY_SOLD:        '이미 거래가 완료된 상품이에요.',                // 이미 판매됨
-  ITEM_FORBIDDEN:           '해당 상품을 수정할 권한이 없어요.',              // 수정 권한 없음
+  // ── 거래(Transaction) ─────────────────────────────────────
+  TRANSACTION_NOT_FOUND:        '거래를 찾을 수 없어요.',
+  TRANSACTION_FORBIDDEN:        '거래 참여자만 가능해요.',
+  TRANSACTION_INVALID_STATE:    '현재 상태에서는 가능한 동작이 아니에요.',
+  TRANSACTION_RESERVED_BY_OTHER:'다른 거래가 먼저 예약됐어요.',
+  TRANSACTION_SELF_NOT_ALLOWED: '본인 물품은 거래할 수 없어요.',
 
-  // ── 거래 관련 에러 ──
-  TRANSACTION_NOT_FOUND:    '거래를 찾을 수 없어요.',                        // 거래 없음
-  TRANSACTION_INVALID_STATE:'현재 거래 상태에서 수행할 수 없는 작업이에요.',    // 잘못된 거래 상태
+  // ── 결제 / 포인트 / 출금 ──────────────────────────────────
+  INSUFFICIENT_POINT:               '포인트가 부족해요.',
+  PAYMENT_AMOUNT_MISMATCH:          '결제 금액이 맞지 않아요. 고객센터로 문의해 주세요.',
+  PAYMENT_DUPLICATED:               '이미 처리된 결제예요.',
+  EXTERNAL_API_ERROR:               '결제 검증 중 일시적 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
+  WITHDRAWAL_IDEMPOTENCY_MISMATCH:  '같은 키로 이미 다른 출금이 신청됐어요.',
+  WITHDRAWAL_NOT_CANCELABLE:        '승인된 출금은 취소할 수 없어요.',
 
-  // ── 결제 관련 에러 ──
-  PAYMENT_FAILED:           '결제에 실패했어요. 다시 시도해 주세요.',            // 결제 실패
-  PAYMENT_AMOUNT_MISMATCH:  '결제 금액이 맞지 않아요.',                        // 금액 불일치
-  PAYMENT_ALREADY_CONFIRMED:'이미 처리된 결제예요.',                        // 중복 결제
+  // ── 리뷰 ──────────────────────────────────────────────────
+  REVIEW_DUPLICATED:           '이미 작성한 리뷰가 있어요.',
+  REVIEW_PERIOD_EXPIRED:       '리뷰 작성 기간(7일)이 지났어요.',
 
-  // ── 포인트 관련 에러 ──
-  POINT_INSUFFICIENT:       '포인트가 부족해요.',                            // 포인트 부족
-  POINT_WITHDRAW_MIN:       '출금 최소 금액에 미달해요.',                      // 최소 출금액 미달
+  // ── 채팅 / 찜 / 신고 ──────────────────────────────────────
+  CHAT_ROOM_NOT_FOUND:         '채팅방을 찾을 수 없어요.',
+  CHAT_FORBIDDEN:              '채팅 참여자만 가능해요.',
+  CHAT_MESSAGE_EMPTY:          '내용 또는 이미지 중 하나는 필요해요.',
 
-  // ── 채팅 관련 에러 ──
-  CHAT_ROOM_NOT_FOUND:      '채팅방을 찾을 수 없어요.',                        // 채팅방 없음
+  // ── 배달 ──────────────────────────────────────────────────
+  DELIVERY_ALREADY_ACCEPTED:   '다른 라이더가 이미 수락한 배달이에요.',
+  DELIVERY_SELF_NOT_ALLOWED:   '본인 요청은 수락할 수 없어요.',
+  DELIVERY_INVALID_STATE:      '현재 상태에서는 가능한 동작이 아니에요.',
 
-  // ── 파일 관련 에러 ──
-  FILE_UPLOAD_FAILED:       '파일 업로드에 실패했어요.',                      // 업로드 실패
-  FILE_TOO_LARGE:           '파일 크기가 너무 커요 (최대 5MB).',               // 파일 크기 초과
-
-  // ── 배송 관련 에러 ──
-  DELIVERY_NOT_FOUND:       '배달 정보를 찾을 수 없어요.',                    // 배송 정보 없음
-
-  // ── 일반 에러 ──
-  INTERNAL_SERVER_ERROR:    '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',  // 서버 내부 오류
-  VALIDATION_ERROR:         '입력 값을 확인해 주세요.',                        // 입력값 검증 실패
+  // ── 시스템 ────────────────────────────────────────────────
+  INVALID_REQUEST:             '입력값을 확인해 주세요.',
+  RESOURCE_NOT_FOUND:          '요청하신 리소스를 찾을 수 없어요.',
+  FORBIDDEN:                   '접근 권한이 없어요.',
+  INTERNAL_SERVER_ERROR:       '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.',
 }
 
 /**
- * 에러 코드를 한국어 메시지로 변환하는 함수
- * 
- * @param code - 백엔드에서 전달받은 에러 코드
- * @returns 해당하는 한국어 에러 메시지 (없을 경우 기본 메시지 반환)
- * 
- * @example
- * getErrorMessage('AUTH_TOKEN_EXPIRED') // '로그인이 만료됐어요. 다시 로그인해 주세요.'
- * getErrorMessage('UNKNOWN_ERROR')      // '알 수 없는 오류가 발생했어요.'
+ * 에러 코드를 한국어 메시지로 변환.
+ * 매핑 없으면 generic fallback. 호출부에서는 BusinessError.message 우선 사용 권장.
  */
 export function getErrorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? '알 수 없는 오류가 발생했어요.'

@@ -2,7 +2,7 @@
 import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
 import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
 import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
-import { signupSchema, type SignupRequest } from '@/features/auth/types'  // 인증 관련 타입
+import { signupSchema, type SignupForm } from '@/features/auth/types'  // 인증 관련 타입
 import { useSignup } from '@/features/auth/hooks'  // 회원가입 훅
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
@@ -29,7 +29,7 @@ export default function SignupPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignupRequest>({ resolver: zodResolver(signupSchema) })  // 폼 상태 관리
+  } = useForm<SignupForm>({ resolver: zodResolver(signupSchema) })  // 폼 상태 관리
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">

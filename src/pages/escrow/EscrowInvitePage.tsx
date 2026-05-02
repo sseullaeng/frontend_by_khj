@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
 import { escrowStartSchema, type EscrowStartRequest, type EscrowRole, type FeePayer } from '@/features/escrow/types'  // 에스크로 관련 타입
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Shield, Users, AlertCircle, CheckCircle } from 'lucide-react'  // Lucide 아이콘들
+import { formatKst } from '@/shared/lib/date'
 
 // TODO: API 연동 시 linkId로 서버에서 조회 - 현재는 모의 데이터 사용
 // 모의 링크 데이터: 개발용 샘플 데이터
@@ -95,7 +96,7 @@ export default function EscrowInvitePage() {
           <div className="flex justify-between">
             <span className="text-blue-700">링크 만료</span>
             <span className="font-medium text-blue-900">
-              {new Date(linkData.expiresAt).toLocaleString('ko-KR')}
+              {formatKst(linkData.expiresAt, 'yyyy.MM.dd HH:mm')}
             </span>
           </div>
         </div>

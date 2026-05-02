@@ -1,6 +1,12 @@
 // 인증 API: 로그인, 회원가입, 프로필 관리 등 인증 관련 API 호출
 import api from '@/shared/api/axios'  // 기본 API 클라이언트
-import type { LoginRequest, SignupRequest, LoginResponse, UpdateProfileRequest } from './types'  // 인증 관련 타입
+import type {
+  LoginRequest,
+  SignupRequest,
+  LoginResponse,
+  UpdateProfileRequest,
+  OAuthLoginRequest,
+} from './types'  // 인증 관련 타입
 import type { User } from '@/shared/types'  // 사용자 타입
 
 /**
@@ -20,7 +26,7 @@ export const authApi = {
   signup:  (body: SignupRequest) => api.post<void>('/api/v1/auth/signup', body),           // 회원가입
   logout:  ()                    => api.post<void>('/api/v1/auth/logout'),                 // 로그아웃
   refresh: ()                    => api.post<void>('/api/v1/auth/refresh'),               // 토큰 갱신
-  me:      ()                    => api.get<User>('/api/v1/auth/me'),                       // 현재 사용자 정보 조회
+  me:      ()                    => api.get<User>('/api/v1/users/me'),                      // 현재 사용자 정보 조회
 
   updateProfile: (body: UpdateProfileRequest) =>
     api.patch<User>('/api/v1/users/me', body),  // 프로필 수정
@@ -30,7 +36,17 @@ export const authApi = {
       purpose: 'profile', files: [file],  // 프로필 이미지 업로드용 사인드 URL 생성
     }),
 
-  // 소셜 로그인 콜백: 백엔드 리다이렉트 후 콜백 URL에서 사용자 정보 조회
-  socialCallback: (code: string, provider: 'kakao' | 'naver') =>
-    api.get<LoginResponse>(`/api/v1/auth/oauth/${provider}/callback`, { params: { code } }),
+  // 소셜 로그인 (kakao/google 모두 redirect 흐름 — body { code, redirectUri })
+  oauthLogin: (req: OAuthLoginRequest) => {
+    const { provider, ...body } = req
+    return api.post<LoginResponse>(`/api/v1/auth/oauth2/${provider}`, body)
+  },
+
+  // 이메일 인증 (메일 링크 → 프론트 페이지 → 이 API 호출)
+  verifyEmail: (token: string) =>
+    api.post<void>('/api/v1/auth/verify-email', { token }),
+
+  // 인증 메일 재발송 (인증 필수, 60초 cooldown)
+  resendVerification: () =>
+    api.post<void>('/api/v1/auth/resend-verification'),
 }

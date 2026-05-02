@@ -1,95 +1,144 @@
-// 채팅방 관련 훅: REST API + WebSocket(STOMP) 합성 채팅 기능
-/**
- * useChatRoom 훅
- * 
- * 기능:
- * - REST(React Query infinite) + WebSocket(STOMP) 합성 훅
- * - 초기 메시지: REST GET (커서 페이징)
- * - 실시간 수신: STOMP subscribe '/topic/chat-room/{roomId}'
- * - 메시지 전송: STOMP send '/app/chat.send'
- * 
- * ⚠️ WebSocket은 실서버 필수 (MSW mock 불가)
- */
-import { useEffect, useRef, useCallback } from 'react'  // React 훅들
-import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query'  // React Query 훅
-import type { PageResponse } from '@/shared/types'  // 페이지 응답 타입
-import { Client, type IMessage } from '@stomp/stompjs'  // STOMP WebSocket 클라이언트
-import SockJS from 'sockjs-client'  // WebSocket 클라이언트
-import { chatApi } from './api'  // 채팅 API
-import { useChatStore } from './store'  // 채팅 상태 스토어
-import type { ChatMessage } from './types'  // 채팅 메시지 타입
+// 채팅 훅 — REST 메시지 전송 + STOMP 실시간 수신 (가이드 §9 / §10.4-5)
+import { useEffect } from 'react'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import type { InfiniteData } from '@tanstack/react-query'
+import { chatApi } from './api'
+import { useChatStore } from './store'
+import type { ChatMessage, ChatRoom, SendMessageRequest } from './types'
+import { subscribeStomp } from '@/shared/lib/stomp'
 
-// WebSocket URL: 환경 변수 또는 기본값
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws-stomp'
+const ROOM_TOPIC = (id: number) => `/topic/chat-room/${id}`
 
-/**
- * 채팅방 훅
- * 
- * 기능:
- * - 채팅방 메시지 관리
- * - 실시간 메시지 수신 및 전송
- * - 과거 메시지 무한 스크롤
- * - WebSocket 연결 관리
- */
-export function useChatRoom(roomId: number) {
-  const { appendMessage, setMessages, messagesByRoom } = useChatStore()  // 채팅 스토어 함수들
-  const stompRef = useRef<Client | null>(null)  // STOMP 클라이언트 참조
+export const chatKeys = {
+  rooms:    ()                 => ['chat', 'rooms'] as const,
+  room:     (id: number)       => ['chat', 'room', id] as const,
+  messages: (id: number)       => ['chat', 'messages', id] as const,
+}
 
-  // ── 과거 메시지 조회 (REST, infinite) ──────────────────────────────────────────
-  const historyQuery = useInfiniteQuery({
-    queryKey: ['chat', 'messages', roomId],  // 쿼리 키
-    queryFn: async ({ pageParam }: { pageParam: number | undefined }) => {
-      const res = await chatApi.getMessages(roomId, { before: pageParam, size: 30 })
-      return res.data
+// 채팅방 목록 (페이지네이션)
+export function useChatRooms(params?: { page?: number; size?: number }) {
+  return useQuery({
+    queryKey: [...chatKeys.rooms(), params ?? {}],
+    queryFn: () => chatApi.getRooms(params).then((r) => r.data),
+  })
+}
+
+// 채팅방 단건
+export function useChatRoom(id: number) {
+  return useQuery({
+    queryKey: chatKeys.room(id),
+    queryFn: () => chatApi.getRoom(id).then((r) => r.data),
+    enabled: !!id,
+  })
+}
+
+// 채팅방 생성 (멱등)
+export function useCreateChatRoom() {
+  return useMutation({
+    mutationFn: (itemId: number) => chatApi.createRoom(itemId).then((r) => r.data),
+  })
+}
+
+// 읽음 처리
+export function useMarkChatRead(roomId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => chatApi.markRead(roomId).then((r) => r.data),
+    onSuccess: (room) => {
+      qc.setQueryData(chatKeys.room(roomId), room)
+      qc.invalidateQueries({ queryKey: chatKeys.rooms() })
     },
-    getNextPageParam: (last) => (last.hasPrevious ? last.content[0]?.id : undefined),
-    initialPageParam: undefined as number | undefined,
+  })
+}
+
+/**
+ * 채팅방 메시지 — 초기 REST + STOMP 실시간 + REST 전송 (가이드 §9.3: send 는 REST 만)
+ *
+ * - 마운트 시 메시지 history (커서 페이징, before = ObjectId hex string)
+ * - /topic/chat-room/{id} 구독 → 실시간 수신
+ * - 진입 시 markRead 자동 호출
+ * - 새 메시지 수신 시 markRead 호출 (현재 방 보고 있는 동안 unread 누적 방지)
+ */
+export function useChatMessages(roomId: number) {
+  const qc = useQueryClient()
+  const { appendMessage, setMessages, messagesByRoom } = useChatStore()
+  const { mutate: markRead } = useMarkChatRead(roomId)
+
+  // 과거 메시지 — List<MessageResponse> 응답, 커서는 가장 오래된 메시지의 id
+  const historyQuery = useInfiniteQuery({
+    queryKey: chatKeys.messages(roomId),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      chatApi.getMessages(roomId, { before: pageParam, size: 30 }).then((r) => r.data),
+    getNextPageParam: (last) => {
+      // 응답이 size 보다 적으면 더 없음. 아니면 가장 오래된 메시지의 id (== 첫 element)
+      if (!last || last.length === 0) return undefined
+      return last.length < 30 ? undefined : last[0]?.id
+    },
+    initialPageParam: undefined as string | undefined,
+    enabled: !!roomId,
   })
 
+  // history 도착 시 store 에 반영 — 백엔드는 최신순 (DESC), reverse 하여 오래된→최신
   useEffect(() => {
-    if (historyQuery.data) {
-      const all = (historyQuery.data as InfiniteData<PageResponse<ChatMessage>>)
-        .pages.flatMap((p) => p.content).reverse()
-      setMessages(roomId, all)
-    }
+    if (!historyQuery.data) return
+    const all = (historyQuery.data as InfiniteData<ChatMessage[]>).pages
+      .flatMap((page) => page)
+      .reverse()
+    setMessages(roomId, all)
   }, [historyQuery.data, roomId, setMessages])
 
-  // ── STOMP 연결 ────────────────────────────────────────────────────────────
+  // 진입 시 markRead
   useEffect(() => {
-    const client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
-      reconnectDelay: 5_000,
-      onConnect: () => {
-        client.subscribe(`/topic/chat-room/${roomId}`, (frame: IMessage) => {
-          const msg: ChatMessage = JSON.parse(frame.body)
-          appendMessage(roomId, msg)
-        })
-      },
+    if (!roomId) return
+    markRead()
+  }, [roomId, markRead])
+
+  // STOMP 실시간 구독
+  useEffect(() => {
+    if (!roomId) return
+    const unsubscribe = subscribeStomp(ROOM_TOPIC(roomId), (frame) => {
+      try {
+        const msg: ChatMessage = JSON.parse(frame.body)
+        appendMessage(roomId, msg)
+        // 채팅방 목록(lastMessage) 갱신
+        qc.invalidateQueries({ queryKey: chatKeys.rooms() })
+        // 현재 방 보는 동안 도착한 메시지는 즉시 읽음 처리
+        markRead()
+      } catch (err) {
+        console.error('chat message parse error', err)
+      }
     })
+    return unsubscribe
+  }, [roomId, appendMessage, qc, markRead])
 
-    client.activate()
-    stompRef.current = client
+  // 메시지 전송 — REST (가이드 §9.3)
+  const sendMutation = useMutation({
+    mutationFn: (body: SendMessageRequest) =>
+      chatApi.sendMessage(roomId, body).then((r) => r.data),
+    // STOMP broadcast 가 자기 자신에게도 오므로 onSuccess 에서 append 안 함 (중복 방지)
+  })
 
-    return () => {
-      client.deactivate()
-      stompRef.current = null
-    }
-  }, [roomId, appendMessage])
-
-  // ── 메시지 전송 ───────────────────────────────────────────────────────────
-  const sendMessage = useCallback(
-    (content: string, imageKey?: string) => {
-      stompRef.current?.publish({
-        destination: '/app/chat.send',
-        body: JSON.stringify({ roomId, content, imageKey }),
-      })
-    },
-    [roomId]
-  )
+  const sendMessage = (content: string, imageUrls?: string[]) => {
+    const trimmed = content.trim()
+    const hasImages = imageUrls && imageUrls.length > 0
+    if (!trimmed && !hasImages) return
+    sendMutation.mutate({
+      content: trimmed || undefined,
+      imageUrls: hasImages ? imageUrls : undefined,
+    })
+  }
 
   return {
     messages: messagesByRoom[roomId] ?? [],
     historyQuery,
     sendMessage,
+    isSending: sendMutation.isPending,
   }
 }
+
+export type { ChatRoom }

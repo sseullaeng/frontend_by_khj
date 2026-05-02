@@ -1,66 +1,87 @@
-// 소셜 로그인 콜백 페이지 컴포넌트: 카카오/네이버 소셜 로그인 후 처리 페이지
-import { useEffect } from 'react'  // React 이펙트 훅
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'  // React Router 훅들
-import { authApi } from '@/features/auth/api'  // 인증 API
-import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
-import { toast } from 'sonner'  // 토스트 알림 라이브러리
+// 소셜 로그인 콜백 페이지 — 카카오/구글 redirect 흐름 공용 처리
+//
+// 흐름:
+//   1) /auth/{provider}/callback?code=... 진입
+//   2) URL 에서 code 추출
+//   3) 백엔드 /auth/oauth2/{provider} 로 { code, redirectUri } POST
+//      → 백엔드가 provider /oauth/token 호출해서 토큰 교환 + 사용자 정보 조회
+//   4) setUser → 홈
 
-/**
- * 소셜 로그인 콜백 페이지 컴포넌트
- * 
- * 기능:
- * - 소셜 로그인 제공업체(카카오/네이버)에서 리디렉션된 인증 코드 처리
- * - 인증 코드를 백엔드로 전송하여 액세스 토큰 및 사용자 정보 획득
- * - 성공 시 사용자 정보 저장 및 홈페이지로 이동
- * - 실패 시 에러 메시지 표시 및 로그인 페이지로 리디렉션
- * - 처리 중 로딩 상태 표시
- * 
- * 처리 흐름:
- * 1. URL 파라미터에서 인증 코드 추출
- * 2. 경로를 기준으로 제공업체 식별 (kakao/naver)
- * 3. 백엔드 API로 인증 코드 전송
- * 4. 응답에 따라 성공/실패 처리
- */
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { KAKAO_REDIRECT_URI, GOOGLE_REDIRECT_URI } from '@/features/auth/oauth'
+import { useOAuthLogin } from '@/features/auth/hooks'
+import type { OAuthProvider } from '@/features/auth/types'
+
+const PROVIDER_LABEL: Record<OAuthProvider, string> = {
+  kakao: '카카오',
+  google: '구글',
+}
+
+const REDIRECT_URI: Record<OAuthProvider, string> = {
+  kakao: KAKAO_REDIRECT_URI,
+  google: GOOGLE_REDIRECT_URI,
+}
+
+function isOAuthProvider(value: string | undefined): value is OAuthProvider {
+  return value === 'kakao' || value === 'google'
+}
+
 export default function SocialCallbackPage() {
-  const [params] = useSearchParams()  // URL 쿼리 파라미터
-  const navigate = useNavigate()      // 페이지 네비게이션 함수
-  const location = useLocation()     // 현재 위치 정보
-  const setUser = useAuthStore((s) => s.setUser)  // 사용자 정보 설정 함수
+  const { provider } = useParams<{ provider?: string }>()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const { mutate: oauthLogin } = useOAuthLogin()
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const ranOnce = useRef(false)
 
-  // 소셜 로그인 처리 이펙트
   useEffect(() => {
-    // URL에서 인증 코드 추출
-    const code = params.get('code')
-    
-    // 경로를 기준으로 소셜 제공업체 식별
-    const provider = location.pathname.includes('kakao') ? 'kakao' : 'naver'
+    // StrictMode 에서 effect 두 번 실행 방지
+    if (ranOnce.current) return
+    ranOnce.current = true
 
-    // 인증 코드가 없으면 실패 처리
-    if (!code) {
-      toast.error('소셜 로그인에 실패했어요.')
-      navigate('/login')
+    if (!isOAuthProvider(provider)) {
+      navigate('/login', { replace: true })
       return
     }
 
-    // 백엔드에 인증 코드 전송하여 토큰 및 사용자 정보 요청
-    authApi
-      .socialCallback(code, provider)
-      .then((r) => {
-        // 성공 시 사용자 정보 저장 및 홈으로 이동
-        setUser(r.data.user)
-        navigate('/')
-      })
-      .catch(() => {
-        // 실패 시 에러 메시지 표시 및 로그인 페이지로 이동
-        toast.error('소셜 로그인에 실패했어요.')
-        navigate('/login')
-      })
-  }, [])  // 의존성 배열이 비어있어 컴포넌트 마운트 시 한 번만 실행
+    const label = PROVIDER_LABEL[provider]
+    const code = params.get('code')
+    const oauthError = params.get('error')
 
-  // 로딩 상태 UI: 소셜 로그인 처리 중임을 시각적으로 표시
+    if (oauthError) {
+      const desc = params.get('error_description') ?? oauthError
+      setErrorMsg(`${label} 로그인이 취소되었어요. (${desc})`)
+      toast.error(`${label} 로그인이 취소되었어요.`)
+      return
+    }
+
+    if (!code) {
+      setErrorMsg('인증 코드를 받지 못했어요.')
+      toast.error(`${label} 로그인에 실패했어요.`)
+      return
+    }
+
+    // code 와 redirectUri 를 백엔드로 그대로 전달
+    oauthLogin({
+      provider,
+      code,
+      redirectUri: REDIRECT_URI[provider],
+    })
+  }, [provider, params, navigate, oauthLogin])
+
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-500">로그인 처리 중...</p>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+      <p className="text-gray-500">{errorMsg ?? '로그인 처리 중...'}</p>
+      {errorMsg && (
+        <button
+          onClick={() => navigate('/login', { replace: true })}
+          className="text-sm text-primary-500 underline"
+        >
+          로그인 페이지로 돌아가기
+        </button>
+      )}
     </div>
   )
 }
