@@ -32,7 +32,19 @@ const userStore = new Map<string, StoredUser>([
       role: 'USER',
       createdAt: new Date().toISOString(),
     }
-  }]
+  }],
+  ['admin@sseulang.kr', {
+    password: 'admin1234',
+    user: {
+      id: 999,
+      email: 'admin@sseulang.kr',
+      nickname: '관리자',
+      profileImageUrl: null,
+      trustScore: 100,
+      role: 'ADMIN',
+      createdAt: new Date().toISOString(),
+    }
+  }],
 ])
 
 let nextId = 2
