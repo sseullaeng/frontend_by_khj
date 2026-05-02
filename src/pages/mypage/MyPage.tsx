@@ -5,7 +5,7 @@ import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
 import { useLogout } from '@/features/auth/hooks'     // 로그아웃 훅
 import { Button } from '@/shared/ui/Button'           // 버튼 컴포넌트
 import { cn } from '@/shared/lib/cn'                  // 클래스명 유틸
-import { ChevronRight, ShieldCheck, X } from 'lucide-react'
+import { ChevronRight, ShieldCheck, ShieldOff, UserX, X } from 'lucide-react'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -313,12 +313,33 @@ function TradeList({ trades }: { trades: AdminTrade[] }) {
   )
 }
 
-/** 신고 목록 렌더링 (유저탭→프로필 플로팅 / 물품탭→상세 페이지 이동) */
+/** 신고 목록 렌더링 (유저탭→프로필+액션버튼 / 물품탭→상세 페이지 이동) */
 function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserClick: (id: number) => void }) {
   const navigate = useNavigate()
   // 탭 상태: 'USER' 또는 'ITEM'
   const [tab, setTab] = useState<'USER' | 'ITEM'>('USER')
+  // 유저별 로컬 상태 오버라이드 (정지/복구/탈퇴 처리 결과 반영)
+  const [statuses, setStatuses] = useState<Record<number, UserStatus>>({})
+  // 확인 모달 대상: { targetId, targetName, action }
+  const [confirm, setConfirm] = useState<{ targetId: number; targetName: string; action: 'suspend' | 'withdraw' } | null>(null)
+
   const filtered = reports.filter(r => r.targetType === tab)
+
+  /** 유저의 현재 상태 (로컬 오버라이드 우선) */
+  const getStatus = (report: AdminReport): UserStatus =>
+    statuses[report.targetId] ?? (report.status as UserStatus)
+
+  /** 확인 후 상태 변경 적용 */
+  const handleConfirm = () => {
+    if (!confirm) return
+    if (confirm.action === 'suspend') {
+      const cur = statuses[confirm.targetId] ?? (reports.find(r => r.targetId === confirm.targetId)?.status as UserStatus)
+      setStatuses(prev => ({ ...prev, [confirm.targetId]: cur === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED' }))
+    } else {
+      setStatuses(prev => ({ ...prev, [confirm.targetId]: 'WITHDRAWN' }))
+    }
+    setConfirm(null)
+  }
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -346,50 +367,139 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
 
       {/* 신고 목록 */}
       <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
-        {filtered.map(report => (
-          <li key={report.id}>
-            <button
-              onClick={() =>
-                tab === 'USER'
-                  ? onUserClick(report.targetId)          // 유저 탭: 프로필 플로팅 오픈
-                  : navigate(`/items/${report.targetId}`) // 물품 탭: 물품 상세 이동
-              }
-              className="w-full px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left"
-            >
+        {filtered.map(report => {
+          const status = getStatus(report)
+          const isWithdrawn = status === 'WITHDRAWN'
+          const isSuspended = status === 'SUSPENDED'
+
+          return (
+            <li key={report.id} className="px-4 py-3 flex items-center gap-3">
+
               {tab === 'USER' ? (
-                /* 유저 신고 행: 아바타 이니셜 */
-                <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                  <span className="text-sm font-bold text-red-500">{report.targetName[0]}</span>
-                </div>
-              ) : (
-                /* 물품 신고 행: 박스 이모지 */
-                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <span className="text-lg">📦</span>
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                {/* 신고 대상 이름 + 상태 뱃지 */}
-                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                  <span className="text-sm font-semibold text-gray-900">{report.targetName}</span>
-                  {tab === 'USER' && report.status !== 'ACTIVE' && (
-                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[report.status as UserStatus])}>
-                      {STATUS_LABEL[report.status as UserStatus]}
-                    </span>
+                /* ── 유저 탭: 좌(프로필 클릭) + 우(액션 버튼) ── */
+                <>
+                  {/* 왼쪽 클릭 영역 → 프로필 플로팅 */}
+                  <button
+                    onClick={() => onUserClick(report.targetId)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-red-500">{report.targetName[0]}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-900">{report.targetName}</span>
+                        {/* 현재 상태 뱃지 */}
+                        <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[status])}>
+                          {STATUS_LABEL[status]}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">{report.reason}</p>
+                      <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
+                    </div>
+                  </button>
+
+                  {/* 오른쪽 액션 버튼 — 탈퇴 회원은 비활성 */}
+                  {!isWithdrawn && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* 활동정지 / 복구 토글 */}
+                      <button
+                        onClick={() => setConfirm({ targetId: report.targetId, targetName: report.targetName, action: 'suspend' })}
+                        className={cn(
+                          'p-2 rounded-lg border transition-colors',
+                          isSuspended
+                            ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                            : 'border-amber-200 text-amber-500 hover:bg-amber-50'
+                        )}
+                        title={isSuspended ? '복구' : '활동정지'}
+                      >
+                        {isSuspended ? <ShieldCheck size={15} /> : <ShieldOff size={15} />}
+                      </button>
+                      {/* 탈퇴 처리 */}
+                      <button
+                        onClick={() => setConfirm({ targetId: report.targetId, targetName: report.targetName, action: 'withdraw' })}
+                        className="p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                        title="탈퇴 처리"
+                      >
+                        <UserX size={15} />
+                      </button>
+                    </div>
                   )}
-                </div>
-                {/* 신고 사유 */}
-                <p className="text-xs text-gray-500">{report.reason}</p>
-                {/* 신고 건수, 신고일 */}
-                <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
-              </div>
-              <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
-            </button>
-          </li>
-        ))}
+                </>
+              ) : (
+                /* ── 물품 탭: 전체 클릭 → 물품 상세 이동 ── */
+                <button
+                  onClick={() => navigate(`/items/${report.targetId}`)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                    <span className="text-lg">📦</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{report.targetName}</p>
+                    <p className="text-xs text-gray-500">{report.reason}</p>
+                    <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300 shrink-0" />
+                </button>
+              )}
+            </li>
+          )
+        })}
         {filtered.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-gray-400">신고 없음</li>
         )}
       </ul>
+
+      {/* ── 확인 모달 ── */}
+      {confirm && (
+        <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 w-full shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              {confirm.action === 'suspend' ? (
+                <ShieldOff size={18} className="text-amber-500 shrink-0" />
+              ) : (
+                <UserX size={18} className="text-red-500 shrink-0" />
+              )}
+              <h3 className="text-sm font-bold text-gray-900">
+                {confirm.action === 'suspend'
+                  ? (statuses[confirm.targetId] === 'SUSPENDED' ? '활동 복구' : '활동정지')
+                  : '탈퇴 처리'}
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              <span className="font-semibold">{confirm.targetName}</span> 님을{' '}
+              {confirm.action === 'suspend'
+                ? (statuses[confirm.targetId] === 'SUSPENDED' ? '복구하시겠습니까?' : '활동정지 처리하시겠습니까?')
+                : '탈퇴 처리하시겠습니까?'}
+            </p>
+            {confirm.action === 'withdraw' && (
+              <p className="text-xs text-red-500 mb-3">⚠ 탈퇴 처리는 되돌릴 수 없습니다.</p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setConfirm(null)}
+                className="flex-1 py-2 border border-gray-200 rounded-xl text-sm text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={cn(
+                  'flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-colors',
+                  confirm.action === 'withdraw'
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : statuses[confirm.targetId] === 'SUSPENDED'
+                      ? 'bg-emerald-500 hover:bg-emerald-600'
+                      : 'bg-amber-500 hover:bg-amber-600'
+                )}
+              >
+                {confirm.action === 'withdraw' ? '탈퇴' : statuses[confirm.targetId] === 'SUSPENDED' ? '복구' : '정지'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -682,7 +792,7 @@ function AdminStats({ nickname }: { nickname: string }) {
           {/* 배경 딤 처리 (클릭 시 닫기) */}
           <div onClick={closePanel} className="flex-1 bg-black/30" />
           {/* 패널 본체 */}
-          <div className="w-full sm:w-[480px] bg-white h-full flex flex-col shadow-2xl">
+          <div className="w-full sm:w-[480px] bg-white h-full flex flex-col shadow-2xl relative">
             <PanelContent
               kind={panel}
               onClose={closePanel}
