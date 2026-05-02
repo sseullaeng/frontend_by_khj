@@ -3,6 +3,7 @@ import { useState } from 'react'  // React 상태 훅
 import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
 import { Shield, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react'  // Lucide 아이콘들
 import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'  // 에스크로 관련 타입
+import { formatKst } from '@/shared/lib/date'
 
 // 모의 에스크로 신청 데이터: 개발용 샘플 데이터
 const mockApplications: EscrowApplication[] = [
@@ -128,7 +129,7 @@ export default function EscrowListPage() {
                     </div>
 
                     <p className="text-xs text-gray-400 mt-1">
-                      신청일: {new Date(application.createdAt).toLocaleDateString('ko-KR')}
+                      신청일: {formatKst(application.createdAt, 'yyyy.MM.dd')}
                     </p>
                   </div>
 

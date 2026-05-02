@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star } from 'lucide-react'
+import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star, Image as ImageIcon } from 'lucide-react'
+import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
+import { compressImage } from '@/shared/lib/imageCompress'
+import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
-import { useChatRoom } from '@/features/chat/hooks'
+import { useChatMessages } from '@/features/chat/hooks'
 import { useChatStore } from '@/features/chat/store'
+import { useItemDetail } from '@/features/item/hooks'
 import { useTransactionStore } from '@/features/transaction/store'
 import { useReviewStore } from '@/features/review/store'
-import { notificationApi } from '@/features/notification/api'
+import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
@@ -93,19 +97,20 @@ export default function SideDrawer() {
 function ChatPanel() {
   const { activeChatRoomId, openChatRoom, closeChatRoom } = useDrawerStore()
 
-  const { data: rooms, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['chat', 'rooms'],
     queryFn: () => chatApi.getRooms().then(r => r.data),
   })
+  const rooms = data?.content ?? []
 
   if (activeChatRoomId) {
-    const room = rooms?.find(r => r.id === activeChatRoomId)
+    const room = rooms.find(r => r.id === activeChatRoomId)
     return <ChatRoomView roomId={activeChatRoomId} room={room} onBack={closeChatRoom} />
   }
 
   if (isLoading) return <p className="py-16 text-center text-sm text-gray-400">불러오는 중...</p>
 
-  if (!rooms?.length) return (
+  if (!rooms.length) return (
     <p className="py-16 text-center text-sm text-gray-400">진행 중인 채팅이 없어요</p>
   )
 
@@ -118,8 +123,8 @@ function ChatPanel() {
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
           >
             <div className="w-11 h-11 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-              {room.opponentProfileImageUrl && (
-                <img src={room.opponentProfileImageUrl} alt={room.opponentNickname} className="w-full h-full object-cover" />
+              {room.opponentProfileImage && (
+                <img src={room.opponentProfileImage} alt={room.opponentNickname} className="w-full h-full object-cover" />
               )}
             </div>
             <div className="flex-1 min-w-0">
@@ -131,9 +136,9 @@ function ChatPanel() {
               </div>
               <p className="text-sm text-gray-500 truncate mt-0.5">{room.lastMessage ?? ''}</p>
             </div>
-            {room.unreadCount > 0 && (
+            {room.myUnread > 0 && (
               <span className="w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center shrink-0">
-                {room.unreadCount}
+                {room.myUnread}
               </span>
             )}
           </button>
@@ -158,8 +163,10 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const navigate = useNavigate()
   const currentUser = useAuthStore(s => s.user)
   const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
-  const { messages, sendMessage } = useChatRoom(roomId)
+  const { messages, sendMessage } = useChatMessages(roomId)
   const { appendMessage } = useChatStore()
+  const { data: item } = useItemDetail(room?.itemId ?? 0)
+  const isSeller = !!currentUser && !!item && item.sellerId === currentUser.id
   const { statusByRoom, useEscrowByRoom, setStatus, setUseEscrow } = useTransactionStore()
   const { hasReviewed } = useReviewStore()
   const [text, setText] = useState('')
@@ -176,6 +183,34 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
 
+  // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
+  const [pendingImage, setPendingImage] = useState<File | null>(null)
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const pickImage = async (file: File) => {
+    const err = validateImageFile(file)
+    if (err) {
+      toast.error(err)
+      return
+    }
+    try {
+      const compressed = await compressImage(file)
+      setPendingImage(compressed)
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview)
+      setPendingPreview(URL.createObjectURL(compressed))
+    } catch {
+      toast.error('이미지 처리 중 문제가 발생했어요.')
+    }
+  }
+
+  const clearPendingImage = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview)
+    setPendingImage(null)
+    setPendingPreview(null)
+  }
+
   // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
   useEffect(() => {
     if (!pendingFirstMessage) return
@@ -183,12 +218,12 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     setPendingFirstMessage(null)  // 중복 전송 방지를 위해 즉시 초기화
     if (isMock) {
       appendMessage(roomId, {
-        id: Date.now(),
-        roomId,
+        id: String(Date.now()),
+        chatRoomId: roomId,
         senderId: currentUser?.id ?? 0,
         content,
-        imageUrl: null,
-        sentAt: new Date().toISOString(),
+        imageUrls: [],
+        createdAt: new Date().toISOString(),
       })
     } else {
       sendMessage(content)
@@ -201,18 +236,35 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = () => {
-    if (!text.trim()) return
+  const handleSend = async () => {
     const content = text.trim()
+    if (!content && !pendingImage) return
+
+    // 이미지 첨부 있으면 업로드 후 imageUrls 와 함께 전송
+    if (pendingImage) {
+      try {
+        setUploading(true)
+        const { getUrl } = await uploadSingleImage('MESSAGE', pendingImage)
+        setText('')
+        clearPendingImage()
+        sendMessage(content, [getUrl])
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : '이미지 업로드에 실패했어요.')
+      } finally {
+        setUploading(false)
+      }
+      return
+    }
+
     setText('')
     if (isMock) {
       appendMessage(roomId, {
-        id: Date.now(),
-        roomId,
+        id: String(Date.now()),
+        chatRoomId: roomId,
         senderId: currentUser?.id ?? 0,
         content,
-        imageUrl: null,
-        sentAt: new Date().toISOString(),
+        imageUrls: [],
+        createdAt: new Date().toISOString(),
       })
     } else {
       sendMessage(content)
@@ -388,8 +440,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           <>
             {/* 상대방 프로필 */}
             <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-              {room.opponentProfileImageUrl ? (
-                <img src={room.opponentProfileImageUrl} alt="" className="w-full h-full object-cover" />
+              {room.opponentProfileImage ? (
+                <img src={room.opponentProfileImage} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
               )}
@@ -403,8 +455,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               className="flex items-center gap-1.5 ml-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors min-w-0 max-w-[140px]"
             >
               <div className="w-7 h-7 rounded-md bg-gray-200 overflow-hidden shrink-0">
-                {room.itemImageUrl && (
-                  <img src={room.itemImageUrl} alt="" className="w-full h-full object-cover" />
+                {room.itemThumbnailUrl && (
+                  <img src={room.itemThumbnailUrl} alt="" className="w-full h-full object-cover" />
                 )}
               </div>
               <span className="text-xs text-gray-700 font-medium truncate">{room.itemTitle}</span>
@@ -432,7 +484,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       </div>
 
       {/* 판매자 전용 — 거래 상태 바 */}
-      {room?.isSeller && txStatus !== 'completed' && (
+      {isSeller && txStatus !== 'completed' && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-2">
           {txStatus === 'none' && (
             <button
@@ -473,7 +525,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       )}
 
       {/* 거래 완료 후 — 판매자 리뷰 버튼 */}
-      {room?.isSeller && txStatus === 'completed' && (
+      {isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -489,7 +541,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       )}
 
       {/* 구매자 — 거래 완료 후 리뷰 버튼 */}
-      {!room?.isSeller && txStatus === 'completed' && (
+      {!isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -511,12 +563,30 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           return (
             <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
               <div className={cn(
-                'max-w-[75%] px-3 py-2 rounded-2xl text-sm',
+                'max-w-[75%] rounded-2xl text-sm overflow-hidden',
                 isMine ? 'bg-primary-500 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'
               )}>
-                <p>{msg.content}</p>
-                <p className={cn('text-xs mt-0.5', isMine ? 'text-primary-200' : 'text-gray-400')}>
-                  {toChatTimestamp(msg.sentAt)}
+                {msg.imageUrls.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    {msg.imageUrls.map((url, i) => (
+                      <a key={`${msg.id}-${i}`} href={url} target="_blank" rel="noreferrer">
+                        <img
+                          src={url}
+                          alt="첨부 이미지"
+                          className="block w-full max-w-xs object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {msg.content && (
+                  <p className="px-3 py-2 whitespace-pre-wrap break-words">{msg.content}</p>
+                )}
+                <p className={cn(
+                  'text-xs px-3 pb-1.5',
+                  isMine ? 'text-primary-200' : 'text-gray-400',
+                )}>
+                  {toChatTimestamp(msg.createdAt)}
                 </p>
               </div>
             </div>
@@ -526,21 +596,67 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       </div>
 
       {/* 입력창 */}
-      <div className="flex items-center gap-2 p-3 border-t border-gray-200 bg-white shrink-0">
-        <input
-          className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-sm outline-none focus:border-primary-500"
-          placeholder="메시지를 입력해 주세요"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSend() }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!text.trim()}
-          className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center disabled:bg-gray-300 transition-colors"
-        >
-          <Send size={18} />
-        </button>
+      <div className="border-t border-gray-200 bg-white shrink-0">
+        {/* 첨부 이미지 미리보기 */}
+        {pendingPreview && (
+          <div className="px-3 pt-2">
+            <div className="relative inline-block">
+              <img
+                src={pendingPreview}
+                alt="첨부 미리보기"
+                className="h-20 w-20 object-cover rounded-lg border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={clearPendingImage}
+                disabled={uploading}
+                className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                aria-label="첨부 취소"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 p-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) pickImage(file)
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || !!pendingImage}
+            className="w-10 h-10 rounded-full text-gray-500 hover:bg-gray-100 flex items-center justify-center disabled:opacity-50"
+            aria-label="이미지 첨부"
+          >
+            <ImageIcon size={20} />
+          </button>
+          <input
+            className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-sm outline-none focus:border-primary-500"
+            placeholder="메시지를 입력해 주세요"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !uploading) handleSend() }}
+            disabled={uploading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={uploading || (!text.trim() && !pendingImage)}
+            className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center disabled:bg-gray-300 transition-colors"
+            aria-label="전송"
+          >
+            <Send size={18} />
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -549,22 +665,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 /* ── 알림 패널 ── */
 function NotificationPanel() {
   const close = useDrawerStore(s => s.close)
-  const qc = useQueryClient()
-
-  const { data } = useQuery({
-    queryKey: ['notifications', 'drawer'],
-    queryFn: () => notificationApi.getList({ size: 20 }).then(r => r.data),
-  })
-
-  const { mutate: markAllRead } = useMutation({
-    mutationFn: notificationApi.markAllRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
-  })
+  const { data } = useNotifications()
+  const { mutate: markAllRead } = useMarkAllRead()
+  const items = data?.pages[0]?.content ?? []
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
-        <span className="text-xs text-gray-500">{data?.content.length ?? 0}개의 알림</span>
+        <span className="text-xs text-gray-500">{items.length}개의 알림</span>
         <button
           onClick={() => markAllRead()}
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-500 transition-colors"
@@ -575,22 +683,22 @@ function NotificationPanel() {
       </div>
 
       <ul className="flex-1 divide-y divide-gray-100 overflow-y-auto">
-        {!data?.content.length && (
+        {items.length === 0 && (
           <li className="py-16 text-center text-sm text-gray-400">알림이 없어요</li>
         )}
-        {data?.content.map(n => (
+        {items.map(n => (
           <li key={n.id}>
             <button
               onClick={close}
               className={`w-full flex flex-col gap-0.5 px-5 py-4 hover:bg-gray-50 transition-colors text-left ${
-                !n.isRead ? 'bg-primary-50' : ''
+                !n.read ? 'bg-primary-50' : ''
               }`}
             >
-              {!n.isRead && (
+              {!n.read && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 inline-block mb-0.5" />
               )}
               <span className="text-sm font-medium text-gray-900">{n.title}</span>
-              <span className="text-xs text-gray-500 line-clamp-2">{n.body}</span>
+              <span className="text-xs text-gray-500 line-clamp-2">{n.content}</span>
               <span className="text-xs text-gray-400 mt-0.5">{fromNow(n.createdAt)}</span>
             </button>
           </li>

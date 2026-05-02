@@ -1,12 +1,14 @@
 // 헤더 컴포넌트: 애플리케이션 상단 네비게이션 바 - 로고, 메뉴, 사용자 메뉴 포함
 import { Link } from 'react-router-dom'  // React Router의 링크 컴포넌트
-import { Bell, User, Search, Package, Truck, Megaphone } from 'lucide-react'  // Lucide 아이콘 라이브러리
+import { Bell, User, Search, Package, Truck, Megaphone, LogOut } from 'lucide-react'  // Lucide 아이콘 라이브러리
 import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
+import { useLogout } from '@/features/auth/hooks'   // 로그아웃 훅
 import { useDrawerStore } from '@/shared/store/drawerStore'  // 드로워 상태 관리 스토어
 
 // 헤더 컴포넌트: 로그인 상태에 따라 다른 UI를 표시
 export default function Header() {
   const user = useAuthStore((s) => s.user)           // 현재 로그인된 사용자 정보
+  const { mutate: logout, isPending: isLogoutPending } = useLogout()  // 로그아웃
   const { toggleOpen, activeTab } = useDrawerStore()    // 드로워 토글 함수 및 활성 탭
 
   return (
@@ -72,6 +74,18 @@ export default function Header() {
               >
                 로그인
               </Link>
+            )}
+            {user && (
+              <button
+                type="button"
+                onClick={() => logout()}
+                disabled={isLogoutPending}
+                title="로그아웃"
+                className="flex items-center gap-1 text-gray-500 hover:text-primary-600 transition-colors text-sm disabled:opacity-50"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:block">로그아웃</span>
+              </button>
             )}
           </div>
         </div>

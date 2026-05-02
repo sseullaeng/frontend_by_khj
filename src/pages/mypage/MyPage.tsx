@@ -37,8 +37,8 @@ export default function MyPage() {
       {/* 사용자 프로필 */}
       <div className="flex items-center gap-4 py-2">
         <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-          {user?.profileImageUrl && (
-            <img src={user.profileImageUrl} alt={user.nickname} className="w-full h-full object-cover" />
+          {user?.profileImage && (
+            <img src={user.profileImage} alt={user.nickname} className="w-full h-full object-cover" />
           )}
         </div>
         

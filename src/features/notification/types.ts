@@ -1,18 +1,33 @@
-// 알림 타입: 채팅, 거래, 리뷰, 포인트, 시스템
-export type NotificationType =
-  | 'CHAT'         // 채팅 알림
-  | 'TRANSACTION' // 거래 알림
-  | 'REVIEW'       // 리뷰 알림
-  | 'POINT'        // 포인트 알림
-  | 'SYSTEM'       // 시스템 알림
+// 알림 도메인 타입 — 가이드 §10.10 정합
+//
+// ⚠️ id 는 MongoDB ObjectId hex string (24자), Long 아님
+// ⚠️ createdAt 은 Instant (UTC offset 포함)
 
-// 알림 정보
+// 알림 타입 (영문 enum)
+export type NotificationType =
+  | 'CHAT'
+  | 'TRANSACTION'
+  | 'DELIVERY'
+  | 'REVIEW'
+  | 'POINT'
+  | 'SYSTEM'
+
+// 클라이언트 라우팅 키
+export type NotificationLinkType =
+  | 'CHAT_ROOM'
+  | 'TRANSACTION'
+  | 'DELIVERY'
+  | 'ITEM'
+  | 'REVIEW'
+  | 'PAYMENT'
+
 export interface Notification {
-  id: number          // 알림 고유 ID
-  type: NotificationType  // 알림 타입
-  title: string       // 알림 제목
-  body: string        // 알림 내용
-  linkUrl: string | null  // 관련 링크
-  isRead: boolean      // 읽음 여부
-  createdAt: string    // 생성일시
+  id: string                              // ⚠️ MongoDB ObjectId hex
+  type: NotificationType
+  title: string
+  content: string                         // (이전 body → content)
+  linkType: NotificationLinkType | null   // 클라 라우팅 분기 키
+  linkId: number | null                   // linkType 의 row id
+  read: boolean                           // (이전 isRead → read)
+  createdAt: string                       // Instant (UTC)
 }

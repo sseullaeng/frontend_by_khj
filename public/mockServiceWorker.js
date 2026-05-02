@@ -2,61 +2,41 @@
 /* tslint:disable */
 
 /**
- * Mock Service Worker (모의 서비스 워커)
+ * Mock Service Worker.
  * @see https://github.com/mswjs/msw
- * 
- * 중요: 이 파일은 Mock Service Worker 라이브러리의 자동 생성 파일입니다.
- * - 이 파일을 직접 수정하지 마세요.
- * - API 모킹을 위한 서비스 워커 스크립트입니다.
- * - 개발 환경에서 실제 API 호출을 가로채서 모의 응답을 반환합니다.
+ * - Please do NOT modify this file.
  */
 
-// Mock Service Worker 버전 정보
 const PACKAGE_VERSION = '2.13.6'
 const INTEGRITY_CHECKSUM = '4db4a41e972cec1b64cc569c66952d82'
-
-// 모의 응답 심볼: 응답이 모의된 것인지 식별
 const IS_MOCKED_RESPONSE = Symbol('isMockedResponse')
-
-// 활성 클라이언트 ID 집합: 현재 연결된 클라이언트들 추적
 const activeClientIds = new Set()
 
-// 서비스 워커 설치 이벤트 리스너
 addEventListener('install', function () {
-  // 대기 상태 건너뛰기: 즉시 활성화
   self.skipWaiting()
 })
 
-// 서비스 워커 활성화 이벤트 리스너
 addEventListener('activate', function (event) {
-  // 모든 클라이언트 제어권 획득
   event.waitUntil(self.clients.claim())
 })
 
-// 메시지 이벤트 리스너: 클라이언트와 통신
 addEventListener('message', async function (event) {
-  // 이벤트 소스에서 클라이언트 ID 추출
   const clientId = Reflect.get(event.source || {}, 'id')
 
-  // 클라이언트 ID가 없거나 클라이언트 목록이 없으면 종료
   if (!clientId || !self.clients) {
     return
   }
 
-  // 클라이언트 ID로 실제 클라이언트 객체 가져오기
   const client = await self.clients.get(clientId)
 
-  // 클라이언트가 존재하지 않으면 종료
   if (!client) {
     return
   }
 
-  // 모든 윈도우 타입 클라이언트 목록 가져오기
   const allClients = await self.clients.matchAll({
     type: 'window',
   })
 
-  // 메시지 타입에 따른 처리 분기
   switch (event.data) {
     case 'KEEPALIVE_REQUEST': {
       sendToClient(client, {
@@ -248,70 +228,62 @@ async function getResponse(event, client, requestId, requestInterceptedAt) {
         (value) => value !== 'msw/passthrough',
       )
 
-      // 필터링된 Accept 헤더 값이 있으면 헤더 업데이트
       if (filteredValues.length > 0) {
         headers.set('accept', filteredValues.join(', '))
       } else {
-        // 필터링된 값이 없으면 Accept 헤더 삭제
         headers.delete('accept')
       }
     }
 
-    // 수정된 헤더로 요청 전송
     return fetch(requestClone, { headers })
   }
 
-  // 클라이언트가 활성화되지 않았으면 모킹 우회
+  // Bypass mocking when the client is not active.
   if (!client) {
     return passthrough()
   }
 
-  // 초기 페이지 로드 요청 우회 (정적 자산 등)
-  // 활성 클라이언트 목록에 즉시/부모 클라이언트가 없다는 것은
-  // MSW가 아직 "MOCK_ACTIVATE" 이벤트를 디스패치하지 않았고
-  // 요청을 처리할 준비가 되지 않았음을 의미합니다.
+  // Bypass initial page load requests (i.e. static assets).
+  // The absence of the immediate/parent client in the map of the active clients
+  // means that MSW hasn't dispatched the "MOCK_ACTIVATE" event yet
+  // and is not ready to handle requests.
   if (!activeClientIds.has(client.id)) {
     return passthrough()
   }
 
-  // 클라이언트에 요청이 가로채졌음을 알림
+  // Notify the client that a request has been intercepted.
   const serializedRequest = await serializeRequest(event.request)
   const clientMessage = await sendToClient(
     client,
     {
       type: 'REQUEST',
       payload: {
-        id: requestId,                    // 요청 고유 ID
-        interceptedAt: requestInterceptedAt, // 요청 가로챈 시간
-        ...serializedRequest,              // 직렬화된 요청 데이터
+        id: requestId,
+        interceptedAt: requestInterceptedAt,
+        ...serializedRequest,
       },
     },
-    [serializedRequest.body],  // 전송 가능한 객체 배열 (요청 본문)
+    [serializedRequest.body],
   )
 
-  // 클라이언트 메시지 타입에 따른 처리 분기
   switch (clientMessage.type) {
     case 'MOCK_RESPONSE': {
-      // 모의 응답 반환: 클라이언트가 제공한 모의 데이터로 응답
       return respondWithMock(clientMessage.data)
     }
 
     case 'PASSTHROUGH': {
-      // 우회 처리: 실제 네트워크 요청으로 전달
       return passthrough()
     }
   }
 
-  // 기본적으로 우회 처리
   return passthrough()
 }
 
 /**
- * 클라이언트에 메시지를 보내는 함수
- * @param {Client} client - 메시지를 보낼 클라이언트 객체
- * @param {any} message - 클라이언트로 보낼 메시지 데이터
- * @param {Array<Transferable>} transferrables - 전송 가능한 객체 배열
- * @returns {Promise<any>} - 메시지 전송 결과를 담은 프로미스
+ * @param {Client} client
+ * @param {any} message
+ * @param {Array<Transferable>} transferrables
+ * @returns {Promise<any>}
  */
 function sendToClient(client, message, transferrables = []) {
   return new Promise((resolve, reject) => {

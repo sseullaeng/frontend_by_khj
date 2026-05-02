@@ -82,7 +82,7 @@ export const authHandlers = [
     HttpResponse.json({ success: true, data: null })
   ),
 
-  http.get(`${BASE}/me`, () => {
+  http.get('/api/v1/users/me', () => {
     if (!currentUser) {
       return HttpResponse.json(
         { success: false, error: { code: 'AUTH_UNAUTHORIZED', message: '로그인이 필요합니다', traceId: 'mock-trace' } },

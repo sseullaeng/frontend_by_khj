@@ -1,69 +1,122 @@
-// 포인트 페이지 컴포넌트: 사용자 포인트 잔액 조회 및 충전/출금 기능을 제공하는 페이지
-import { useQuery } from '@tanstack/react-query'  // React Query 훅
-import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
-import { paymentApi } from '@/features/payment/api'  // 결제 API
-import { pointKeys } from '@/features/payment/keys'  // 포인트 관련 쿼리 키
-import { Card } from '@/shared/ui/Card'  // 카드 컴포넌트
+// 포인트 페이지 — 잔액 + 내역 + 충전/출금 진입
+//
+// 잔액: user.pointBalance (별도 endpoint 없음)
+// 내역: GET /api/v1/users/me/point/history?type=&page=&size=
 
-/**
- * 포인트 페이지 컴포넌트
- * 
- * 기능:
- * - 사용자 현재 포인트 잔액 조회
- * - 포인트 충전 페이지로 이동
- * - 포인트 출금 페이지로 이동
- * - 잔액 정보 카드 형태로 표시
- * - 반응형 버튼 레이아웃
- * 
- * 데이터 흐름:
- * 1. 페이지 로드 시 포인트 잔액 API 호출
- * 2. React Query로 데이터 캐싱 및 상태 관리
- * 3. 잔액 정보 카드에 표시
- * 4. 충전/출금 버튼으로 각 기능 페이지 연결
- */
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '@/features/auth/store'
+import { paymentApi } from '@/features/payment/api'
+import { pointKeys } from '@/features/payment/keys'
+import type { PointHistory, PointHistoryType } from '@/features/payment/types'
+import { Card } from '@/shared/ui/Card'
+import { fromNow } from '@/shared/lib/date'
+
+const TYPE_FILTERS: { value: PointHistoryType | 'all'; label: string }[] = [
+  { value: 'all',    label: '전체' },
+  { value: '충전',   label: '충전' },
+  { value: '결제',   label: '결제' },
+  { value: '출금',   label: '출금' },
+  { value: '판매정산', label: '판매정산' },
+]
+
 export default function PointPage() {
-  // 포인트 잔액 조회 (React Query 사용)
-  const { data: balance } = useQuery({
-    queryKey: pointKeys.balance(),  // 쿼리 키: 포인트 잔액
-    queryFn: () => paymentApi.getBalance().then((r) => r.data),  // API 호출 함수
+  const user = useAuthStore((s) => s.user)
+  const balance = user?.pointBalance ?? 0
+  const [filter, setFilter] = useState<PointHistoryType | 'all'>('all')
+
+  const { data, isLoading } = useQuery({
+    queryKey: pointKeys.history(filter === 'all' ? undefined : filter),
+    queryFn: () =>
+      paymentApi
+        .getHistory({ type: filter === 'all' ? undefined : filter, page: 0, size: 20 })
+        .then((r) => r.data),
   })
+  const histories = data?.content ?? []
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 페이지 제목 */}
       <h1 className="text-xl font-bold">포인트</h1>
 
-      {/* 포인트 잔액 카드 */}
       <Card className="text-center py-6">
         <p className="text-sm text-gray-500 mb-1">현재 잔액</p>
-        <p className="text-3xl font-bold text-primary-500">
-          {/* 숫자 포맷팅 (천 단위 구분자) */}
-          {(balance?.balance ?? 0).toLocaleString()}원
-        </p>
+        <p className="text-3xl font-bold text-primary-500">{balance.toLocaleString()}원</p>
       </Card>
 
-      {/* 포인트 관리 버튼들 */}
       <div className="flex gap-2">
-        {/* 포인트 충전 버튼 */}
-        <Link 
-          to="/point/charge" 
+        <Link
+          to="/point/charge"
           className="flex-1 py-2.5 text-center border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           충전하기
         </Link>
-        
-        {/* 포인트 출금 버튼 */}
-        <Link 
-          to="/point/withdraw" 
+        <Link
+          to="/point/withdraw"
           className="flex-1 py-2.5 text-center border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
           출금하기
         </Link>
       </div>
 
-      <h2 className="text-base font-semibold mt-2">이용 내역</h2>
-      {/* TODO: 포인트 내역 리스트 (D7 구현) */}
-      <p className="text-sm text-gray-400 text-center py-4">내역을 불러오는 중...</p>
+      {/* 내역 */}
+      <div className="mt-2">
+        <h2 className="text-base font-semibold mb-2">이용 내역</h2>
+
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+          {TYPE_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${
+                filter === f.value
+                  ? 'bg-primary-500 text-white border-primary-500'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-primary-400'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-gray-400 text-center py-8">불러오는 중...</p>
+        ) : histories.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">내역이 없어요.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {histories.map((h) => (
+              <HistoryRow key={h.id} history={h} />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
+  )
+}
+
+function HistoryRow({ history }: { history: PointHistory }) {
+  // 백엔드가 부호 포함하여 보냄 — 양수면 적립(녹색), 음수면 차감(기본)
+  const isPlus = history.amount > 0
+  const colorCls = isPlus ? 'text-emerald-600' : 'text-gray-900'
+  // toLocaleString() 은 음수에 자동 '-' 붙임. 양수에만 '+' 명시
+  const display = `${isPlus ? '+' : ''}${history.amount.toLocaleString()}원`
+
+  return (
+    <li className="py-3 flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-xs text-gray-600">
+            {history.type}
+          </span>
+          <span className="text-xs text-gray-400">{fromNow(history.createdAt)}</span>
+        </div>
+        <p className="text-sm text-gray-700 truncate">{history.description}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-sm font-semibold ${colorCls}`}>{display}</p>
+        <p className="text-xs text-gray-400">잔액 {history.balanceAfter.toLocaleString()}원</p>
+      </div>
+    </li>
   )
 }
