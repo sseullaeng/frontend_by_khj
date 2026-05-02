@@ -175,6 +175,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const txStatus = statusByRoom[roomId] ?? 'none'
   const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
+  // 관리자는 거래예약·신고·차단 기능 없이 채팅만 가능
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
   useEffect(() => {
@@ -412,27 +414,29 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </>
         )}
 
-        {/* 신고 + 차단 */}
-        <div className="flex items-center gap-0.5 ml-auto shrink-0">
-          <button
-            onClick={() => setReportOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="신고"
-          >
-            <Flag size={15} />
-          </button>
-          <button
-            onClick={() => setBlockOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="차단"
-          >
-            <Ban size={15} />
-          </button>
-        </div>
+        {/* 신고 + 차단 — 관리자는 표시하지 않음 */}
+        {!isAdmin && (
+          <div className="flex items-center gap-0.5 ml-auto shrink-0">
+            <button
+              onClick={() => setReportOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="신고"
+            >
+              <Flag size={15} />
+            </button>
+            <button
+              onClick={() => setBlockOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="차단"
+            >
+              <Ban size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 판매자 전용 — 거래 상태 바 */}
-      {room?.isSeller && txStatus !== 'completed' && (
+      {/* 판매자 전용 — 거래 상태 바 (관리자는 표시하지 않음) */}
+      {!isAdmin && room?.isSeller && txStatus !== 'completed' && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-2">
           {txStatus === 'none' && (
             <button
@@ -472,8 +476,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 거래 완료 후 — 판매자 리뷰 버튼 */}
-      {room?.isSeller && txStatus === 'completed' && (
+      {/* 거래 완료 후 — 판매자 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && room?.isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -488,8 +492,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 구매자 — 거래 완료 후 리뷰 버튼 */}
-      {!room?.isSeller && txStatus === 'completed' && (
+      {/* 구매자 — 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && !room?.isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>

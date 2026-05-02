@@ -1,7 +1,7 @@
-// 공지사항/새소식/이벤트 페이지: 관리자는 글쓰기·삭제 가능
-import { useState } from 'react'
+// 공지사항/새소식/이벤트 페이지: 관리자는 글쓰기(이미지 최대 50장)·삭제 가능
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Megaphone, Tag, ChevronRight, PenLine, Trash2, X } from 'lucide-react'
+import { Megaphone, Tag, ChevronRight, PenLine, Trash2, X, ImagePlus } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
 import { cn } from '@/shared/lib/cn'                  // 조건부 클래스 유틸
 
@@ -70,8 +70,11 @@ interface WriteForm {
   title: string
   content: string
   type: NoticeType
-  tagInput: string  // 콤마 구분 태그 입력
+  tagInput: string   // 콤마 구분 태그 입력
+  images: File[]     // 첨부 이미지 (최대 50장)
 }
+
+const MAX_IMAGES = 50  // 이미지 첨부 최대 장수
 
 export default function NoticePage() {
   const currentUser = useAuthStore((s) => s.user)  // 현재 로그인 유저
@@ -90,8 +93,26 @@ export default function NoticePage() {
 
   // 글쓰기 폼 상태
   const [form, setForm] = useState<WriteForm>({
-    title: '', content: '', type: 'notice', tagInput: '',
+    title: '', content: '', type: 'notice', tagInput: '', images: [],
   })
+  // 파일 input ref
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /** 이미지 파일 선택 처리 (최대 50장 제한) */
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    setForm((f) => {
+      const combined = [...f.images, ...files]
+      return { ...f, images: combined.slice(0, MAX_IMAGES) }
+    })
+    // 같은 파일 재선택 허용을 위해 input 값 초기화
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  /** 개별 이미지 제거 */
+  const removeImage = (index: number) => {
+    setForm((f) => ({ ...f, images: f.images.filter((_, i) => i !== index) }))
+  }
 
   // 필터 적용
   const filteredNotices = notices.filter(
@@ -117,7 +138,13 @@ export default function NoticePage() {
       ...prev,
     ])
     setNextId((n) => n + 1)
-    setForm({ title: '', content: '', type: 'notice', tagInput: '' })
+    setForm({ title: '', content: '', type: 'notice', tagInput: '', images: [] })
+    setWriteOpen(false)
+  }
+
+  /** 글쓰기 모달 닫기 (폼 초기화 포함) */
+  const handleWriteClose = () => {
+    setForm({ title: '', content: '', type: 'notice', tagInput: '', images: [] })
     setWriteOpen(false)
   }
 
@@ -221,18 +248,20 @@ export default function NoticePage() {
 
       {/* ── 관리자 글쓰기 모달 ─────────────────────────────────────────────── */}
       {writeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[90vh]">
 
             {/* 모달 헤더 */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <h3 className="text-base font-bold text-gray-900">새 글 작성</h3>
-              <button onClick={() => setWriteOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={handleWriteClose} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-5 flex flex-col gap-4">
+            {/* 스크롤 가능한 폼 영역 */}
+            <div className="p-5 flex flex-col gap-4 overflow-y-auto flex-1">
+
               {/* 유형 선택 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-2">유형</label>
@@ -278,6 +307,71 @@ export default function NoticePage() {
                 />
               </div>
 
+              {/* 이미지 첨부 (최대 50장) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-gray-600">
+                    이미지 첨부
+                  </label>
+                  <span className={cn(
+                    'text-xs font-medium',
+                    form.images.length >= MAX_IMAGES ? 'text-red-500' : 'text-gray-400'
+                  )}>
+                    {form.images.length} / {MAX_IMAGES}
+                  </span>
+                </div>
+
+                {/* 이미지 추가 버튼 + 썸네일 그리드 */}
+                <div className="flex flex-wrap gap-2">
+                  {/* 추가 버튼 (50장 미만일 때만) */}
+                  {form.images.length < MAX_IMAGES && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 hover:border-primary-400 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-primary-500 transition-colors flex-shrink-0"
+                    >
+                      <ImagePlus size={18} />
+                      <span className="text-[10px] font-medium">추가</span>
+                    </button>
+                  )}
+
+                  {/* 선택된 이미지 썸네일 */}
+                  {form.images.map((file, i) => (
+                    <div key={i} className="relative w-16 h-16 flex-shrink-0 group">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`첨부 ${i + 1}`}
+                        className="w-full h-full object-cover rounded-xl border border-gray-200"
+                      />
+                      {/* 개별 삭제 버튼 */}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={`이미지 ${i + 1} 제거`}
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 숨겨진 파일 input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
+
+                {/* 50장 초과 경고 */}
+                {form.images.length >= MAX_IMAGES && (
+                  <p className="text-xs text-red-500 mt-1">최대 {MAX_IMAGES}장까지 첨부할 수 있습니다.</p>
+                )}
+              </div>
+
               {/* 태그 */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -293,10 +387,10 @@ export default function NoticePage() {
               </div>
             </div>
 
-            {/* 버튼 */}
-            <div className="flex gap-2 px-5 pb-5">
+            {/* 하단 버튼 */}
+            <div className="flex gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
               <button
-                onClick={() => setWriteOpen(false)}
+                onClick={handleWriteClose}
                 className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
               >
                 취소
