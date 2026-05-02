@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDrawerStore } from '@/shared/store/drawerStore'
@@ -171,10 +172,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const [blockOpen, setBlockOpen] = useState(false)
   const [escrowOpen, setEscrowOpen] = useState(false)
   const [escrowChoice, setEscrowChoice] = useState<boolean | null>(null)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
   const txStatus = statusByRoom[roomId] ?? 'none'
   const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
+  // 관리자는 거래예약·신고·차단 기능 없이 채팅만 가능
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
   useEffect(() => {
@@ -386,15 +391,20 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
         {room && (
           <>
-            {/* 상대방 프로필 */}
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-              {room.opponentProfileImageUrl ? (
-                <img src={room.opponentProfileImageUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
-              )}
-            </div>
-            <p className="text-sm font-semibold text-gray-900 shrink-0">{room.opponentNickname}</p>
+            {/* 상대방 프로필 — 클릭 시 프로필 플로팅 패널 오픈 */}
+            <button
+              onClick={() => setProfileUserId(room.opponentId)}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity shrink-0"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                {room.opponentProfileImageUrl ? (
+                  <img src={room.opponentProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-gray-900">{room.opponentNickname}</p>
+            </button>
 
             {/* 물품 이미지 + 제목 */}
             <Link
@@ -412,27 +422,29 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </>
         )}
 
-        {/* 신고 + 차단 */}
-        <div className="flex items-center gap-0.5 ml-auto shrink-0">
-          <button
-            onClick={() => setReportOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="신고"
-          >
-            <Flag size={15} />
-          </button>
-          <button
-            onClick={() => setBlockOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="차단"
-          >
-            <Ban size={15} />
-          </button>
-        </div>
+        {/* 신고 + 차단 — 관리자는 표시하지 않음 */}
+        {!isAdmin && (
+          <div className="flex items-center gap-0.5 ml-auto shrink-0">
+            <button
+              onClick={() => setReportOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="신고"
+            >
+              <Flag size={15} />
+            </button>
+            <button
+              onClick={() => setBlockOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="차단"
+            >
+              <Ban size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 판매자 전용 — 거래 상태 바 */}
-      {room?.isSeller && txStatus !== 'completed' && (
+      {/* 판매자 전용 — 거래 상태 바 (관리자는 표시하지 않음) */}
+      {!isAdmin && room?.isSeller && txStatus !== 'completed' && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-2">
           {txStatus === 'none' && (
             <button
@@ -472,8 +484,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 거래 완료 후 — 판매자 리뷰 버튼 */}
-      {room?.isSeller && txStatus === 'completed' && (
+      {/* 거래 완료 후 — 판매자 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && room?.isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -488,8 +500,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 구매자 — 거래 완료 후 리뷰 버튼 */}
-      {!room?.isSeller && txStatus === 'completed' && (
+      {/* 구매자 — 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && !room?.isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -542,6 +554,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           <Send size={18} />
         </button>
       </div>
+
+      {/* 유저 프로필 플로팅 패널 */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
+      )}
     </div>
   )
 }

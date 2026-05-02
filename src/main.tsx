@@ -12,8 +12,14 @@ async function enableMocking() {
   // MSW 워커를 동적으로 import하여 시작
   const { worker } = await import('@/mocks/browser')
   return worker.start({
-    serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` }, // 서비스 워커 URL 설정
-    onUnhandledRequest: 'warn', // 처리되지 않은 요청에 대해 경고 표시
+    serviceWorker: {
+      url: `${import.meta.env.BASE_URL}mockServiceWorker.js`,
+      options: { updateViaCache: 'none' }, // 서비스 워커 캐시 무시 — 항상 최신 워커 사용
+    },
+    // API 요청만 경고, 내비게이션·정적 에셋은 조용히 통과
+    onUnhandledRequest(req, print) {
+      if (req.url.includes('/api/')) print.warning()
+    },
   }).catch(console.warn) // 워커 시작 실패 시 경고 로그
 }
 

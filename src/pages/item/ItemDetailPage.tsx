@@ -1,7 +1,7 @@
 // 물품 상세 페이지: 물품 정보 표시, 구매/대여 선택(날짜 포함) 후 채팅 시작
 // UC-19(물품 대여 신청), UC-20(물품 거래), UC-21(채팅하기), UC-24(관심등록) 관련
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   Heart, MapPin, Eye, Clock, ChevronLeft, Flag,
   Pencil, Trash2, ShoppingCart, RefreshCw, CalendarDays, AlertCircle,
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/features/auth/store'                            
 import { chatApi } from '@/features/chat/api'                                         // 채팅 API
 import { cn } from '@/shared/lib/cn'                                                  // 조건부 클래스 유틸
 import { fromNow } from '@/shared/lib/date'                                           // 날짜 포맷 유틸
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'                           // 유저 프로필 플로팅 패널
 
 // ─── 상수 정의 ────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,8 @@ export default function ItemDetailPage() {
   // ── 모달 상태 ──────────────────────────────────────────────────────────────
   // 삭제 확인 모달 열림 여부
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId] = useState<number | null>(null)
   // 구매/대여 선택 모달 열림 여부
   const [tradeSelectOpen, setTradeSelectOpen] = useState(false)
   // 모달 현재 단계 (step1: 방식선택, step2: 날짜선택)
@@ -111,6 +114,8 @@ export default function ItemDetailPage() {
   // ── 계산값 ────────────────────────────────────────────────────────────────
   // 현재 사용자가 이 물품의 판매자인지 여부
   const isOwner = !!currentUser && item?.sellerId === currentUser.id
+  // 관리자 여부: 모든 물품에 대해 채팅·삭제 권한 보유
+  const isAdmin = currentUser?.role === 'ADMIN'
   // 구매가와 대여가가 모두 있는 물품인지 (선택 모달 표시 기준)
   const hasBothOptions = !!item && item.price > 0 && item.rentPrice > 0
   // 대여 날짜가 유효하게 선택되었는지 여부
@@ -213,6 +218,17 @@ export default function ItemDetailPage() {
   const handleModalClose = () => {
     setTradeSelectOpen(false)
     setModalStep('step1')
+  }
+
+  /** 관리자 채팅: 거래 방식 선택 없이 바로 채팅방 진입 */
+  const handleAdminChat = async () => {
+    open('chat')
+    try {
+      const res = await chatApi.createRoom(item!.id)
+      openChatRoom(res.data.id)
+    } catch {
+      // 채팅방 생성 실패 시 드로워는 열린 상태 유지
+    }
   }
 
   // ── 로딩 / 에러 상태 렌더링 ───────────────────────────────────────────────
@@ -328,8 +344,8 @@ export default function ItemDetailPage() {
             )}
           </div>
 
-          {/* 거래 방식 선택 표시 박스 (구매/대여 둘 다 있는 물품 + 비판매자 전용) */}
-          {hasBothOptions && !isOwner && (
+          {/* 거래 방식 선택 표시 박스 (구매/대여 둘 다 있는 물품 + 비판매자·비관리자 전용) */}
+          {hasBothOptions && !isOwner && !isAdmin && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
               {tradeChoice ? (
                 <>
@@ -354,8 +370,11 @@ export default function ItemDetailPage() {
             </div>
           )}
 
-          {/* 판매자 프로필 카드 */}
-          <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+          {/* 판매자 프로필 카드 — 클릭 시 프로필 플로팅 패널 오픈 */}
+          <button
+            onClick={() => setProfileUserId(item.sellerId)}
+            className="w-full flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors text-left"
+          >
             {/* 프로필 이미지: 없으면 닉네임 첫 글자 표시 */}
             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {item.sellerProfileImageUrl ? (
@@ -368,14 +387,9 @@ export default function ItemDetailPage() {
               <p className="text-sm font-semibold text-gray-900">{item.sellerNickname}</p>
               <p className="text-xs text-gray-400 mt-0.5">거래 12건 · ★ 4.8</p>
             </div>
-            {/* 판매자 프로필 상세 보기 링크 */}
-            <Link
-              to={`/users/${item.sellerId}`}
-              className="text-xs text-primary-500 font-medium hover:underline flex-shrink-0"
-            >
-              프로필 보기
-            </Link>
-          </div>
+            {/* 프로필 보기 안내 텍스트 */}
+            <span className="text-xs text-primary-500 font-medium flex-shrink-0">프로필 보기 →</span>
+          </button>
 
           <hr className="border-gray-100" />
 
@@ -409,7 +423,23 @@ export default function ItemDetailPage() {
 
           {/* 데스크탑 전용 액션 버튼 */}
           <div className="hidden lg:flex items-center gap-2 pt-2">
-            {isOwner ? (
+            {isAdmin ? (
+              // 관리자: 채팅하기 + 삭제 (모든 물품에 권한)
+              <>
+                <button
+                  onClick={handleAdminChat}
+                  className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                >
+                  채팅하기
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Trash2 size={16} /> 삭제
+                </button>
+              </>
+            ) : isOwner ? (
               // 판매자: 수정 + 삭제 버튼
               <>
                 <button
@@ -442,7 +472,6 @@ export default function ItemDetailPage() {
                   onClick={() => handleChat()}
                   className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
                 >
-                  {/* 미선택 상태이면 선택 유도 문구 표시 */}
                   {hasBothOptions && !tradeChoice ? '거래 방법 선택 후 채팅' : '채팅하기'}
                 </button>
               </>
@@ -454,7 +483,23 @@ export default function ItemDetailPage() {
 
       {/* 모바일 전용 하단 고정 액션 버튼 */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
-        {isOwner ? (
+        {isAdmin ? (
+          // 관리자: 채팅하기 + 삭제 (모든 물품에 권한)
+          <>
+            <button
+              onClick={handleAdminChat}
+              className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold"
+            >
+              채팅하기
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold"
+            >
+              <Trash2 size={16} /> 삭제
+            </button>
+          </>
+        ) : isOwner ? (
           // 판매자: 수정 + 삭제
           <>
             <button
@@ -735,6 +780,14 @@ export default function ItemDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── 유저 프로필 플로팅 패널 ─────────────────────────────────────────── */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
       )}
 
     </div>
