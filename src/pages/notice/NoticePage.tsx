@@ -1,60 +1,24 @@
-// 공지사항 페이지 컴포넌트: 공지사항과 이벤트를 필터링하고 표시하는 페이지
-import { useState } from 'react'  // React 상태 훅
-import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
-import { Megaphone, Tag, ChevronRight } from 'lucide-react'  // Lucide 아이콘들
-
-// 공지사항 아이템 인터페이스: 공지사항 데이터 구조 정의
-interface NoticeItem {
-  id: number                    // 공지사항 고유 ID
-  title: string                 // 공지사항 제목
-  content: string               // 공지사항 내용
-  type: 'notice' | 'event'     // 공지사항 타입 (공지/이벤트)
-  date: string                  // 게시일
-  isRead: boolean              // 읽음 여부
-  tags?: string[]              // 태그 목록 (선택사항)
-}
-
-// 모의 공지사항 데이터: 개발용 샘플 데이터
-const mockNotices: NoticeItem[] = [
-  {
-    id: 1,
-    title: '2024 여름 세일',
-    content: '선택된 상품 최대 50% 할인을 즐겨보세요!',
-    type: 'event',  // 이벤트 타입
-    date: '2024-04-15',
-    isRead: false,  // 읽지 않은 상태
-    tags: ['세일', '여름']  // 관련 태그
-  },
-  {
-    id: 2,
-    title: '새로운 기능 추가',
-    content: '더 나은 사용자 경험을 위해 새로운 기능이 추가되었습니다.',
-    type: 'notice',  // 공지 타입
-    date: '2024-04-10',
-    isRead: true,
-    tags: ['업데이트', '기능']
-  },
-  {
-    id: 3,
-    title: '시스템 점검 공지',
-    content: '4월 20일 예정된 시스템 점검이 있습니다.',
-    type: 'notice',
-    date: '2024-04-08',
-    isRead: true,
-    tags: ['점검']
-  }
-]
+// 공지 / 이벤트 목록 — 가이드 §10.9
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Megaphone, ChevronRight, Pin } from 'lucide-react'
+import { useNotices } from '@/features/notice/hooks'
+import type { NoticeType } from '@/features/notice/api'
+import { formatKst } from '@/shared/lib/date'
 
 export default function NoticePage() {
-  const [selectedType, setSelectedType] = useState<'all' | 'notice' | 'event'>('all')
+  const [type, setType] = useState<NoticeType | 'all'>('all')
+  const [page, setPage] = useState(0)
 
-  const filteredNotices = mockNotices.filter(notice => 
-    selectedType === 'all' || notice.type === selectedType
-  )
+  const { data, isLoading } = useNotices({
+    type: type === 'all' ? undefined : type,
+    page,
+    size: 20,
+  })
+  const items = data?.content ?? []
 
   return (
     <div className="space-y-6">
-      {/* 페이지 헤더 */}
       <div className="flex items-center">
         <div className="flex items-center gap-3">
           <Megaphone className="text-primary-500" size={24} />
@@ -64,106 +28,93 @@ export default function NoticePage() {
 
       {/* 필터 탭 */}
       <div className="flex gap-2 border-b border-gray-200">
-        <button
-          onClick={() => setSelectedType('all')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            selectedType === 'all'
-              ? 'text-primary-500 border-primary-500'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          }`}
-        >
-          전체
-        </button>
-        <button
-          onClick={() => setSelectedType('event')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            selectedType === 'event'
-              ? 'text-primary-500 border-primary-500'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          }`}
-        >
-          이벤트/새소식
-        </button>
-        <button
-          onClick={() => setSelectedType('notice')}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            selectedType === 'notice'
-              ? 'text-primary-500 border-primary-500'
-              : 'text-gray-500 border-transparent hover:text-gray-700'
-          }`}
-        >
-          공지사항
-        </button>
-      </div>
-
-      {/* 공지사항 목록 */}
-      <div className="space-y-4">
-        {filteredNotices.map((notice) => (
-          <Link
-            key={notice.id}
-            to={`/notices/${notice.id}`}
-            className="block bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+        {(['all', '이벤트', '공지'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => {
+              setType(t)
+              setPage(0)
+            }}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              type === t
+                ? 'text-primary-500 border-primary-500'
+                : 'text-gray-500 border-transparent hover:text-gray-700'
+            }`}
           >
-            <div className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        notice.type === 'event'
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {notice.type === 'event' ? '이벤트' : '공지사항'}
-                    </span>
-                    {!notice.isRead && (
-                      <span className="w-2 h-2 bg-red-500 rounded-full" />
-                    )}
-                    <span className="text-sm text-gray-500">{notice.date}</span>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {notice.title}
-                  </h3>
-                  
-                  {notice.tags && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <Tag size={14} className="text-gray-400" />
-                      <div className="flex gap-1">
-                        {notice.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <p className="text-gray-600 line-clamp-2">
-                    {notice.content}
-                  </p>
-                </div>
-                
-                <div className="ml-4">
-                  <ChevronRight
-                    size={20}
-                    className="text-gray-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </Link>
+            {t === 'all' ? '전체' : t === '이벤트' ? '이벤트/새소식' : '공지사항'}
+          </button>
         ))}
       </div>
 
-      {filteredNotices.length === 0 && (
+      {/* 목록 */}
+      {isLoading ? (
+        <p className="text-center py-12 text-sm text-gray-400">불러오는 중...</p>
+      ) : items.length === 0 ? (
         <div className="text-center py-12">
           <Megaphone size={48} className="text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">New & Events</p>
+          <p className="text-gray-500">등록된 게시물이 없어요.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {items.map((notice) => (
+            <Link
+              key={notice.id}
+              to={`/notices/${notice.id}`}
+              className="block bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          notice.type === '이벤트'
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {notice.type}
+                      </span>
+                      {notice.pinned && (
+                        <span className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                          <Pin size={10} /> 고정
+                        </span>
+                      )}
+                      <span className="text-sm text-gray-500">
+                        {formatKst(notice.createdAt, 'yyyy.MM.dd')}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{notice.title}</h3>
+                    <p className="text-gray-600 line-clamp-2">{notice.content}</p>
+                  </div>
+                  <ChevronRight size={20} className="text-gray-400 ml-4 mt-1" />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* 페이지네이션 */}
+      {data && data.totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+          >
+            이전
+          </button>
+          <span className="px-3 py-1 text-sm text-gray-500">
+            {page + 1} / {data.totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!data.hasNext}
+            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50"
+          >
+            다음
+          </button>
         </div>
       )}
     </div>

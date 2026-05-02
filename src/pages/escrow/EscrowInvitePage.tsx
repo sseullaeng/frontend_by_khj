@@ -8,13 +8,18 @@ import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Shield, Users, AlertCircle, CheckCircle } from 'lucide-react'  // Lucide 아이콘들
 import { formatKst } from '@/shared/lib/date'
 
-// TODO: API 연동 시 linkId로 서버에서 조회 - 현재는 모의 데이터 사용
-// 모의 링크 데이터: 개발용 샘플 데이터
-const MOCK_LINK_DATA = {
-  initiatorRole: 'buyer' as EscrowRole,  // 신청자 역할
-  feePayer: 'buyer' as FeePayer,        // 수수료 부담자
-  initiatorName: '김철수',             // 신청자 이름
-  expiresAt: '2026-05-01T10:00:00Z',   // 만료 시간
+// TODO: 백엔드 escrow 도메인 합의 후 GET /api/v1/escrow/links/{linkId} 등으로 교체.
+// 현재는 placeholder — 실제 데이터 도착 전 빈 값.
+const MOCK_LINK_DATA: {
+  initiatorRole: EscrowRole
+  feePayer: FeePayer
+  initiatorName: string
+  expiresAt: string
+} = {
+  initiatorRole: 'buyer',
+  feePayer: 'buyer',
+  initiatorName: '',
+  expiresAt: '',
 }
 
 // 역할 옵션: 사용자 역할 선택 옵션

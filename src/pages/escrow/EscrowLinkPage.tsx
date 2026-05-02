@@ -4,31 +4,14 @@ import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 
 import { Copy, Share2, CheckCircle, ArrowLeft } from 'lucide-react'  // Lucide 아이콘들
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 
-// TODO: API 연동 시 실제 생성된 linkId로 교체 - 현재는 모의 데이터 사용
-// 모의 링크 ID: 개발용 샘플 데이터
-const MOCK_LINK_ID = 'LINK-ABC123'
-
-/**
- * 에스크로 링크 페이지 컴포넌트
- * 
- * 기능:
- * - 에스크로 신청 링크 생성
- * - 링크 복사 기능
- * - 네이티브 공유 기능
- * - 링크 유효성 확인
- * - 초대 메시지 제공
- * 
- * UI 구조:
- * - 상단: 뒤로가기 버튼 및 제목
- * - 중단: 링크 생성 완료 안내
- * - 하단: 복사 및 공유 버튼
- */
+// 에스크로 링크 페이지 — 백엔드 미지원 (linkId 발급 endpoint 없음)
+// TODO: 백엔드 spec 확정 후 실제 발급된 linkId 로 교체
 export default function EscrowLinkPage() {
-  const navigate = useNavigate()  // 페이지 네비게이션 함수
-  const [copied, setCopied] = useState(false)  // 복사 완료 상태
+  const navigate = useNavigate()
+  const [copied, setCopied] = useState(false)
 
-  // 생성된 에스크로 링크
-  const generatedLink = `${window.location.origin}${import.meta.env.BASE_URL}escrow/join/${MOCK_LINK_ID}`
+  // linkId 백엔드 미발급 — 페이지 placeholder. 실 endpoint 추가되면 여기 호출.
+  const generatedLink = `${window.location.origin}${import.meta.env.BASE_URL}escrow/join/PENDING`
 
   // 링크 복사 처리 함수
   const handleCopy = async () => {
