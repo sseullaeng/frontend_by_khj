@@ -1,6 +1,7 @@
-// 에스크로 허브 페이지 컴포넌트: 에스크로 서비스 메뉴 중앙 집중
+// 에스크로 허브 페이지 컴포넌트: 에스크로 서비스 메뉴 중앙 집중 (관리자: 수수료 설정 카드 포함)
 import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
-import { ClipboardList, FilePlus } from 'lucide-react'  // Lucide 아이콘들
+import { ClipboardList, FilePlus, Settings } from 'lucide-react'  // Lucide 아이콘들
+import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
 
 /**
  * 에스크로 허브 페이지 컴포넌트
@@ -17,13 +18,15 @@ import { ClipboardList, FilePlus } from 'lucide-react'  // Lucide 아이콘들
  * - 각 카드: 아이콘, 제목, 설명 포함
  */
 export default function EscrowHubPage() {
-  const navigate = useNavigate()  // 페이지 네비게이션 함수
+  const navigate   = useNavigate()                          // 페이지 네비게이션 함수
+  const currentUser = useAuthStore((s) => s.user)           // 현재 로그인 유저
+  const isAdmin    = currentUser?.role === 'ADMIN'          // 관리자 여부
 
   return (
     <div className="max-w-lg mx-auto px-4 py-12">
       {/* 페이지 제목 */}
       <h1 className="text-2xl font-bold text-gray-900 mb-2">거래 대행</h1>
-      
+
       {/* 서비스 설명 */}
       <p className="text-gray-500 text-sm mb-10">
         타 플랫폼 거래도 쓸랭이 안전하게 대행해 드립니다.
@@ -31,25 +34,22 @@ export default function EscrowHubPage() {
 
       {/* 메뉴 카드 목록 */}
       <div className="flex flex-col gap-4">
+
         {/* 대행 신청 카드 */}
         <button
           onClick={() => navigate('/escrow/apply')}
           className="flex items-center gap-5 p-6 bg-white border-2 border-primary-500 rounded-2xl hover:bg-primary-50 transition-colors text-left group"
         >
-          {/* 아이콘 컨테이너 */}
           <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center group-hover:bg-primary-200 transition-colors shrink-0">
             <FilePlus size={28} className="text-primary-600" />
           </div>
-          
-          {/* 카드 내용 */}
           <div>
             <p className="text-lg font-bold text-gray-900 mb-1">대행 신청</p>
-            <p className="text-sm text-gray-500">
-              상대방과 함께 대행 서비스를 신청합니다.
-            </p>
+            <p className="text-sm text-gray-500">상대방과 함께 대행 서비스를 신청합니다.</p>
           </div>
         </button>
 
+        {/* 신청 목록 카드 */}
         <button
           onClick={() => navigate('/escrow/list')}
           className="flex items-center gap-5 p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-gray-300 hover:bg-gray-50 transition-colors text-left group"
@@ -59,11 +59,26 @@ export default function EscrowHubPage() {
           </div>
           <div>
             <p className="text-lg font-bold text-gray-900 mb-1">신청 목록</p>
-            <p className="text-sm text-gray-500">
-              신청하거나 진행 중인 대행 서비스를 확인합니다.
-            </p>
+            <p className="text-sm text-gray-500">신청하거나 진행 중인 대행 서비스를 확인합니다.</p>
           </div>
         </button>
+
+        {/* 관리자 전용: 수수료 설정 카드 */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin/escrow-config')}
+            className="flex items-center gap-5 p-6 bg-amber-50 border-2 border-amber-300 rounded-2xl hover:bg-amber-100 transition-colors text-left group"
+          >
+            <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors shrink-0">
+              <Settings size={28} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-gray-900 mb-1">수수료 설정</p>
+              <p className="text-sm text-gray-500">유류비·기본 배달료·플랫폼 수수료를 설정합니다.</p>
+            </div>
+          </button>
+        )}
+
       </div>
     </div>
   )

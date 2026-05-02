@@ -111,6 +111,8 @@ export default function ItemDetailPage() {
   // ── 계산값 ────────────────────────────────────────────────────────────────
   // 현재 사용자가 이 물품의 판매자인지 여부
   const isOwner = !!currentUser && item?.sellerId === currentUser.id
+  // 관리자 여부: 모든 물품에 대해 채팅·삭제 권한 보유
+  const isAdmin = currentUser?.role === 'ADMIN'
   // 구매가와 대여가가 모두 있는 물품인지 (선택 모달 표시 기준)
   const hasBothOptions = !!item && item.price > 0 && item.rentPrice > 0
   // 대여 날짜가 유효하게 선택되었는지 여부
@@ -213,6 +215,17 @@ export default function ItemDetailPage() {
   const handleModalClose = () => {
     setTradeSelectOpen(false)
     setModalStep('step1')
+  }
+
+  /** 관리자 채팅: 거래 방식 선택 없이 바로 채팅방 진입 */
+  const handleAdminChat = async () => {
+    open('chat')
+    try {
+      const res = await chatApi.createRoom(item!.id)
+      openChatRoom(res.data.id)
+    } catch {
+      // 채팅방 생성 실패 시 드로워는 열린 상태 유지
+    }
   }
 
   // ── 로딩 / 에러 상태 렌더링 ───────────────────────────────────────────────
@@ -328,8 +341,8 @@ export default function ItemDetailPage() {
             )}
           </div>
 
-          {/* 거래 방식 선택 표시 박스 (구매/대여 둘 다 있는 물품 + 비판매자 전용) */}
-          {hasBothOptions && !isOwner && (
+          {/* 거래 방식 선택 표시 박스 (구매/대여 둘 다 있는 물품 + 비판매자·비관리자 전용) */}
+          {hasBothOptions && !isOwner && !isAdmin && (
             <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
               {tradeChoice ? (
                 <>
@@ -409,7 +422,23 @@ export default function ItemDetailPage() {
 
           {/* 데스크탑 전용 액션 버튼 */}
           <div className="hidden lg:flex items-center gap-2 pt-2">
-            {isOwner ? (
+            {isAdmin ? (
+              // 관리자: 채팅하기 + 삭제 (모든 물품에 권한)
+              <>
+                <button
+                  onClick={handleAdminChat}
+                  className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                >
+                  채팅하기
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Trash2 size={16} /> 삭제
+                </button>
+              </>
+            ) : isOwner ? (
               // 판매자: 수정 + 삭제 버튼
               <>
                 <button
@@ -442,7 +471,6 @@ export default function ItemDetailPage() {
                   onClick={() => handleChat()}
                   className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
                 >
-                  {/* 미선택 상태이면 선택 유도 문구 표시 */}
                   {hasBothOptions && !tradeChoice ? '거래 방법 선택 후 채팅' : '채팅하기'}
                 </button>
               </>
@@ -454,7 +482,23 @@ export default function ItemDetailPage() {
 
       {/* 모바일 전용 하단 고정 액션 버튼 */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-2">
-        {isOwner ? (
+        {isAdmin ? (
+          // 관리자: 채팅하기 + 삭제 (모든 물품에 권한)
+          <>
+            <button
+              onClick={handleAdminChat}
+              className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold"
+            >
+              채팅하기
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold"
+            >
+              <Trash2 size={16} /> 삭제
+            </button>
+          </>
+        ) : isOwner ? (
           // 판매자: 수정 + 삭제
           <>
             <button
