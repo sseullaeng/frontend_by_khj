@@ -1,11 +1,12 @@
 // 마이페이지: 일반 유저는 프로필·메뉴, 관리자는 사용자/거래/신고 통계 대시보드 표시
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
 import { useLogout } from '@/features/auth/hooks'     // 로그아웃 훅
 import { Button } from '@/shared/ui/Button'           // 버튼 컴포넌트
 import { cn } from '@/shared/lib/cn'                  // 클래스명 유틸
 import { ChevronRight, ShieldCheck, X } from 'lucide-react'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -215,39 +216,47 @@ const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
 interface PanelContentProps {
   kind: PanelKind
   onClose: () => void
+  onUserClick: (id: number) => void
   users: AdminUser[]
   trades: AdminTrade[]
   reports: AdminReport[]
 }
 
 /** 유저 목록 렌더링 서브컴포넌트 */
-function UserList({ users }: { users: AdminUser[] }) {
+function UserList({ users, onUserClick }: { users: AdminUser[]; onUserClick: (id: number) => void }) {
   return (
     <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
       {users.map(user => (
-        <li key={user.id} className="px-4 py-3 flex items-center gap-3">
-          {/* 유저 아바타 (첫 글자) */}
-          <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-            <span className="text-sm font-bold text-indigo-600">{user.nickname[0]}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            {/* 닉네임 + 상태 뱃지 + 신고 수 */}
-            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-              <span className="text-sm font-semibold text-gray-900">{user.nickname}</span>
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[user.status])}>
-                {STATUS_LABEL[user.status]}
-              </span>
-              {user.reportCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
-                  신고 {user.reportCount}건
-                </span>
-              )}
+        <li key={user.id}>
+          {/* 행 클릭 시 프로필 플로팅 패널 오픈 */}
+          <button
+            onClick={() => onUserClick(user.id)}
+            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+          >
+            {/* 유저 아바타 (첫 글자) */}
+            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-indigo-600">{user.nickname[0]}</span>
             </div>
-            {/* 멤버 ID, 가입 경로, 신뢰 점수 */}
-            <p className="text-xs text-gray-400">{user.memberId} · {user.signupPath} · 신뢰 {user.trustScore}점</p>
-            {/* 거래 수, 가입일 */}
-            <p className="text-xs text-gray-400">거래 {user.tradeCount}건 · 가입 {user.joinedAt}</p>
-          </div>
+            <div className="flex-1 min-w-0">
+              {/* 닉네임 + 상태 뱃지 + 신고 수 */}
+              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                <span className="text-sm font-semibold text-gray-900">{user.nickname}</span>
+                <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[user.status])}>
+                  {STATUS_LABEL[user.status]}
+                </span>
+                {user.reportCount > 0 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
+                    신고 {user.reportCount}건
+                  </span>
+                )}
+              </div>
+              {/* 멤버 ID, 가입 경로, 신뢰 점수 */}
+              <p className="text-xs text-gray-400">{user.memberId} · {user.signupPath} · 신뢰 {user.trustScore}점</p>
+              {/* 거래 수, 가입일 */}
+              <p className="text-xs text-gray-400">거래 {user.tradeCount}건 · 가입 {user.joinedAt}</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 shrink-0" />
+          </button>
         </li>
       ))}
       {users.length === 0 && (
@@ -257,37 +266,44 @@ function UserList({ users }: { users: AdminUser[] }) {
   )
 }
 
-/** 거래 목록 렌더링 서브컴포넌트 */
+/** 거래 목록 렌더링 서브컴포넌트 — 행 클릭 시 물품 상세로 이동 */
 function TradeList({ trades }: { trades: AdminTrade[] }) {
+  const navigate = useNavigate()
   return (
     <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
       {trades.map(trade => (
-        <li key={trade.id} className="px-4 py-3">
-          <div className="flex items-start gap-3">
-            {/* 거래 유형 이모지 아이콘 */}
-            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-              <span className="text-lg">{TRADE_EMOJI[trade.itemType]}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              {/* 거래 유형 뱃지 + 상태 뱃지 */}
-              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TYPE_CLS[trade.itemType])}>
-                  {TYPE_LABEL[trade.itemType]}
-                </span>
-                <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS_TRADE[trade.tradeStatus])}>
-                  {TRADE_STATUS_LABEL[trade.tradeStatus]}
-                </span>
+        <li key={trade.id}>
+          <button
+            onClick={() => navigate(`/items/${trade.id}`)}
+            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-start gap-3">
+              {/* 거래 유형 이모지 아이콘 */}
+              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                <span className="text-lg">{TRADE_EMOJI[trade.itemType]}</span>
               </div>
-              {/* 물품명 */}
-              <p className="text-sm font-semibold text-gray-900 truncate">{trade.itemTitle}</p>
-              {/* 가격, 판매자 → 구매자 */}
-              <p className="text-xs text-gray-400">
-                {trade.price > 0 ? trade.price.toLocaleString() + '원' : '무료'} · {trade.sellerNickname} → {trade.buyerNickname}
-              </p>
-              {/* 거래 날짜 */}
-              <p className="text-xs text-gray-400">{trade.date}</p>
+              <div className="flex-1 min-w-0">
+                {/* 거래 유형 뱃지 + 상태 뱃지 */}
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TYPE_CLS[trade.itemType])}>
+                    {TYPE_LABEL[trade.itemType]}
+                  </span>
+                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS_TRADE[trade.tradeStatus])}>
+                    {TRADE_STATUS_LABEL[trade.tradeStatus]}
+                  </span>
+                </div>
+                {/* 물품명 */}
+                <p className="text-sm font-semibold text-gray-900 truncate">{trade.itemTitle}</p>
+                {/* 가격, 판매자 → 구매자 */}
+                <p className="text-xs text-gray-400">
+                  {trade.price > 0 ? trade.price.toLocaleString() + '원' : '무료'} · {trade.sellerNickname} → {trade.buyerNickname}
+                </p>
+                {/* 거래 날짜 */}
+                <p className="text-xs text-gray-400">{trade.date}</p>
+              </div>
+              <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
             </div>
-          </div>
+          </button>
         </li>
       ))}
       {trades.length === 0 && (
@@ -297,11 +313,11 @@ function TradeList({ trades }: { trades: AdminTrade[] }) {
   )
 }
 
-/** 신고 목록 렌더링 (유저탭 / 물품탭 전환) */
-function ReportList({ reports }: { reports: AdminReport[] }) {
+/** 신고 목록 렌더링 (유저탭→프로필 플로팅 / 물품탭→상세 페이지 이동) */
+function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserClick: (id: number) => void }) {
+  const navigate = useNavigate()
   // 탭 상태: 'USER' 또는 'ITEM'
   const [tab, setTab] = useState<'USER' | 'ITEM'>('USER')
-
   const filtered = reports.filter(r => r.targetType === tab)
 
   return (
@@ -331,33 +347,43 @@ function ReportList({ reports }: { reports: AdminReport[] }) {
       {/* 신고 목록 */}
       <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
         {filtered.map(report => (
-          <li key={report.id} className="px-4 py-3 flex items-start gap-3">
-            {tab === 'USER' ? (
-              /* 유저 신고 행: 아바타 이니셜 */
-              <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-red-500">{report.targetName[0]}</span>
+          <li key={report.id}>
+            <button
+              onClick={() =>
+                tab === 'USER'
+                  ? onUserClick(report.targetId)          // 유저 탭: 프로필 플로팅 오픈
+                  : navigate(`/items/${report.targetId}`) // 물품 탭: 물품 상세 이동
+              }
+              className="w-full px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors text-left"
+            >
+              {tab === 'USER' ? (
+                /* 유저 신고 행: 아바타 이니셜 */
+                <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <span className="text-sm font-bold text-red-500">{report.targetName[0]}</span>
+                </div>
+              ) : (
+                /* 물품 신고 행: 박스 이모지 */
+                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                  <span className="text-lg">📦</span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                {/* 신고 대상 이름 + 상태 뱃지 */}
+                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                  <span className="text-sm font-semibold text-gray-900">{report.targetName}</span>
+                  {tab === 'USER' && report.status !== 'ACTIVE' && (
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[report.status as UserStatus])}>
+                      {STATUS_LABEL[report.status as UserStatus]}
+                    </span>
+                  )}
+                </div>
+                {/* 신고 사유 */}
+                <p className="text-xs text-gray-500">{report.reason}</p>
+                {/* 신고 건수, 신고일 */}
+                <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
               </div>
-            ) : (
-              /* 물품 신고 행: 박스 이모지 */
-              <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                <span className="text-lg">📦</span>
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              {/* 신고 대상 이름 + 상태 뱃지 */}
-              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                <span className="text-sm font-semibold text-gray-900">{report.targetName}</span>
-                {tab === 'USER' && report.status !== 'ACTIVE' && (
-                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[report.status as UserStatus])}>
-                    {STATUS_LABEL[report.status as UserStatus]}
-                  </span>
-                )}
-              </div>
-              {/* 신고 사유 */}
-              <p className="text-xs text-gray-500">{report.reason}</p>
-              {/* 신고 건수, 신고일 */}
-              <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
-            </div>
+              <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
+            </button>
           </li>
         ))}
         {filtered.length === 0 && (
@@ -369,7 +395,7 @@ function ReportList({ reports }: { reports: AdminReport[] }) {
 }
 
 /** 사이드 패널 전체 콘텐츠 (종류에 따라 유저/거래/신고 목록 렌더링) */
-function PanelContent({ kind, onClose, users, trades, reports }: PanelContentProps) {
+function PanelContent({ kind, onClose, onUserClick, users, trades, reports }: PanelContentProps) {
   // 패널 제목 및 콘텐츠 결정
   let title = ''
   let content: React.ReactNode = null
@@ -377,12 +403,12 @@ function PanelContent({ kind, onClose, users, trades, reports }: PanelContentPro
   if (kind === 'USER_ALL') {
     // 전체 회원 목록
     title = '전체 회원'
-    content = <UserList users={users} />
+    content = <UserList users={users} onUserClick={onUserClick} />
   } else if (kind === 'USER_TODAY') {
     // 오늘 신규 가입자 목록
     title = '오늘 신규 가입자'
     const todayUsers = users.filter(u => u.joinedAt === '2026-05-02')
-    content = <UserList users={todayUsers} />
+    content = <UserList users={todayUsers} onUserClick={onUserClick} />
   } else if (kind === 'TRADE_MONTHLY') {
     // 이번달 거래 목록
     title = '이번달 거래 내역'
@@ -390,7 +416,7 @@ function PanelContent({ kind, onClose, users, trades, reports }: PanelContentPro
   } else if (kind === 'REPORT') {
     // 신고 목록 (유저/물품 탭)
     title = '신고 목록'
-    content = <ReportList reports={reports} />
+    content = <ReportList reports={reports} onUserClick={onUserClick} />
   } else if (kind.kind === 'TRADE_TYPE') {
     // 거래 유형별 필터링 목록
     title = `${kind.label} 거래 목록`
@@ -405,7 +431,7 @@ function PanelContent({ kind, onClose, users, trades, reports }: PanelContentPro
     // 특정 날짜 가입자 목록
     title = `${kind.date} 가입자`
     const dateUsers = SIGNUP_BY_DATE[kind.date] ?? []
-    content = <UserList users={dateUsers} />
+    content = <UserList users={dateUsers} onUserClick={onUserClick} />
   }
 
   return (
@@ -437,6 +463,8 @@ function AdminStats({ nickname }: { nickname: string }) {
   const [panel, setPanel] = useState<PanelKind | null>(null)
   // 영역 차트 마우스 호버 날짜 상태
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
   /** 패널 열기 */
   const openPanel = (kind: PanelKind) => setPanel(kind)
@@ -658,12 +686,21 @@ function AdminStats({ nickname }: { nickname: string }) {
             <PanelContent
               kind={panel}
               onClose={closePanel}
+              onUserClick={(id) => setProfileUserId(id)}
               users={MOCK_USERS}
               trades={MOCK_TRADES}
               reports={MOCK_REPORTS}
             />
           </div>
         </div>
+      )}
+
+      {/* 유저 프로필 플로팅 패널 (사이드 패널 위 z-[70]) */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
       )}
     </div>
   )
