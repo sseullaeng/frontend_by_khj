@@ -11,20 +11,24 @@ const sampleBanners = [
     id: 1,
     title: '🎉 쓸랭 오픈 기념 이벤트',
     description: '첫 거래 시 포인트 1000원 지급!',
-    backgroundColor: '#6366f1'  // 파란색 배경
+    imageUrl: '/banner1.png',     // 배너 이미지 (public/banner1.png)
+    linkUrl: '/notices/1',        // 클릭 시 이벤트 상세로 이동
+    backgroundColor: '#6366f1',
   },
   {
     id: 2,
     title: '🌱 지구살리기 나눔 챌린지',
     description: '안 쓰는 물건 나누고 포인트 받자',
-    backgroundColor: '#10b981'  // 초록색 배경
+    backgroundColor: '#10b981',
+    linkUrl: '/notices',
   },
   {
     id: 3,
     title: '📦 배달대행 서비스 오픈',
     description: '동네 배달대행 최대 30% 할인',
-    backgroundColor: '#f59e0b'  // 주황색 배경
-  }
+    backgroundColor: '#f59e0b',
+    linkUrl: '/notices',
+  },
 ]
 
 /**

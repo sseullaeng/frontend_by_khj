@@ -1,5 +1,5 @@
 // 마이페이지: 일반 유저는 프로필·메뉴, 관리자는 사용자/거래/신고 통계 대시보드 표시
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
 import { useLogout } from '@/features/auth/hooks'     // 로그아웃 훅
@@ -14,8 +14,8 @@ import {
 
 // ── 타입 정의 ────────────────────────────────────────────────────────────────
 
-/** 유저 상태: 정상 / 활동정지 / 탈퇴 */
-type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN'
+/** 유저 상태: 정상 / 휴면 / 활동정지 / 탈퇴 */
+type UserStatus = 'ACTIVE' | 'DORMANT' | 'SUSPENDED' | 'WITHDRAWN'
 
 /** 거래 유형: 중고거래 / 대여 / 나눔 / 거래대행 */
 type TradeType = 'SELL' | 'RENT' | 'SHARE' | 'ESCROW'
@@ -35,6 +35,8 @@ interface AdminUser {
   joinedAt: string       // "YYYY-MM-DD"
   reportCount: number
   status: UserStatus
+  suspendedAt?: string   // 활동정지 처리 날짜 (YYYY-MM-DD)
+  suspendDays?: number   // 활동정지 기간 (일)
 }
 
 /** 관리자 거래 정보 */
@@ -78,6 +80,7 @@ type PanelKind =
 /** 유저 상태별 뱃지 색상 */
 const STATUS_CLS: Record<UserStatus, string> = {
   ACTIVE:    'bg-emerald-100 text-emerald-700',
+  DORMANT:   'bg-sky-100 text-sky-700',
   SUSPENDED: 'bg-amber-100 text-amber-700',
   WITHDRAWN: 'bg-gray-100 text-gray-400',
 }
@@ -85,6 +88,7 @@ const STATUS_CLS: Record<UserStatus, string> = {
 /** 유저 상태별 한글 레이블 */
 const STATUS_LABEL: Record<UserStatus, string> = {
   ACTIVE:    '정상',
+  DORMANT:   '휴면',
   SUSPENDED: '활동정지',
   WITHDRAWN: '탈퇴',
 }
@@ -133,15 +137,18 @@ const TRADE_STATUS_LABEL: Record<TradeStatus, string> = {
 const MOCK_USERS: AdminUser[] = [
   { id: 1,  profileImageUrl: null, nickname: '테스트유저', memberId: 'user_001', signupPath: '이메일', trustScore: 80, tradeCount: 12, joinedAt: '2026-05-02', reportCount: 0, status: 'ACTIVE' },
   { id: 2,  profileImageUrl: null, nickname: '홍길동',     memberId: 'user_002', signupPath: '카카오', trustScore: 72, tradeCount: 7,  joinedAt: '2026-05-02', reportCount: 1, status: 'ACTIVE' },
-  { id: 3,  profileImageUrl: null, nickname: '김영희',     memberId: 'user_003', signupPath: '네이버', trustScore: 40, tradeCount: 3,  joinedAt: '2026-05-01', reportCount: 5, status: 'SUSPENDED' },
+  { id: 3,  profileImageUrl: null, nickname: '김영희',     memberId: 'user_003', signupPath: '네이버', trustScore: 40, tradeCount: 3,  joinedAt: '2026-05-01', reportCount: 5, status: 'SUSPENDED', suspendedAt: '2026-05-01', suspendDays: 7 },
   { id: 4,  profileImageUrl: null, nickname: '이철수',     memberId: 'user_004', signupPath: '이메일', trustScore: 90, tradeCount: 25, joinedAt: '2026-04-30', reportCount: 0, status: 'ACTIVE' },
   { id: 5,  profileImageUrl: null, nickname: '박민준',     memberId: 'user_005', signupPath: '카카오', trustScore: 0,  tradeCount: 2,  joinedAt: '2026-04-29', reportCount: 3, status: 'WITHDRAWN' },
   { id: 6,  profileImageUrl: null, nickname: '최수진',     memberId: 'user_006', signupPath: '이메일', trustScore: 65, tradeCount: 9,  joinedAt: '2026-04-28', reportCount: 0, status: 'ACTIVE' },
   { id: 7,  profileImageUrl: null, nickname: '정우성',     memberId: 'user_007', signupPath: '네이버', trustScore: 55, tradeCount: 4,  joinedAt: '2026-04-28', reportCount: 2, status: 'ACTIVE' },
-  { id: 8,  profileImageUrl: null, nickname: '강동원',     memberId: 'user_008', signupPath: '카카오', trustScore: 30, tradeCount: 1,  joinedAt: '2026-04-27', reportCount: 8, status: 'SUSPENDED' },
+  { id: 8,  profileImageUrl: null, nickname: '강동원',     memberId: 'user_008', signupPath: '카카오', trustScore: 30, tradeCount: 1,  joinedAt: '2026-04-27', reportCount: 8, status: 'SUSPENDED', suspendedAt: '2026-04-30', suspendDays: 30 },
   { id: 9,  profileImageUrl: null, nickname: '손예진',     memberId: 'user_009', signupPath: '이메일', trustScore: 95, tradeCount: 31, joinedAt: '2026-04-27', reportCount: 0, status: 'ACTIVE' },
   { id: 10, profileImageUrl: null, nickname: '유재석',     memberId: 'user_010', signupPath: '카카오', trustScore: 88, tradeCount: 18, joinedAt: '2026-04-26', reportCount: 0, status: 'ACTIVE' },
   { id: 11, profileImageUrl: null, nickname: '신동엽',     memberId: 'user_011', signupPath: '이메일', trustScore: 0,  tradeCount: 0,  joinedAt: '2026-04-26', reportCount: 1, status: 'WITHDRAWN' },
+  { id: 12, profileImageUrl: null, nickname: '이미래',     memberId: 'user_012', signupPath: '카카오', trustScore: 60, tradeCount: 5,  joinedAt: '2026-04-25', reportCount: 0, status: 'DORMANT' },
+  { id: 13, profileImageUrl: null, nickname: '박지훈',     memberId: 'user_013', signupPath: '이메일', trustScore: 45, tradeCount: 2,  joinedAt: '2026-04-24', reportCount: 0, status: 'DORMANT' },
+  { id: 14, profileImageUrl: null, nickname: '조은별',     memberId: 'user_014', signupPath: '네이버', trustScore: 70, tradeCount: 8,  joinedAt: '2026-04-23', reportCount: 0, status: 'DORMANT' },
 ]
 
 /** 관리자 거래 목업 데이터 (12건) */
@@ -218,119 +225,362 @@ interface PanelContentProps {
   kind: PanelKind
   onClose: () => void
   onUserClick: (id: number) => void
-  onRestore: (id: number, name: string) => void
   users: AdminUser[]
   trades: AdminTrade[]
   reports: AdminReport[]
 }
 
-/** 유저 목록 렌더링 서브컴포넌트
- *  onRestore 가 전달되면 탈퇴 회원 행에 복구 버튼 표시 */
+/** 유저 목록 렌더링 서브컴포넌트 — 상단 탭 필터 + 정지/탈퇴/복구 액션 */
 function UserList({
   users,
   onUserClick,
-  onRestore,
 }: {
   users: AdminUser[]
   onUserClick: (id: number) => void
-  onRestore?: (id: number, name: string) => void
 }) {
+  type UserTab = UserStatus | 'ALL' | 'REPORTED'
+  const [activeTab, setActiveTab] = useState<UserTab>('ALL')
+
+  // 유저별 로컬 상태 오버라이드 (정지·복구·탈퇴 결과 반영)
+  const [statuses,    setStatuses]    = useState<Record<number, UserStatus>>({})
+  // 유저별 정지 정보 (처리 날짜·기간)
+  const [suspendInfo, setSuspendInfo] = useState<Record<number, { date: string; days: number }>>({})
+  // 확인 모달 대상
+  const [confirm, setConfirm] = useState<{ userId: number; userName: string; action: 'suspend' | 'withdraw' | 'restore' } | null>(null)
+  // 정지 기간 드롭다운 선택값
+  const [suspendDays, setSuspendDays] = useState<number>(7)
+
+  const SUSPEND_OPTIONS = [3, 7, 30, 100]
+
+  const TABS: { key: UserTab; label: string }[] = [
+    { key: 'ALL',       label: '전체' },
+    { key: 'ACTIVE',    label: '정상' },
+    { key: 'DORMANT',   label: '휴면' },
+    { key: 'SUSPENDED', label: '활동정지' },
+    { key: 'WITHDRAWN', label: '탈퇴' },
+    { key: 'REPORTED',  label: '신고제재' },
+  ]
+
+  /** 유저의 실제 상태 (로컬 오버라이드 우선) */
+  const getStatus = (user: AdminUser): UserStatus => statuses[user.id] ?? user.status
+
+  /** 정지 정보 (로컬 저장 우선, 없으면 MOCK 원본 사용) */
+  const getSuspendInfo = (user: AdminUser) =>
+    suspendInfo[user.id] ?? (user.suspendedAt ? { date: user.suspendedAt, days: user.suspendDays ?? 0 } : null)
+
+  const filtered = users.filter(u => {
+    const eff = getStatus(u)
+    if (activeTab === 'ALL')      return true
+    if (activeTab === 'REPORTED') return u.reportCount > 0
+    return eff === activeTab
+  })
+
+  /** 확인 후 상태 변경 적용 */
+  const handleConfirm = () => {
+    if (!confirm) return
+    if (confirm.action === 'suspend') {
+      // 활동정지 처리 및 정지 정보 저장
+      setStatuses(prev => ({ ...prev, [confirm.userId]: 'SUSPENDED' }))
+      const today = new Date().toISOString().slice(0, 10)
+      setSuspendInfo(prev => ({ ...prev, [confirm.userId]: { date: today, days: suspendDays } }))
+    } else if (confirm.action === 'restore') {
+      // 복구 처리 — 정지 정보 삭제
+      setStatuses(prev => ({ ...prev, [confirm.userId]: 'ACTIVE' }))
+      setSuspendInfo(prev => { const n = { ...prev }; delete n[confirm.userId]; return n })
+    } else {
+      // 탈퇴 처리
+      setStatuses(prev => ({ ...prev, [confirm.userId]: 'WITHDRAWN' }))
+    }
+    setConfirm(null)
+    setSuspendDays(7)
+  }
+
   return (
-    <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
-      {users.map(user => (
-        <li key={user.id} className="flex items-center px-4 py-3 gap-3">
-          {/* 왼쪽: 프로필 클릭 영역 */}
+    <div className="flex flex-col flex-1 min-h-0 relative">
+      {/* 상태 필터 탭 바 */}
+      <div className="flex border-b border-gray-100 overflow-x-auto shrink-0">
+        {TABS.map(tab => (
           <button
-            onClick={() => onUserClick(user.id)}
-            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              'shrink-0 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+              activeTab === tab.key
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600',
+            )}
           >
-            {/* 유저 아바타 (첫 글자) */}
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-indigo-600">{user.nickname[0]}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              {/* 닉네임 + 상태 뱃지 + 신고 수 */}
-              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                <span className="text-sm font-semibold text-gray-900">{user.nickname}</span>
-                <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[user.status])}>
-                  {STATUS_LABEL[user.status]}
-                </span>
-                {user.reportCount > 0 && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
-                    신고 {user.reportCount}건
-                  </span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 유저 목록 */}
+      <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
+        {filtered.map(user => {
+          const effStatus = getStatus(user)
+          const si = getSuspendInfo(user)
+          const isSuspended = effStatus === 'SUSPENDED'
+          const isWithdrawn = effStatus === 'WITHDRAWN'
+
+          return (
+            <li key={user.id} className="flex items-center px-4 py-3 gap-3">
+              {/* 왼쪽: 프로필 클릭 영역 */}
+              <button
+                onClick={() => onUserClick(user.id)}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+              >
+                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                  <span className="text-sm font-bold text-indigo-600">{user.nickname[0]}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-900">{user.nickname}</span>
+                    {/* 실제 적용된 상태 뱃지 */}
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[effStatus])}>
+                      {STATUS_LABEL[effStatus]}
+                    </span>
+                    {user.reportCount > 0 && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
+                        신고 {user.reportCount}건
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400">{user.memberId} · {user.signupPath} · 신뢰 {user.trustScore}점</p>
+                  <p className="text-xs text-gray-400">거래 {user.tradeCount}건 · 가입 {user.joinedAt}</p>
+                  {/* 활동정지 처리 날짜·기간 */}
+                  {isSuspended && si && (
+                    <p className="text-xs text-amber-600 font-medium mt-0.5">
+                      {si.days}일 정지 · {si.date} 처리
+                    </p>
+                  )}
+                </div>
+              </button>
+
+              {/* 오른쪽 액션 버튼 */}
+              <div className="flex items-center gap-1 shrink-0">
+                {isWithdrawn ? (
+                  /* 탈퇴 회원 — 복구 버튼만 */
+                  <button
+                    onClick={() => setConfirm({ userId: user.id, userName: user.nickname, action: 'restore' })}
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-xs font-semibold transition-colors"
+                  >
+                    <ShieldCheck size={13} />
+                    복구
+                  </button>
+                ) : (
+                  <>
+                    {/* 정지 중 → 복구 버튼 / 정상·휴면 → 정지 버튼 */}
+                    <button
+                      onClick={() => setConfirm({ userId: user.id, userName: user.nickname, action: isSuspended ? 'restore' : 'suspend' })}
+                      className={cn(
+                        'p-2 rounded-lg border transition-colors',
+                        isSuspended
+                          ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                          : 'border-amber-200 text-amber-500 hover:bg-amber-50'
+                      )}
+                      title={isSuspended ? '복구' : '활동정지'}
+                    >
+                      {isSuspended ? <ShieldCheck size={15} /> : <ShieldOff size={15} />}
+                    </button>
+                    {/* 탈퇴 처리 버튼 */}
+                    <button
+                      onClick={() => setConfirm({ userId: user.id, userName: user.nickname, action: 'withdraw' })}
+                      className="p-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                      title="탈퇴 처리"
+                    >
+                      <UserX size={15} />
+                    </button>
+                  </>
                 )}
               </div>
-              {/* 멤버 ID, 가입 경로, 신뢰 점수 */}
-              <p className="text-xs text-gray-400">{user.memberId} · {user.signupPath} · 신뢰 {user.trustScore}점</p>
-              {/* 거래 수, 가입일 */}
-              <p className="text-xs text-gray-400">거래 {user.tradeCount}건 · 가입 {user.joinedAt}</p>
-            </div>
-          </button>
+            </li>
+          )
+        })}
+        {filtered.length === 0 && (
+          <li className="px-4 py-8 text-center text-sm text-gray-400">데이터 없음</li>
+        )}
+      </ul>
 
-          {/* 오른쪽: 복구 버튼 (탈퇴 회원 + onRestore 제공 시만 표시) */}
-          {onRestore && user.status === 'WITHDRAWN' && (
-            <button
-              onClick={() => onRestore(user.id, user.nickname)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-xs font-semibold transition-colors shrink-0"
-            >
-              <ShieldCheck size={13} />
-              복구
-            </button>
-          )}
-        </li>
-      ))}
-      {users.length === 0 && (
-        <li className="px-4 py-8 text-center text-sm text-gray-400">데이터 없음</li>
+      {/* ── 확인 모달 ── */}
+      {confirm && (
+        <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 w-full shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              {confirm.action === 'suspend'  && <ShieldOff  size={18} className="text-amber-500 shrink-0" />}
+              {confirm.action === 'restore'  && <ShieldCheck size={18} className="text-emerald-500 shrink-0" />}
+              {confirm.action === 'withdraw' && <UserX      size={18} className="text-red-500 shrink-0" />}
+              <h3 className="text-sm font-bold text-gray-900">
+                {confirm.action === 'suspend'  && '활동정지'}
+                {confirm.action === 'restore'  && '활동 복구'}
+                {confirm.action === 'withdraw' && '탈퇴 처리'}
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">
+              <span className="font-semibold">{confirm.userName}</span> 님을{' '}
+              {confirm.action === 'suspend'  && '활동정지 처리하시겠습니까?'}
+              {confirm.action === 'restore'  && '복구하시겠습니까?'}
+              {confirm.action === 'withdraw' && '탈퇴 처리하시겠습니까?'}
+            </p>
+            {/* 정지 기간 드롭다운 */}
+            {confirm.action === 'suspend' && (
+              <div className="mt-2 mb-1">
+                <label className="text-xs text-gray-500 mb-1 block">정지 기간</label>
+                <select
+                  value={suspendDays}
+                  onChange={e => setSuspendDays(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg outline-none focus:border-amber-400 bg-white"
+                >
+                  {SUSPEND_OPTIONS.map(d => (
+                    <option key={d} value={d}>{d}일</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {confirm.action === 'withdraw' && (
+              <p className="text-xs text-red-500 mt-1 mb-1">⚠ 탈퇴 처리는 되돌릴 수 없습니다.</p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => { setConfirm(null); setSuspendDays(7) }}
+                className="flex-1 py-2 border border-gray-200 rounded-xl text-sm text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={cn(
+                  'flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-colors',
+                  confirm.action === 'withdraw' ? 'bg-red-500 hover:bg-red-600' :
+                  confirm.action === 'restore'  ? 'bg-emerald-500 hover:bg-emerald-600' :
+                                                  'bg-amber-500 hover:bg-amber-600'
+                )}
+              >
+                {confirm.action === 'withdraw' ? '탈퇴' : confirm.action === 'restore' ? '복구' : '정지'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </ul>
+    </div>
   )
 }
 
-/** 거래 목록 렌더링 서브컴포넌트 — 행 클릭 시 물품 상세로 이동 */
-function TradeList({ trades }: { trades: AdminTrade[] }) {
+/** 거래 목록 탭 모드: type=유형별 탭, status=상태별 탭, none=탭 없음 */
+type TradeFilterMode = 'type' | 'status' | 'none'
+
+/** 거래 목록 렌더링 서브컴포넌트 — filterMode에 따라 상단 탭 표시 */
+function TradeList({ trades, filterMode = 'none' }: { trades: AdminTrade[]; filterMode?: TradeFilterMode }) {
   const navigate = useNavigate()
+
+  // 유형 탭: 대여제공·대여현황 모두 RENT, 중고구매·중고판매 모두 SELL 매핑
+  type TypeTabKey = 'ALL' | 'RENT_P' | 'RENT_S' | 'SELL_B' | 'SELL_S' | 'SHARE'
+  const TYPE_TABS: { key: TypeTabKey; label: string; type: TradeType | null }[] = [
+    { key: 'ALL',    label: '전체보기', type: null },
+    { key: 'RENT_P', label: '대여제공', type: 'RENT' },
+    { key: 'RENT_S', label: '대여현황', type: 'RENT' },
+    { key: 'SELL_B', label: '중고구매', type: 'SELL' },
+    { key: 'SELL_S', label: '중고판매', type: 'SELL' },
+    { key: 'SHARE',  label: '나눔',     type: 'SHARE' },
+  ]
+  const STATUS_TABS: { key: 'ALL' | TradeStatus; label: string }[] = [
+    { key: 'ALL',       label: '전체' },
+    { key: 'ACTIVE',    label: '거래중' },
+    { key: 'COMPLETED', label: '완료' },
+    { key: 'CANCELLED', label: '취소' },
+  ]
+
+  const [typeTab,   setTypeTab]   = useState<TypeTabKey>('ALL')
+  const [statusTab, setStatusTab] = useState<'ALL' | TradeStatus>('ALL')
+
+  const filtered = trades.filter(t => {
+    if (filterMode === 'type') {
+      const tab = TYPE_TABS.find(tb => tb.key === typeTab)
+      return tab?.type === null || t.itemType === tab?.type
+    }
+    if (filterMode === 'status') return statusTab === 'ALL' || t.tradeStatus === statusTab
+    return true
+  })
+
   return (
-    <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
-      {trades.map(trade => (
-        <li key={trade.id}>
-          <button
-            onClick={() => navigate(`/items/${trade.id}`)}
-            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-start gap-3">
-              {/* 거래 유형 이모지 아이콘 */}
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                <span className="text-lg">{TRADE_EMOJI[trade.itemType]}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                {/* 거래 유형 뱃지 + 상태 뱃지 */}
-                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TYPE_CLS[trade.itemType])}>
-                    {TYPE_LABEL[trade.itemType]}
-                  </span>
-                  <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS_TRADE[trade.tradeStatus])}>
-                    {TRADE_STATUS_LABEL[trade.tradeStatus]}
-                  </span>
-                </div>
-                {/* 물품명 */}
-                <p className="text-sm font-semibold text-gray-900 truncate">{trade.itemTitle}</p>
-                {/* 가격, 판매자 → 구매자 */}
-                <p className="text-xs text-gray-400">
-                  {trade.price > 0 ? trade.price.toLocaleString() + '원' : '무료'} · {trade.sellerNickname} → {trade.buyerNickname}
-                </p>
-                {/* 거래 날짜 */}
-                <p className="text-xs text-gray-400">{trade.date}</p>
-              </div>
-              <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
-            </div>
-          </button>
-        </li>
-      ))}
-      {trades.length === 0 && (
-        <li className="px-4 py-8 text-center text-sm text-gray-400">데이터 없음</li>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* 유형 탭 (이번달 거래 / 거래상태별 패널) */}
+      {filterMode === 'type' && (
+        <div className="flex border-b border-gray-100 overflow-x-auto shrink-0">
+          {TYPE_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setTypeTab(tab.key)}
+              className={cn(
+                'shrink-0 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                typeTab === tab.key
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       )}
-    </ul>
+
+      {/* 상태 탭 (거래유형별 패널) */}
+      {filterMode === 'status' && (
+        <div className="flex border-b border-gray-100 overflow-x-auto shrink-0">
+          {STATUS_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusTab(tab.key)}
+              className={cn(
+                'shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                statusTab === tab.key
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 거래 목록 */}
+      <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
+        {filtered.map(trade => (
+          <li key={trade.id}>
+            <button
+              onClick={() => navigate(`/items/${trade.id}`)}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                  <span className="text-lg">{TRADE_EMOJI[trade.itemType]}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TYPE_CLS[trade.itemType])}>
+                      {TYPE_LABEL[trade.itemType]}
+                    </span>
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS_TRADE[trade.tradeStatus])}>
+                      {TRADE_STATUS_LABEL[trade.tradeStatus]}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 truncate">{trade.itemTitle}</p>
+                  <p className="text-xs text-gray-400">
+                    {trade.price > 0 ? trade.price.toLocaleString() + '원' : '무료'} · {trade.sellerNickname} → {trade.buyerNickname}
+                  </p>
+                  <p className="text-xs text-gray-400">{trade.date}</p>
+                </div>
+                <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
+              </div>
+            </button>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className="px-4 py-8 text-center text-sm text-gray-400">데이터 없음</li>
+        )}
+      </ul>
+    </div>
   )
 }
 
@@ -341,8 +591,14 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
   const [tab, setTab] = useState<'USER' | 'ITEM'>('USER')
   // 유저별 로컬 상태 오버라이드 (정지/복구/탈퇴 처리 결과 반영)
   const [statuses, setStatuses] = useState<Record<number, UserStatus>>({})
-  // 확인 모달 대상: { targetId, targetName, action }
+  // 유저별 정지 정보 (정지 날짜·기간)
+  const [suspendInfo, setSuspendInfo] = useState<Record<number, { date: string; days: number }>>({})
+  // 확인 모달 대상
   const [confirm, setConfirm] = useState<{ targetId: number; targetName: string; action: 'suspend' | 'withdraw' } | null>(null)
+  // 정지 기간 선택 (모달 내 드롭다운)
+  const [suspendDays, setSuspendDays] = useState<number>(7)
+
+  const SUSPEND_OPTIONS = [3, 7, 30, 100]
 
   const filtered = reports.filter(r => r.targetType === tab)
 
@@ -355,11 +611,20 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
     if (!confirm) return
     if (confirm.action === 'suspend') {
       const cur = statuses[confirm.targetId] ?? (reports.find(r => r.targetId === confirm.targetId)?.status as UserStatus)
-      setStatuses(prev => ({ ...prev, [confirm.targetId]: cur === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED' }))
+      const nextStatus = cur === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED'
+      setStatuses(prev => ({ ...prev, [confirm.targetId]: nextStatus }))
+      // 정지 처리 시 날짜·기간 저장, 복구 시 정보 삭제
+      if (nextStatus === 'SUSPENDED') {
+        const today = new Date().toISOString().slice(0, 10)
+        setSuspendInfo(prev => ({ ...prev, [confirm.targetId]: { date: today, days: suspendDays } }))
+      } else {
+        setSuspendInfo(prev => { const next = { ...prev }; delete next[confirm.targetId]; return next })
+      }
     } else {
       setStatuses(prev => ({ ...prev, [confirm.targetId]: 'WITHDRAWN' }))
     }
     setConfirm(null)
+    setSuspendDays(7)
   }
 
   return (
@@ -417,6 +682,12 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
                       </div>
                       <p className="text-xs text-gray-500">{report.reason}</p>
                       <p className="text-xs text-gray-400">신고 {report.reportCount}건 · {report.reportedAt}</p>
+                      {/* 정지 처리 날짜·기간 (정지 상태일 때만) */}
+                      {status === 'SUSPENDED' && suspendInfo[report.targetId] && (
+                        <p className="text-xs text-amber-600 font-medium mt-0.5">
+                          {suspendInfo[report.targetId].days}일 정지 · {suspendInfo[report.targetId].date} 처리
+                        </p>
+                      )}
                     </div>
                   </button>
 
@@ -494,6 +765,21 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
                 ? (statuses[confirm.targetId] === 'SUSPENDED' ? '복구하시겠습니까?' : '활동정지 처리하시겠습니까?')
                 : '탈퇴 처리하시겠습니까?'}
             </p>
+            {/* 정지 기간 드롭다운 — 새로 정지할 때만 표시 */}
+            {confirm.action === 'suspend' && statuses[confirm.targetId] !== 'SUSPENDED' && (
+              <div className="mt-2 mb-1">
+                <label className="text-xs text-gray-500 mb-1 block">정지 기간</label>
+                <select
+                  value={suspendDays}
+                  onChange={e => setSuspendDays(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg outline-none focus:border-amber-400 bg-white"
+                >
+                  {SUSPEND_OPTIONS.map(d => (
+                    <option key={d} value={d}>{d}일</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {confirm.action === 'withdraw' && (
               <p className="text-xs text-red-500 mb-3">⚠ 탈퇴 처리는 되돌릴 수 없습니다.</p>
             )}
@@ -526,7 +812,7 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
 }
 
 /** 사이드 패널 전체 콘텐츠 (종류에 따라 유저/거래/신고 목록 렌더링) */
-function PanelContent({ kind, onClose, onUserClick, onRestore, users, trades, reports }: PanelContentProps) {
+function PanelContent({ kind, onClose, onUserClick, users, trades, reports }: PanelContentProps) {
   // 패널 제목 및 콘텐츠 결정
   let title = ''
   let content: React.ReactNode = null
@@ -544,25 +830,25 @@ function PanelContent({ kind, onClose, onUserClick, onRestore, users, trades, re
     // 탈퇴 회원 목록 (복구 버튼 포함)
     title = '탈퇴 회원'
     const withdrawnUsers = users.filter(u => u.status === 'WITHDRAWN')
-    content = <UserList users={withdrawnUsers} onUserClick={onUserClick} onRestore={onRestore} />
+    content = <UserList users={withdrawnUsers} onUserClick={onUserClick} />
   } else if (kind === 'TRADE_MONTHLY') {
-    // 이번달 거래 목록
+    // 이번달 거래 목록 (거래 유형별 탭)
     title = '이번달 거래 내역'
-    content = <TradeList trades={trades} />
+    content = <TradeList trades={trades} filterMode="type" />
   } else if (kind === 'REPORT') {
     // 신고 목록 (유저/물품 탭)
     title = '신고 목록'
     content = <ReportList reports={reports} onUserClick={onUserClick} />
   } else if (kind.kind === 'TRADE_TYPE') {
-    // 거래 유형별 필터링 목록
+    // 거래 유형별 필터링 목록 (거래 상태 탭으로 세분화)
     title = `${kind.label} 거래 목록`
     const filtered = trades.filter(t => t.itemType === kind.tradeType)
-    content = <TradeList trades={filtered} />
+    content = <TradeList trades={filtered} filterMode="status" />
   } else if (kind.kind === 'TRADE_STATUS') {
-    // 거래 상태별 필터링 목록
+    // 거래 상태별 필터링 목록 (거래 유형 탭으로 세분화)
     title = `${kind.label} 목록`
     const filtered = trades.filter(t => t.tradeStatus === kind.tradeStatus)
-    content = <TradeList trades={filtered} />
+    content = <TradeList trades={filtered} filterMode="type" />
   } else if (kind.kind === 'USER_DATE') {
     // 특정 날짜 가입자 목록
     title = `${kind.date} 가입자`
@@ -601,35 +887,16 @@ function AdminStats({ nickname }: { nickname: string }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
-  // 복구 처리된 유저 ID 세트 (탈퇴 목록에서 제거)
-  const [restoredIds, setRestoredIds] = useState<Set<number>>(new Set())
-  // 복구 확인 모달 대상
-  const [restoreConfirm, setRestoreConfirm] = useState<{ id: number; name: string } | null>(null)
-
   /** 패널 열기 */
   const openPanel = (kind: PanelKind) => setPanel(kind)
   /** 패널 닫기 */
   const closePanel = () => setPanel(null)
 
-  /** 복구 버튼 클릭 → 확인 모달 열기 */
-  const handleRestoreRequest = (id: number, name: string) => setRestoreConfirm({ id, name })
+  // 차트 호버 카드 숨김 딜레이 타이머 ref (마우스를 잠깐 벗어나도 카드가 유지되도록)
+  const hideTimerRef = useRef<number>(0)
 
-  /** 복구 확인 → restoredIds에 추가, users 목록에서 상태 ACTIVE로 반영 */
-  const handleRestoreConfirm = () => {
-    if (!restoreConfirm) return
-    setRestoredIds(prev => new Set([...prev, restoreConfirm.id]))
-    setRestoreConfirm(null)
-  }
-
-  // 탈퇴 회원 목록 (복구된 유저 제외)
-  const withdrawnUsers = MOCK_USERS
-    .filter(u => u.status === 'WITHDRAWN' && !restoredIds.has(u.id))
-    .map(u => u)
-
-  // PanelContent에 전달할 유저 목록 (복구된 유저는 ACTIVE로 상태 변경)
-  const usersWithRestored = MOCK_USERS.map(u =>
-    restoredIds.has(u.id) ? { ...u, status: 'ACTIVE' as const } : u
-  )
+  // 탈퇴 회원 수 (카드 표시용)
+  const withdrawnCount = MOCK_USERS.filter(u => u.status === 'WITHDRAWN').length
 
   return (
     <div className="flex flex-col gap-6">
@@ -705,7 +972,7 @@ function AdminStats({ nickname }: { nickname: string }) {
           className="col-span-2 bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">탈퇴 회원</p>
-          <p className="text-xl font-bold text-gray-400">{withdrawnUsers.length}명</p>
+          <p className="text-xl font-bold text-gray-400">{withdrawnCount}명</p>
           <div className="flex items-center justify-between mt-0.5">
             <p className="text-xs text-gray-400">복구 가능 · 클릭하여 목록 보기</p>
             <ChevronRight size={14} className="text-gray-300" />
@@ -721,10 +988,14 @@ function AdminStats({ nickname }: { nickname: string }) {
             data={DAILY_SIGNUP}
             margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             onMouseMove={(data: { activeLabel?: string }) => {
-              // 마우스 이동 시 호버 날짜 업데이트
+              // 마우스 이동 시 타이머 취소 후 날짜 업데이트
+              window.clearTimeout(hideTimerRef.current)
               if (data.activeLabel) setHoveredDate(data.activeLabel)
             }}
-            onMouseLeave={() => setHoveredDate(null)}
+            onMouseLeave={() => {
+              // 마우스가 차트를 벗어나면 400ms 후 카드 숨김 (호버 카드 위로 이동 시 취소)
+              hideTimerRef.current = window.setTimeout(() => setHoveredDate(null), 400)
+            }}
           >
             <defs>
               <linearGradient id="signupGrad" x1="0" y1="0" x2="0" y2="1">
@@ -749,7 +1020,11 @@ function AdminStats({ nickname }: { nickname: string }) {
 
         {/* 호버 시 해당 날짜 가입자 미니 카드 */}
         {hoveredDate !== null && (
-          <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+          <div
+            className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl"
+            onMouseEnter={() => window.clearTimeout(hideTimerRef.current)}
+            onMouseLeave={() => { hideTimerRef.current = window.setTimeout(() => setHoveredDate(null), 400) }}
+          >
             <p className="text-xs font-semibold text-indigo-700 mb-2">{hoveredDate} 가입자</p>
             <ul className="space-y-1">
               {(SIGNUP_BY_DATE[hoveredDate] ?? []).map(user => (
@@ -855,45 +1130,15 @@ function AdminStats({ nickname }: { nickname: string }) {
           {/* 배경 딤 처리 (클릭 시 닫기) */}
           <div onClick={closePanel} className="flex-1 bg-black/30" />
           {/* 패널 본체 */}
-          <div className="w-full sm:w-[480px] bg-white h-full flex flex-col shadow-2xl relative">
+          <div className="w-full sm:w-[600px] bg-white h-full flex flex-col shadow-2xl relative">
             <PanelContent
               kind={panel}
               onClose={closePanel}
               onUserClick={(id) => setProfileUserId(id)}
-              onRestore={handleRestoreRequest}
-              users={usersWithRestored}
+              users={MOCK_USERS}
               trades={MOCK_TRADES}
               reports={MOCK_REPORTS}
             />
-          </div>
-        </div>
-      )}
-
-      {/* 복구 확인 모달 */}
-      {restoreConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck size={20} className="text-emerald-500" />
-              <h3 className="text-base font-bold text-gray-900">탈퇴 회원 복구</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-5">
-              <span className="font-semibold text-gray-900">{restoreConfirm.name}</span> 님을 정상 회원으로 복구하시겠습니까?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setRestoreConfirm(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleRestoreConfirm}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors"
-              >
-                복구
-              </button>
-            </div>
           </div>
         </div>
       )}

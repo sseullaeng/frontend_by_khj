@@ -569,7 +569,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 /* ── 알림 패널 ── */
 function NotificationPanel() {
   const close = useDrawerStore(s => s.close)
+  const currentUser = useAuthStore(s => s.user)
+  const isAdmin = currentUser?.role === 'ADMIN'
   const qc = useQueryClient()
+
+  // 관리자 전체 발송 폼 상태
+  const [broadcastTitle, setBroadcastTitle] = useState('')
+  const [broadcastBody,  setBroadcastBody]  = useState('')
+  const [sent, setSent] = useState(false)
 
   const { data } = useQuery({
     queryKey: ['notifications', 'drawer'],
@@ -581,8 +588,53 @@ function NotificationPanel() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
+  /** 전체 발송 버튼 클릭 — 실제 API 연동 전까지 더미 처리 */
+  const handleBroadcast = () => {
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return
+    setSent(true)
+    setBroadcastTitle('')
+    setBroadcastBody('')
+    // 3초 후 발송 완료 메시지 숨김
+    window.setTimeout(() => setSent(false), 3000)
+  }
+
   return (
     <div className="flex flex-col h-full">
+
+      {/* 관리자 전용 — 전체 알림 발송 폼 */}
+      {isAdmin && (
+        <div className="px-4 py-3 border-b border-indigo-100 bg-indigo-50 shrink-0">
+          <p className="text-xs font-semibold text-indigo-700 mb-2">전체 유저 알림 발송</p>
+          <input
+            type="text"
+            value={broadcastTitle}
+            onChange={e => setBroadcastTitle(e.target.value)}
+            placeholder="제목"
+            className="w-full mb-1.5 px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 bg-white"
+          />
+          <textarea
+            value={broadcastBody}
+            onChange={e => setBroadcastBody(e.target.value)}
+            placeholder="내용을 입력하세요"
+            rows={2}
+            className="w-full px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 resize-none bg-white"
+          />
+          {sent ? (
+            // 발송 완료 피드백
+            <p className="mt-1.5 text-xs text-emerald-600 font-medium text-center">✓ 전체 발송 완료</p>
+          ) : (
+            <button
+              onClick={handleBroadcast}
+              disabled={!broadcastTitle.trim() || !broadcastBody.trim()}
+              className="mt-1.5 w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1"
+            >
+              <Send size={12} />
+              전체 발송
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
         <span className="text-xs text-gray-500">{data?.content.length ?? 0}개의 알림</span>
         <button
