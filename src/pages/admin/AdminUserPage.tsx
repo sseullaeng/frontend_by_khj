@@ -5,6 +5,7 @@ import {
   ChevronDown, X,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 
 // ─── 타입 정의 ────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,8 @@ export default function AdminUserPage() {
   const [suspendTarget, setSuspendTarget]   = useState<AdminUser | null>(null)
   // 탈퇴 처리 확인 모달 대상
   const [withdrawTarget, setWithdrawTarget] = useState<AdminUser | null>(null)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId]   = useState<number | null>(null)
 
   // 필터·검색 적용
   const filtered = users.filter((u) => {
@@ -185,29 +188,32 @@ export default function AdminUserPage() {
             {filtered.map((user) => (
               <li key={user.id} className="px-5 py-4 flex items-center gap-4">
 
-                {/* 프로필 아바타 */}
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                  <span className="text-indigo-600 font-bold text-sm">{user.nickname[0]}</span>
-                </div>
-
-                {/* 회원 정보 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="text-sm font-semibold text-gray-900 truncate">{user.nickname}</span>
-                    <span className={cn('px-1.5 py-0.5 rounded-full text-xs font-medium shrink-0', STATUS_MAP[user.status].cls)}>
-                      {STATUS_MAP[user.status].label}
-                    </span>
-                    {user.reportCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500 shrink-0">
-                        신고 {user.reportCount}건
-                      </span>
-                    )}
+                {/* 프로필 아바타 + 회원 정보 — 클릭 시 프로필 플로팅 패널 오픈 */}
+                <button
+                  onClick={() => setProfileUserId(user.id)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
+                >
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                    <span className="text-indigo-600 font-bold text-sm">{user.nickname[0]}</span>
                   </div>
-                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    가입 {user.joinedAt} · 거래 {user.tradeCount}건 · 신뢰 {user.trustScore}점
-                  </p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-sm font-semibold text-gray-900 truncate">{user.nickname}</span>
+                      <span className={cn('px-1.5 py-0.5 rounded-full text-xs font-medium shrink-0', STATUS_MAP[user.status].cls)}>
+                        {STATUS_MAP[user.status].label}
+                      </span>
+                      {user.reportCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500 shrink-0">
+                          신고 {user.reportCount}건
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      가입 {user.joinedAt} · 거래 {user.tradeCount}건 · 신뢰 {user.trustScore}점
+                    </p>
+                  </div>
+                </button>
 
                 {/* 액션 버튼 (탈퇴 회원에게는 표시 안 함) */}
                 {user.status !== 'WITHDRAWN' && (
@@ -285,6 +291,14 @@ export default function AdminUserPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── 유저 프로필 플로팅 패널 ─────────────────────────────────────────── */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
       )}
 
       {/* ── 탈퇴 처리 확인 모달 ──────────────────────────────────────────────── */}
