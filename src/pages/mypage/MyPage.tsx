@@ -66,6 +66,7 @@ interface AdminReport {
 type PanelKind =
   | 'USER_ALL'
   | 'USER_TODAY'
+  | 'USER_WITHDRAWN'
   | 'TRADE_MONTHLY'
   | 'REPORT'
   | { kind: 'TRADE_TYPE'; tradeType: TradeType; label: string }
@@ -217,21 +218,31 @@ interface PanelContentProps {
   kind: PanelKind
   onClose: () => void
   onUserClick: (id: number) => void
+  onRestore: (id: number, name: string) => void
   users: AdminUser[]
   trades: AdminTrade[]
   reports: AdminReport[]
 }
 
-/** 유저 목록 렌더링 서브컴포넌트 */
-function UserList({ users, onUserClick }: { users: AdminUser[]; onUserClick: (id: number) => void }) {
+/** 유저 목록 렌더링 서브컴포넌트
+ *  onRestore 가 전달되면 탈퇴 회원 행에 복구 버튼 표시 */
+function UserList({
+  users,
+  onUserClick,
+  onRestore,
+}: {
+  users: AdminUser[]
+  onUserClick: (id: number) => void
+  onRestore?: (id: number, name: string) => void
+}) {
   return (
     <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
       {users.map(user => (
-        <li key={user.id}>
-          {/* 행 클릭 시 프로필 플로팅 패널 오픈 */}
+        <li key={user.id} className="flex items-center px-4 py-3 gap-3">
+          {/* 왼쪽: 프로필 클릭 영역 */}
           <button
             onClick={() => onUserClick(user.id)}
-            className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-75 transition-opacity"
           >
             {/* 유저 아바타 (첫 글자) */}
             <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
@@ -255,8 +266,18 @@ function UserList({ users, onUserClick }: { users: AdminUser[]; onUserClick: (id
               {/* 거래 수, 가입일 */}
               <p className="text-xs text-gray-400">거래 {user.tradeCount}건 · 가입 {user.joinedAt}</p>
             </div>
-            <ChevronRight size={14} className="text-gray-300 shrink-0" />
           </button>
+
+          {/* 오른쪽: 복구 버튼 (탈퇴 회원 + onRestore 제공 시만 표시) */}
+          {onRestore && user.status === 'WITHDRAWN' && (
+            <button
+              onClick={() => onRestore(user.id, user.nickname)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 text-xs font-semibold transition-colors shrink-0"
+            >
+              <ShieldCheck size={13} />
+              복구
+            </button>
+          )}
         </li>
       ))}
       {users.length === 0 && (
@@ -505,7 +526,7 @@ function ReportList({ reports, onUserClick }: { reports: AdminReport[]; onUserCl
 }
 
 /** 사이드 패널 전체 콘텐츠 (종류에 따라 유저/거래/신고 목록 렌더링) */
-function PanelContent({ kind, onClose, onUserClick, users, trades, reports }: PanelContentProps) {
+function PanelContent({ kind, onClose, onUserClick, onRestore, users, trades, reports }: PanelContentProps) {
   // 패널 제목 및 콘텐츠 결정
   let title = ''
   let content: React.ReactNode = null
@@ -519,6 +540,11 @@ function PanelContent({ kind, onClose, onUserClick, users, trades, reports }: Pa
     title = '오늘 신규 가입자'
     const todayUsers = users.filter(u => u.joinedAt === '2026-05-02')
     content = <UserList users={todayUsers} onUserClick={onUserClick} />
+  } else if (kind === 'USER_WITHDRAWN') {
+    // 탈퇴 회원 목록 (복구 버튼 포함)
+    title = '탈퇴 회원'
+    const withdrawnUsers = users.filter(u => u.status === 'WITHDRAWN')
+    content = <UserList users={withdrawnUsers} onUserClick={onUserClick} onRestore={onRestore} />
   } else if (kind === 'TRADE_MONTHLY') {
     // 이번달 거래 목록
     title = '이번달 거래 내역'
@@ -575,11 +601,35 @@ function AdminStats({ nickname }: { nickname: string }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
+  // 복구 처리된 유저 ID 세트 (탈퇴 목록에서 제거)
+  const [restoredIds, setRestoredIds] = useState<Set<number>>(new Set())
+  // 복구 확인 모달 대상
+  const [restoreConfirm, setRestoreConfirm] = useState<{ id: number; name: string } | null>(null)
 
   /** 패널 열기 */
   const openPanel = (kind: PanelKind) => setPanel(kind)
   /** 패널 닫기 */
   const closePanel = () => setPanel(null)
+
+  /** 복구 버튼 클릭 → 확인 모달 열기 */
+  const handleRestoreRequest = (id: number, name: string) => setRestoreConfirm({ id, name })
+
+  /** 복구 확인 → restoredIds에 추가, users 목록에서 상태 ACTIVE로 반영 */
+  const handleRestoreConfirm = () => {
+    if (!restoreConfirm) return
+    setRestoredIds(prev => new Set([...prev, restoreConfirm.id]))
+    setRestoreConfirm(null)
+  }
+
+  // 탈퇴 회원 목록 (복구된 유저 제외)
+  const withdrawnUsers = MOCK_USERS
+    .filter(u => u.status === 'WITHDRAWN' && !restoredIds.has(u.id))
+    .map(u => u)
+
+  // PanelContent에 전달할 유저 목록 (복구된 유저는 ACTIVE로 상태 변경)
+  const usersWithRestored = MOCK_USERS.map(u =>
+    restoredIds.has(u.id) ? { ...u, status: 'ACTIVE' as const } : u
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -645,6 +695,19 @@ function AdminStats({ nickname }: { nickname: string }) {
           <p className="text-xl font-bold text-red-500">7건</p>
           <div className="flex items-center justify-between mt-0.5">
             <p className="text-xs text-gray-400">미처리 신고</p>
+            <ChevronRight size={14} className="text-gray-300" />
+          </div>
+        </button>
+
+        {/* 탈퇴 회원 카드 — 2열 전체 너비 */}
+        <button
+          onClick={() => openPanel('USER_WITHDRAWN')}
+          className="col-span-2 bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
+        >
+          <p className="text-xs text-gray-500 mb-1">탈퇴 회원</p>
+          <p className="text-xl font-bold text-gray-400">{withdrawnUsers.length}명</p>
+          <div className="flex items-center justify-between mt-0.5">
+            <p className="text-xs text-gray-400">복구 가능 · 클릭하여 목록 보기</p>
             <ChevronRight size={14} className="text-gray-300" />
           </div>
         </button>
@@ -797,10 +860,40 @@ function AdminStats({ nickname }: { nickname: string }) {
               kind={panel}
               onClose={closePanel}
               onUserClick={(id) => setProfileUserId(id)}
-              users={MOCK_USERS}
+              onRestore={handleRestoreRequest}
+              users={usersWithRestored}
               trades={MOCK_TRADES}
               reports={MOCK_REPORTS}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 복구 확인 모달 */}
+      {restoreConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck size={20} className="text-emerald-500" />
+              <h3 className="text-base font-bold text-gray-900">탈퇴 회원 복구</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              <span className="font-semibold text-gray-900">{restoreConfirm.name}</span> 님을 정상 회원으로 복구하시겠습니까?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRestoreConfirm(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRestoreConfirm}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors"
+              >
+                복구
+              </button>
+            </div>
           </div>
         </div>
       )}
