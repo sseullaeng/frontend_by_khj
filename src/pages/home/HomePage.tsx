@@ -1,9 +1,12 @@
 // 메인 홈페이지 컴포넌트: 배너 슬라이더와 추천 상품 그리드를 표시하는 메인 페이지
+import { useState } from 'react'
 import BannerSlider from '@/shared/ui/BannerSlider'  // 배너 슬라이더 컴포넌트
 import ItemCard from '@/features/item/components/ItemCard'  // 물품 카드 컴포넌트
 import { itemApi } from '@/features/item/api'  // 물품 API
 import { useQuery } from '@tanstack/react-query'  // React Query 훅
 import type { Item } from '@/features/item/types'  // 물품 타입
+
+const PAGE_SIZE = 6  // 한 번에 표시할 아이템 수
 
 // 샘플 배너 데이터: 이벤트 및 공지사항 배너
 const sampleBanners = [
@@ -46,6 +49,9 @@ const sampleBanners = [
  * 3. 상태 관리: React Query로 데이터 캐싱 및 로딩 상태 관리
  */
 export default function HomePage() {
+  // 표시할 아이템 수 (더보기 클릭 시 PAGE_SIZE씩 증가)
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
+
   // 추천 상품 데이터 조회 (실제 API 연동 시 활성화)
   const { data: itemsData } = useQuery({
     queryKey: ['items', { page: 1, size: 6 }],  // 쿼리 키: 페이지와 사이즈
@@ -175,10 +181,132 @@ export default function HomePage() {
       sellerNickname: '이지은',
       sellerProfileImageUrl: null,
       createdAt: '2024-04-15T16:20:00Z'
-    }
+    },
+    {
+      id: 7,
+      title: '레고 테크닉 42154',
+      description: '개봉 후 한 번 조립한 레고 테크닉입니다. 부품 완전.',
+      price: 65000,
+      rentPrice: 0,
+      itemType: 'SELL',
+      status: 'ACTIVE',
+      category: 'hobby',
+      isEscrow: false,
+      hashtags: ['레고', '테크닉', '장난감'],
+      imageUrls: [],
+      wishCount: 18,
+      viewCount: 134,
+      isWished: false,
+      sellerId: 7,
+      sellerNickname: '최민재',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-14T11:00:00Z'
+    },
+    {
+      id: 8,
+      title: '캠핑 텐트 4인용 대여',
+      description: '코베아 4인용 텐트 대여합니다. 풀세트 구성.',
+      price: 0,
+      rentPrice: 15000,
+      itemType: 'RENT',
+      status: 'ACTIVE',
+      category: 'sports',
+      isEscrow: false,
+      hashtags: ['캠핑', '텐트', '대여'],
+      imageUrls: [],
+      wishCount: 52,
+      viewCount: 310,
+      isWished: false,
+      sellerId: 8,
+      sellerNickname: '박서준',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-13T09:30:00Z'
+    },
+    {
+      id: 9,
+      title: '책 30권 나눔합니다',
+      description: '자기계발·소설 혼합 30권, 읽고 나눔합니다.',
+      price: 0,
+      rentPrice: 0,
+      itemType: 'SHARE',
+      status: 'ACTIVE',
+      category: 'books',
+      isEscrow: false,
+      hashtags: ['책', '나눔', '독서'],
+      imageUrls: [],
+      wishCount: 41,
+      viewCount: 278,
+      isWished: true,
+      sellerId: 9,
+      sellerNickname: '김서연',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-12T14:00:00Z'
+    },
+    {
+      id: 10,
+      title: '맥북 프로 M3 14인치',
+      description: '맥북 프로 M3 14인치 512GB 스페이스 그레이 팝니다.',
+      price: 2200000,
+      rentPrice: 0,
+      itemType: 'SELL',
+      status: 'ACTIVE',
+      category: 'electronics',
+      isEscrow: true,
+      hashtags: ['맥북', '애플', '노트북'],
+      imageUrls: [],
+      wishCount: 103,
+      viewCount: 621,
+      isWished: false,
+      sellerId: 10,
+      sellerNickname: '이준혁',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-11T16:45:00Z'
+    },
+    {
+      id: 11,
+      title: '다이슨 에어랩 완전품',
+      description: '다이슨 에어랩 컴플리트 풀세트. 정품 박스 포함.',
+      price: 350000,
+      rentPrice: 0,
+      itemType: 'SELL',
+      status: 'ACTIVE',
+      category: 'beauty',
+      isEscrow: false,
+      hashtags: ['다이슨', '에어랩', '헤어'],
+      imageUrls: [],
+      wishCount: 77,
+      viewCount: 445,
+      isWished: true,
+      sellerId: 11,
+      sellerNickname: '한지민',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-10T10:15:00Z'
+    },
+    {
+      id: 12,
+      title: '닌텐도 스위치 OLED',
+      description: '닌텐도 스위치 OLED 화이트 + 게임 타이틀 5개 포함.',
+      price: 280000,
+      rentPrice: 0,
+      itemType: 'SELL',
+      status: 'ACTIVE',
+      category: 'electronics',
+      isEscrow: false,
+      hashtags: ['닌텐도', '스위치', '게임'],
+      imageUrls: [],
+      wishCount: 59,
+      viewCount: 387,
+      isWished: false,
+      sellerId: 12,
+      sellerNickname: '오태양',
+      sellerProfileImageUrl: null,
+      createdAt: '2024-04-09T13:20:00Z'
+    },
   ]
 
-  const displayItems = itemsData?.data?.content || sampleItems
+  const allItems   = itemsData?.data?.content || sampleItems
+  const displayItems = allItems.slice(0, displayCount)
+  const hasMore    = displayCount < allItems.length
 
   return (
     <div className="space-y-8">
@@ -209,12 +337,17 @@ export default function HomePage() {
           ))}
         </div>
         
-        {/* 더보기 버튼 */}
-        <div className="flex justify-center mt-8">
-          <button className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
-            더보기
-          </button>
-        </div>
+        {/* 더보기 버튼: 표시 가능한 아이템이 더 있을 때만 렌더링 */}
+        {hasMore && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={() => setDisplayCount((c) => c + PAGE_SIZE)}
+              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+            >
+              더보기
+            </button>
+          </div>
+        )}
       </section>
     </div>
   )
