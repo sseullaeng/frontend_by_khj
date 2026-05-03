@@ -1,30 +1,89 @@
-// 사용자 프로필 페이지 컴포넌트: 다른 사용자 프로필 정보 조회 기능 (개발 예정)
-// TODO: 사용자 프로필 기능 구현 예정 - 현재는 기본 레이아웃만 표시
+// 사용자 프로필 페이지 — GET /api/v1/users/{id}/profile
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ChevronLeft, Flag, User } from 'lucide-react'
+import { useUserProfile } from '@/features/user/hooks'
+import { useAuthStore } from '@/features/auth/store'
+import { fromNow } from '@/shared/lib/date'
+import ReportModal from '@/shared/ui/ReportModal'
 
-/**
- * 사용자 프로필 페이지 컴포넌트
- * 
- * 기능 (구현 예정):
- * - 다른 사용자 프로필 정보 표시
- * - 사용자 활동 내역 (거래, 리뷰 등)
- * - 신뢰도 및 평점 정보
- * - 차단 기능
- * - 채팅 시작 기능
- * - 팔로우/팔로잉 기능
- * 
- * 현재 상태:
- * - 페이지 기본 구조만 구현됨
- * - 향후 사용자 프로필 기능 추가 예정
- * - 임시 안내 메시지 표시
- */
 export default function UserProfilePage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const userId = Number(id)
+  const currentUser = useAuthStore((s) => s.user)
+  const isMe = currentUser?.id === userId
+
+  const { data: profile, isLoading } = useUserProfile(userId)
+  const [reportOpen, setReportOpen] = useState(false)
+
+  if (isLoading) return <div className="py-20 text-center text-gray-400">불러오는 중...</div>
+  if (!profile)
+    return (
+      <div className="py-20 text-center">
+        <p className="text-gray-400 mb-3">사용자를 찾을 수 없어요.</p>
+        <button onClick={() => navigate(-1)} className="text-primary-500 text-sm">
+          ← 돌아가기
+        </button>
+      </div>
+    )
+
   return (
-    <div className="p-4">
-      {/* 페이지 제목 */}
-      <h1 className="text-xl font-bold mb-4">사용자 프로필</h1>
-      
-      {/* 개발 안내 메시지 */}
-      <p className="text-gray-400 text-sm">구현 예정</p>
+    <div className="max-w-md mx-auto pb-10">
+      {/* 헤더 */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600">
+          <ChevronLeft size={22} />
+        </button>
+        <h1 className="text-lg font-bold">사용자 프로필</h1>
+        {!isMe && (
+          <button
+            onClick={() => setReportOpen(true)}
+            className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-red-500"
+          >
+            <Flag size={13} /> 신고
+          </button>
+        )}
+      </div>
+
+      {/* 프로필 카드 */}
+      <div className="flex flex-col items-center gap-3 p-6 bg-white rounded-2xl border border-gray-200">
+        <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+          {profile.profileImage ? (
+            <img
+              src={profile.profileImage}
+              alt={profile.nickname}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <User size={32} className="text-indigo-400" />
+          )}
+        </div>
+
+        <h2 className="text-lg font-semibold text-gray-900">{profile.nickname}</h2>
+        <p className="text-xs text-gray-400">가입 {fromNow(profile.createdAt)}</p>
+
+        <div className="grid grid-cols-2 gap-3 w-full mt-3">
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-500 mb-1">신뢰 지수</p>
+            <p className="text-base font-bold text-primary-500">
+              {profile.trustScore != null ? profile.trustScore.toFixed(1) : '신규'}
+            </p>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-500 mb-1">받은 리뷰</p>
+            <p className="text-base font-bold text-gray-900">{profile.reviewCount}건</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 신고 모달 */}
+      {reportOpen && (
+        <ReportModal
+          target={{ kind: 'user', userId }}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
     </div>
   )
 }

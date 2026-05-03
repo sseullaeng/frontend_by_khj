@@ -1,10 +1,23 @@
+// 클라이언트 in-memory 리뷰 추적 — "이 거래에 대해 리뷰 남겼는지" UI 표시용.
+// 백엔드 Review 타입(가이드 §10.12)과 별개.
+// 추후 useUserReviews / usePendingReviews hook 으로 대체 시 제거 예정.
 import { create } from 'zustand'
-import type { Review } from './types'
+
+interface LocalReview {
+  id: number
+  roomId: number
+  reviewerId: number
+  revieweeId: number
+  rating: number
+  tags: string[]
+  content: string
+  createdAt: string
+}
 
 interface ReviewStore {
-  reviews: Review[]
-  addReview: (review: Omit<Review, 'id' | 'createdAt'>) => void
-  updateReview: (id: number, data: Pick<Review, 'rating' | 'tags' | 'content'>) => void
+  reviews: LocalReview[]
+  addReview: (review: Omit<LocalReview, 'id' | 'createdAt'>) => void
+  updateReview: (id: number, data: Pick<LocalReview, 'rating' | 'tags' | 'content'>) => void
   hasReviewed: (roomId: number, reviewerId: number) => boolean
 }
 

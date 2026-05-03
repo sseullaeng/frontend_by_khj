@@ -7,7 +7,12 @@ import { authApi } from './api'  // 인증 API
 import { useAuthStore } from './store'  // 인증 상태 스토어
 import { getErrorMessage } from '@/shared/lib/errorMessages'  // 에러 메시지 유틸리티
 import { BusinessError } from '@/shared/types'  // 비즈니스 에러 타입
-import type { LoginRequest, SignupRequest, UpdateProfileRequest } from './types'  // 인증 관련 타입
+import type {
+  LoginRequest,
+  SignupForm,
+  UpdateProfileRequest,
+  OAuthLoginRequest,
+} from './types'  // 인증 관련 타입
 
 /**
  * 로그인 훅
@@ -23,10 +28,11 @@ export function useLogin() {
   const navigate = useNavigate()  // 페이지 네비게이션 함수
 
   return useMutation({
-    mutationFn: (body: LoginRequest) => authApi.login(body).then((r) => r.data),  // 로그인 API 호출
-    onSuccess: (data) => {
-      setUser(data.user)  // 사용자 정보 저장
-      navigate('/')      // 홈 페이지로 이동
+    // 가이드 §2.1: 로그인 응답 data 가 곧 사용자 정보 객체 (User schema)
+    mutationFn: (body: LoginRequest) => authApi.login(body).then((r) => r.data),
+    onSuccess: (user) => {
+      setUser(user)
+      navigate('/')
     },
     onError: (err) => {
       const msg =
@@ -38,13 +44,43 @@ export function useLogin() {
   })
 }
 
+/**
+ * 소셜 로그인 훅 (KAKAO / GOOGLE)
+ *
+ * 흐름 (가이드 §5):
+ * 1) 페이지에서 SDK로 access_token 획득 (loginWithKakao / loginWithGoogle)
+ * 2) 이 훅으로 백엔드에 access_token 전달 → AT/RT 쿠키 발급
+ * 3) 응답 data 가 곧 User
+ */
+export function useOAuthLogin() {
+  const setUser = useAuthStore((s) => s.setUser)
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: (req: OAuthLoginRequest) => authApi.oauthLogin(req).then((r) => r.data),
+    onSuccess: (user) => {
+      setUser(user)
+      navigate('/')
+    },
+    onError: (err) => {
+      const msg =
+        err instanceof BusinessError
+          ? getErrorMessage(err.code)
+          : '소셜 로그인에 실패했어요.'
+      toast.error(msg)
+    },
+  })
+}
+
 export function useSignup() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: (body: SignupRequest) => authApi.signup(body),
+    mutationFn: ({ email, password, nickname }: SignupForm) =>
+      // passwordConfirm 은 프론트 검증 전용 — 서버에는 보내지 않음
+      authApi.signup({ email, password, nickname }),
     onSuccess: () => {
-      toast.success('가입 완료! 로그인해 주세요.')
+      toast.success('가입 완료! 인증 메일을 확인해 주세요.')
       navigate('/login')
     },
     onError: (err) => {

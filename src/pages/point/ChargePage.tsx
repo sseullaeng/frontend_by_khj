@@ -1,60 +1,128 @@
-// 포인트 충전 페이지 컴포넌트: 토스페이먼츠 결제 위젯을 통해 포인트를 충전하는 페이지
-/**
- * 포인트 충전 페이지 (토스 결제 위젯 연동)
- * 
- * 결제 흐름:
- * 1. POST /api/v1/payments/charge { amount } - 결제 초기화 API 호출
- * 2. 토스 위젯 SDK 렌더링 - 결제창 표시
- * 3. 결제 완료 → ChargeCallbackPage로 redirect - 콜백 페이지로 이동
- * 
- * 기능:
- * - 충전 금액 선택 (미리 정의된 금액 또는 직접 입력)
- * - 토스페이먼츠 결제 위젯 연동
- * - 결제 초기화 및 상태 관리
- * - 에러 처리 및 사용자 피드백
- */
-import { useState } from 'react'  // React 상태 훅
-import { paymentApi } from '@/features/payment/api'  // 결제 API
-import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
-import { toast } from 'sonner'  // 토스트 알림 라이브러리
+// 포인트 충전 페이지 — 토스페이먼츠 결제 위젯 연동 (가이드 §6)
+//
+// 흐름:
+//   1) 페이지 진입 → 토스 결제 위젯 SDK 로드 + 결제수단/약관 렌더
+//   2) 사용자가 금액 선택 → widget.updateAmount 로 위젯 금액 동기화
+//   3) "결제하기" 클릭:
+//      - POST /api/v1/payments/start { amount } → { merchantUid }
+//      - widget.requestPayment({ orderId: merchantUid, ... }) → 토스가 successUrl 로 redirect
+//   4) 콜백 페이지(/point/charge/callback) 가 paymentKey/orderId/amount 받아
+//      POST /api/v1/payments/confirm 호출 → 잔액 반영
 
-// 충전 금액 옵션: 사용자가 선택할 수 있는 미리 정의된 금액들
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import {
+  loadPaymentWidget,
+  type PaymentWidgetInstance,
+} from '@tosspayments/payment-widget-sdk'
+import { paymentApi } from '@/features/payment/api'
+import { useAuthStore } from '@/features/auth/store'
+import { useEmailGuard } from '@/features/auth/emailGuard'
+import { BusinessError } from '@/shared/types'
+import { Button } from '@/shared/ui/Button'
+
+const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY
 const AMOUNTS = [1_000, 5_000, 10_000, 30_000, 50_000, 100_000]
+const SUCCESS_URL = `${window.location.origin}/point/charge/callback`
+const FAIL_URL = `${window.location.origin}/point/charge/callback`
 
 export default function ChargePage() {
-  // 충전 금액 상태 (기본값: 10,000원)
-  const [amount, setAmount] = useState(10_000)
-  
-  // 로딩 상태: 결제 처리 중인지 여부
-  const [isLoading, setIsLoading] = useState(false)
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const { isVerified } = useEmailGuard()
 
-  // 포인트 충전 처리 함수
+  const [amount, setAmount] = useState(10_000)
+  const [widget, setWidget] = useState<PaymentWidgetInstance | null>(null)
+  const [widgetLoading, setWidgetLoading] = useState(true)
+  const [paying, setPaying] = useState(false)
+  const renderedRef = useRef(false)
+
+  // 1) 위젯 로드 + 렌더 (페이지 mount 1회)
+  useEffect(() => {
+    if (!user) return
+    if (!TOSS_CLIENT_KEY) {
+      toast.error('VITE_TOSS_CLIENT_KEY 환경변수가 비어있어요.')
+      setWidgetLoading(false)
+      return
+    }
+    if (renderedRef.current) return
+    renderedRef.current = true
+
+    loadPaymentWidget(TOSS_CLIENT_KEY, String(user.id))
+      .then((w) => {
+        w.renderPaymentMethods('#payment-method', { value: amount, currency: 'KRW' })
+        w.renderAgreement('#agreement', { variantKey: 'AGREEMENT' })
+        setWidget(w)
+      })
+      .catch((err) => {
+        console.error(err)
+        toast.error('결제 위젯을 불러오지 못했어요.')
+      })
+      .finally(() => setWidgetLoading(false))
+    // amount 는 의도적으로 deps 에 미포함 — mount 1회만 렌더
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  // 2) 금액 변경 시 위젯 업데이트
+  useEffect(() => {
+    // Toss SDK v0/v1 시그니처 차이 — 런타임 메서드 존재 여부로 분기
+    const w = widget as unknown as { updateAmount?: (amount: number, currency: string) => void } | null
+    w?.updateAmount?.(amount, 'KRW')
+  }, [amount, widget])
+
+  // 3) 결제 요청
   const handleCharge = async () => {
-    setIsLoading(true)  // 로딩 상태 시작
-    
+    if (!widget || !user) return
+    if (!isVerified) {
+      toast.error('이메일 인증 후 결제할 수 있어요.')
+      return
+    }
+
+    setPaying(true)
     try {
-      // 결제 초기화 API 호출
-      await paymentApi.initCharge(amount)
-      
-      // TODO: 토스 위젯 SDK 초기화 + 결제 요청 (향후 구현 예정)
-      // const paymentWidget = await loadPaymentWidget(import.meta.env.VITE_TOSS_CLIENT_KEY, data.customerKey)
-      // await paymentWidget.requestPayment({ ... })
-      
-      // 현재는 임시 메시지 표시
-      toast.info('토스 결제 위젯 연동 예정 (D7)')
-    } catch {
-      // 결제 초기화 실패 시 에러 메시지 표시
-      toast.error('충전 초기화에 실패했어요.')
-    } finally {
-      setIsLoading(false)
+      // 백엔드에서 merchantUid 발급
+      const { data } = await paymentApi.startPayment(amount)
+
+      // 토스 결제창 호출 — 성공 시 successUrl 로 redirect (이 함수는 그 후 resolve 안 됨)
+      await widget.requestPayment({
+        orderId: data.merchantUid,
+        orderName: '쓸랭 포인트 충전',
+        customerEmail: user.email,
+        customerName: user.nickname,
+        successUrl: SUCCESS_URL,
+        failUrl: FAIL_URL,
+      })
+    } catch (err) {
+      // 사용자가 결제창을 닫는 등 토스 측 취소도 여기서 잡힘
+      const isCanceled =
+        err instanceof Error && /USER_CANCEL|user_cancel|취소/.test(err.message)
+      if (!isCanceled) {
+        const msg =
+          err instanceof BusinessError
+            ? err.message
+            : err instanceof Error
+            ? err.message
+            : '결제를 시작하지 못했어요.'
+        toast.error(msg)
+      }
+      setPaying(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-bold">포인트 충전</h1>
+    <div className="flex flex-col gap-6 pb-24">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">포인트 충전</h1>
+        <button
+          onClick={() => navigate(-1)}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          취소
+        </button>
+      </div>
 
-      {/* 금액 선택 버튼 */}
+      {/* 금액 선택 */}
       <div className="grid grid-cols-3 gap-2">
         {AMOUNTS.map((a) => (
           <button
@@ -71,14 +139,28 @@ export default function ChargePage() {
         ))}
       </div>
 
-      {/* 선택된 금액 표시 */}
       <div className="text-center">
         <p className="text-2xl font-bold text-primary-500">{amount.toLocaleString()}원</p>
         <p className="text-sm text-gray-400 mt-1">충전할 금액</p>
       </div>
 
-      <Button fullWidth isLoading={isLoading} onClick={handleCharge}>
-        결제하기
+      {/* 토스 결제수단 위젯 */}
+      <div className="rounded-xl overflow-hidden">
+        <div id="payment-method" />
+        <div id="agreement" />
+      </div>
+
+      {widgetLoading && (
+        <p className="text-center text-sm text-gray-400">결제 위젯 불러오는 중...</p>
+      )}
+
+      <Button
+        fullWidth
+        isLoading={paying}
+        disabled={widgetLoading || !widget}
+        onClick={handleCharge}
+      >
+        {amount.toLocaleString()}원 결제하기
       </Button>
     </div>
   )

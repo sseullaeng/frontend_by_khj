@@ -1,69 +1,42 @@
-// 물품 관련 훅: 물품 목록 조회, 생성, 수정, 삭제 등 물품 관련 상태 관리
+// 물품 관련 훅 — 백엔드 §6 / PR #66 정합
 import {
   useQuery,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
-} from '@tanstack/react-query'  // React Query 훅
-import { toast } from 'sonner'  // 토스트 알림 라이브러리
-import axios from 'axios'  // HTTP 클라이언트
-import { itemApi } from './api'  // 물품 API
-import { itemKeys } from './keys'  // 물품 쿼리 키
-import { compressImage } from '@/shared/lib/imageCompress'  // 이미지 압축 유틸리티
-import type { ItemCreateRequest, ItemFilter, ItemUpdateRequest } from './types'  // 물품 관련 타입
-import { MOCK_ITEMS } from './mockData'  // 모의 데이터
+} from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { itemApi } from './api'
+import { itemKeys } from './keys'
+import { compressImage } from '@/shared/lib/imageCompress'
+import { uploadImages, validateImageFile } from '@/shared/api/upload'
+import type {
+  Item,
+  ItemCreateRequest,
+  ItemDetail,
+  ItemFilter,
+  ItemUpdateRequest,
+  MyItemStatus,
+  WishlistToggleResponse,
+} from './types'
+import type { PageResponse } from '@/shared/types'
 
-// 모의 데이터 사용 여부: MSW 활성화 시 모의 데이터 사용
-const isMock = import.meta.env.VITE_MSW_ENABLED === 'true'
-
-/**
- * 물품 목록 훅
- * 
- * 기능:
- * - 무한 스크롤 물품 목록 조회
- * - 필터링 (키워드, 카테고리, 타입)
- * - 모의 데이터 또는 API 데이터 사용
- * - 페이지네이션 처리
- */
+// 무한 스크롤 목록
 export function useItemList(filter: ItemFilter) {
   return useInfiniteQuery({
-    queryKey: itemKeys.list(filter),  // 쿼리 키
-    queryFn: async ({ pageParam = 0 }) => {
-      if (isMock) {
-        // 모의 데이터 필터링
-        const keyword = filter.keyword?.toLowerCase() ?? ''
-        const filtered = MOCK_ITEMS.filter((item) => {
-          const matchKeyword = !keyword || item.title.toLowerCase().includes(keyword) ||
-            item.hashtags.some((t) => t.toLowerCase().includes(keyword))  // 키워드 매칭
-          const matchCategory = !filter.category || item.category === filter.category  // 카테고리 매칭
-          const matchType = !filter.itemType || item.itemType === filter.itemType  // 타입 매칭
-          return matchKeyword && matchCategory && matchType
-        })
-        const size = filter.size ?? 10  // 페이지 크기
-        const start = (pageParam as number) * size
-        const content = filtered.slice(start, start + size)
-        return { content, page: pageParam as number, size, totalElements: filtered.length,
-          totalPages: Math.ceil(filtered.length / size),
-          hasNext: start + size < filtered.length, hasPrevious: (pageParam as number) > 0 }
-      }
-      return itemApi.getList({ ...filter, page: pageParam }).then((r) => r.data)
-    },
+    queryKey: itemKeys.list(filter),
+    queryFn: ({ pageParam = 0 }) =>
+      itemApi.getList({ ...filter, page: pageParam }).then((r) => r.data),
     getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
     initialPageParam: 0,
   })
 }
 
+// 상세 — ItemDetail 반환
 export function useItemDetail(id: number) {
   return useQuery({
     queryKey: itemKeys.detail(id),
-    queryFn: () => {
-      if (isMock) {
-        const item = MOCK_ITEMS.find((i) => i.id === id)
-        if (!item) throw new Error('ITEM_NOT_FOUND')
-        return item
-      }
-      return itemApi.getDetail(id).then((r) => r.data)
-    },
+    queryFn: () => itemApi.getDetail(id).then((r) => r.data),
     enabled: !!id,
   })
 }
@@ -86,38 +59,10 @@ export function useUpdateItem(id: number) {
     mutationFn: (body: ItemUpdateRequest) => itemApi.update(id, body).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
       toast.success('상품이 수정됐어요!')
     },
-  })
-}
-
-export function useWishList() {
-  return useQuery({
-    queryKey: itemKeys.wished(),
-    queryFn: () => {
-      if (isMock) {
-        return { content: MOCK_ITEMS.slice(0, 5).map(i => ({ ...i, isWished: true })), page: 0, size: 5, totalElements: 5, totalPages: 1, hasNext: false, hasPrevious: false }
-      }
-      return itemApi.getWishList().then((r) => r.data)
-    },
-  })
-}
-
-export function useMyItems() {
-  const MOCK_BUYERS = ['이서아', '박지호', '최하은', '정현우']
-  return useQuery({
-    queryKey: [...itemKeys.lists(), 'my'],
-    queryFn: () => {
-      if (isMock) {
-        const mine = MOCK_ITEMS.filter((i) => i.sellerId === 1).map((item, idx) => ({
-          ...item,
-          status: 'SOLD' as const,
-          buyerNickname: MOCK_BUYERS[idx % MOCK_BUYERS.length],
-        }))
-        return { content: mine, page: 0, size: mine.length, totalElements: mine.length, totalPages: 1, hasNext: false, hasPrevious: false }
-      }
-      return itemApi.getMyItems().then((r) => r.data)
-    },
+    onError: () => toast.error('상품 수정에 실패했어요.'),
   })
 }
 
@@ -133,56 +78,166 @@ export function useDeleteItem() {
   })
 }
 
+// 내 찜 목록
+export function useWishList(params?: { page?: number; size?: number }) {
+  return useQuery({
+    queryKey: itemKeys.wished(),
+    queryFn: () => itemApi.getWishList(params).then((r) => r.data),
+  })
+}
+
+// 내 물품 — 마이페이지 탭 (status 별)
+export function useMyItems(params?: { status?: MyItemStatus; page?: number; size?: number }) {
+  return useQuery({
+    queryKey: [...itemKeys.lists(), 'my', params?.status ?? 'all', params?.page ?? 0, params?.size ?? 20],
+    queryFn: () => itemApi.getMyItems(params).then((r) => r.data),
+  })
+}
+
+/**
+ * 찜 토글 — 추가/해제 분리 endpoint 사용
+ *
+ * 응답이 { wishlisted, wishlistCount } 를 직접 반환하므로 detail 재조회 불필요.
+ * optimistic update + 응답으로 동기화.
+ */
 export function useToggleWish(id: number) {
   const qc = useQueryClient()
-  return useMutation({
-    mutationFn: () => {
-      if (isMock) return Promise.resolve(null)
-      return itemApi.toggleWish(id).then((r) => r.data)
+  return useMutation<WishlistToggleResponse, Error, void, { prevDetail?: ItemDetail }>({
+    mutationFn: async () => {
+      const detail = qc.getQueryData<ItemDetail>(itemKeys.detail(id))
+      const isWished = detail?.isWishlisted ?? false
+      const res = isWished
+        ? await itemApi.removeWishlist(id)
+        : await itemApi.addWishlist(id)
+      return res.data
     },
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: itemKeys.detail(id) })
-      const prev = qc.getQueryData(itemKeys.detail(id))
-      qc.setQueryData(itemKeys.detail(id), (old: any) =>
-        old ? { ...old, isWished: !old.isWished, wishCount: old.wishCount + (old.isWished ? -1 : 1) } : old
+      const prevDetail = qc.getQueryData<ItemDetail>(itemKeys.detail(id))
+
+      // detail 캐시 즉시 갱신
+      if (prevDetail) {
+        qc.setQueryData<ItemDetail>(itemKeys.detail(id), {
+          ...prevDetail,
+          isWishlisted: !prevDetail.isWishlisted,
+          wishlistCount: prevDetail.wishlistCount + (prevDetail.isWishlisted ? -1 : 1),
+        })
+      }
+
+      // 목록 캐시들도 해당 item 만 patch (있으면)
+      qc.setQueriesData<PageResponse<Item>>({ queryKey: itemKeys.lists() }, (old) =>
+        old
+          ? {
+              ...old,
+              content: old.content.map((it) =>
+                it.id === id
+                  ? {
+                      ...it,
+                      isWishlisted: !it.isWishlisted,
+                      wishlistCount: it.wishlistCount + (it.isWishlisted ? -1 : 1),
+                    }
+                  : it,
+              ),
+            }
+          : old,
       )
-      return { prev }
+
+      return { prevDetail }
+    },
+    onSuccess: (data) => {
+      // 응답 fresh 값으로 정합 (detail 캐시)
+      const detail = qc.getQueryData<ItemDetail>(itemKeys.detail(id))
+      if (detail) {
+        qc.setQueryData<ItemDetail>(itemKeys.detail(id), {
+          ...detail,
+          isWishlisted: data.wishlisted,
+          wishlistCount: data.wishlistCount,
+        })
+      }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(itemKeys.detail(id), ctx.prev)
-    },
-    onSuccess: () => {
-      if (!isMock) {
-        qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
-        qc.invalidateQueries({ queryKey: itemKeys.wished() })
+      if (ctx?.prevDetail) {
+        qc.setQueryData(itemKeys.detail(id), ctx.prevDetail)
       }
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
+      toast.error('찜 상태를 바꾸지 못했어요.')
+    },
+    onSettled: () => {
+      // 찜 목록 페이지 캐시는 invalidate (해제 시 사라져야 하므로)
+      qc.invalidateQueries({ queryKey: itemKeys.wished() })
     },
   })
 }
 
-/** 이미지 압축 → Presigned URL 발급 → S3 PUT */
+// ── Item 이미지 부분 편집 (PR #67) ──────────────────────────────────────────
+
+/**
+ * 이미지 추가 — 미리 S3 업로드된 URL 리스트를 백엔드에 등록 (5장 한도)
+ * 응답: 정렬된 전체 imageUrls (첫 번째가 썸네일)
+ */
+export function useAddItemImages(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (imageUrls: string[]) => itemApi.addImages(id, imageUrls).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })  // thumbnailUrl 갱신용
+    },
+    onError: (err) => {
+      if (err instanceof Error) toast.error(err.message)
+      else toast.error('이미지 추가에 실패했어요.')
+    },
+  })
+}
+
+/**
+ * 이미지 단건 제거 — sortOrder 자동 재정렬, 첫 번째가 새 썸네일
+ */
+export function useRemoveItemImage(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (imageUrl: string) => itemApi.removeImage(id, imageUrl).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
+    },
+    onError: () => toast.error('이미지 제거에 실패했어요.'),
+  })
+}
+
+/**
+ * 이미지 순서 변경 — imageUrls 가 기존 set 과 정확히 일치해야 함
+ */
+export function useReorderItemImages(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (imageUrls: string[]) => itemApi.reorderImages(id, imageUrls).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.detail(id) })
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
+    },
+    onError: () => toast.error('순서 변경에 실패했어요.'),
+  })
+}
+
+/**
+ * 물품 이미지 업로드 — 검증 + 압축 + presigned URL 발급 + S3 PUT
+ * 반환: GET URL 배열 (imageUrls 에 사용)
+ */
 export function useUploadImages() {
   return useMutation({
     mutationFn: async (files: File[]) => {
-      // 1. 압축
+      if (files.length === 0) return [] as string[]
+      for (const file of files) {
+        const err = validateImageFile(file)
+        if (err) throw new Error(err)
+      }
       const compressed = await Promise.all(files.map(compressImage))
-
-      // 2. Presigned URL 발급
-      const { data: { uploads } } = await itemApi.getPresignedUrls(
-        compressed.map((f) => ({ name: f.name, contentType: f.type, size: f.size }))
-      )
-
-      // 3. S3 PUT (Content-Type 일치 필수)
-      await Promise.all(
-        uploads.map((u, i) =>
-          axios.put(u.presignedUrl, compressed[i], {
-            headers: { 'Content-Type': compressed[i].type },
-          })
-        )
-      )
-
-      return uploads.map((u) => u.key)
+      const results = await uploadImages('ITEM', compressed)
+      return results.map((r) => r.getUrl)
     },
-    onError: () => toast.error('이미지 업로드에 실패했어요.'),
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : '이미지 업로드에 실패했어요.')
+    },
   })
 }

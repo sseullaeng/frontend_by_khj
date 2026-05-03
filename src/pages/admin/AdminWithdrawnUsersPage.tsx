@@ -1,20 +1,27 @@
-// 관리자 탈퇴 회원 관리 페이지: 탈퇴 처리된 회원 목록 조회 및 계정 복구
+// 관리자 탈퇴 회원 페이지: 탈퇴 처리된 회원 목록 — 백엔드 hook 연동
+//
+// 백엔드 useAdminUsers 가 status 필터 미제공 → 1페이지(size=200) 받아서 클라이언트에서 deleted=true 필터.
+// 추후 백엔드 ?status=WITHDRAWN 또는 ?deleted=true 파라미터 합의 시 서버 쿼리로 교체.
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserX, ChevronLeft } from 'lucide-react'
-import AdminUserListPanel, {
-  MOCK_ADMIN_USERS,
-} from './components/AdminUserListPanel'  // 공용 회원 목록 패널
+import AdminUserListPanel from './components/AdminUserListPanel'
+import { useAdminUsers } from '@/features/admin/hooks'
+import { toPanelUser } from './lib/userAdapter'
 
 export default function AdminWithdrawnUsersPage() {
   const navigate = useNavigate()
 
-  // 탈퇴 상태 회원만 필터링 (원본 status 기준 — 로컬 복구 처리는 패널 내부에서 관리)
-  const withdrawnUsers = MOCK_ADMIN_USERS.filter(u => u.status === 'WITHDRAWN')
+  const { data, isLoading } = useAdminUsers({ page: 0, size: 200 })
+  const withdrawnUsers = useMemo(
+    () => (data?.content ?? []).filter((u) => u.deleted).map(toPanelUser),
+    [data],
+  )
 
   return (
     <div className="pb-10">
 
-      {/* 뒤로가기 버튼 + 페이지 제목 */}
+      {/* 뒤로가기 + 페이지 제목 */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -39,8 +46,10 @@ export default function AdminWithdrawnUsersPage() {
         </p>
       </div>
 
-      {/* 탈퇴 회원 목록 패널 (탭 숨김 — 모두 탈퇴 회원이므로) */}
-      {withdrawnUsers.length === 0 ? (
+      {/* 탈퇴 회원 목록 */}
+      {isLoading ? (
+        <p className="py-12 text-center text-sm text-gray-400">불러오는 중...</p>
+      ) : withdrawnUsers.length === 0 ? (
         <div className="py-20 text-center text-gray-400">
           <UserX size={48} className="mx-auto mb-4 opacity-30" />
           <p className="text-sm">탈퇴 회원이 없습니다</p>
@@ -52,7 +61,6 @@ export default function AdminWithdrawnUsersPage() {
           initialTab="WITHDRAWN"
         />
       )}
-
     </div>
   )
 }

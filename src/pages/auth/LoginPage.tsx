@@ -2,8 +2,10 @@
 import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
 import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
 import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
+import { toast } from 'sonner'  // 토스트 알림
 import { loginSchema, type LoginRequest } from '@/features/auth/types'  // 인증 관련 타입
 import { useLogin } from '@/features/auth/hooks'  // 로그인 훅
+import { loginWithKakao, loginWithGoogle } from '@/features/auth/oauth'  // 소셜 로그인 SDK
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
 
@@ -30,6 +32,18 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginRequest>({ resolver: zodResolver(loginSchema) })  // 폼 상태 관리
+
+  // 카카오/구글 모두 redirect 흐름 — 페이지가 provider 로 이동, 콜백은 SocialCallbackPage 가 처리
+  const handleKakao = () => {
+    loginWithKakao().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '카카오 로그인에 실패했어요.')
+    })
+  }
+  const handleGoogle = () => {
+    loginWithGoogle().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '구글 로그인에 실패했어요.')
+    })
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">
@@ -58,6 +72,29 @@ export default function LoginPage() {
             로그인
           </Button>
         </form>
+
+        {/* 소셜 로그인 */}
+        <div className="mt-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span>SNS 계정으로 로그인</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <button
+            type="button"
+            onClick={handleKakao}
+            className="h-10 w-full rounded-lg bg-[#FEE500] text-sm font-medium text-[#3C1E1E] hover:opacity-90 transition-opacity"
+          >
+            카카오로 로그인
+          </button>
+          <button
+            type="button"
+            onClick={handleGoogle}
+            className="h-10 w-full rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            구글로 로그인
+          </button>
+        </div>
 
         <div className="mt-4 text-center text-sm text-gray-500">
           아직 계정이 없으신가요?{' '}

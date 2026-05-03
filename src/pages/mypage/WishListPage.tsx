@@ -6,18 +6,11 @@ import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 �
 import { fromNow } from '@/shared/lib/date'  // 날짜 포맷팅 유틸리티
 import { cn } from '@/shared/lib/cn'  // Tailwind CSS 클래스 유틸리티
 
-// 거래 유형 라벨 맵핑
-const TYPE_LABEL: Record<string, string> = {
-  SELL: '중고거래',  // 판매
-  RENT: '대여',      // 대여
-  SHARE: '나눔',    // 나눔
-}
-
-// 거래 유형 색상 맵핑
+// 거래 유형 색상 맵핑 (백엔드 한글 enum)
 const TYPE_COLOR: Record<string, string> = {
-  SELL: 'bg-blue-100 text-blue-700',    // 판매 색상
-  RENT: 'bg-green-100 text-green-700',  // 대여 색상
-  SHARE: 'bg-purple-100 text-purple-700', // 나눔 색상
+  '판매': 'bg-blue-100 text-blue-700',
+  '대여': 'bg-green-100 text-green-700',
+  '나눔': 'bg-purple-100 text-purple-700',
 }
 
 /**
@@ -75,8 +68,8 @@ export default function WishListPage() {
                 className="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors"
               >
                 <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                  {item.imageUrls[0] ? (
-                    <img src={item.imageUrls[0]} alt={item.title} className="w-full h-full object-cover" />
+                  {item.thumbnailUrl ? (
+                    <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Heart size={20} className="text-gray-300" />
@@ -86,32 +79,27 @@ export default function WishListPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', TYPE_COLOR[item.itemType])}>
-                      {TYPE_LABEL[item.itemType]}
+                    <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', TYPE_COLOR[item.tradeType])}>
+                      {item.tradeType}
                     </span>
-                    {item.isEscrow && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">
-                        거래대행
-                      </span>
-                    )}
                   </div>
 
                   <p className="font-medium text-gray-900 truncate mb-1">{item.title}</p>
 
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-gray-900">
-                      {item.itemType === 'SHARE' ? '무료 나눔' : `${item.price.toLocaleString()}원`}
+                      {item.tradeType === '나눔' ? '무료 나눔' : `${item.price.toLocaleString()}원`}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                     <MapPin size={11} />
-                    <span>서울</span>
+                    <span>{item.region ?? '지역 미설정'}</span>
                     <span>·</span>
                     <span>{fromNow(item.createdAt)}</span>
                     <span>·</span>
                     <Heart size={11} className="fill-red-400 text-red-400" />
-                    <span>{item.wishCount}</span>
+                    <span>{item.wishlistCount}</span>
                   </div>
                 </div>
 

@@ -23,8 +23,11 @@ export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>()  // URL 파라미터에서 카테고리 slug 추출
   
   // 해당 카테고리의 물품 목록 조회 (React Query 무한 쿼리)
+  // slug → categoryId — 카테고리 매핑 미정 시 NaN 으로 전달 안 됨 (백엔드 categoryId number 만 허용)
+  // TODO: 카테고리 slug ↔ id 매핑 합의 후 정확한 변환으로 교체
+  const categoryId = slug ? Number(slug) : undefined
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useItemList({ category: slug })
+    useItemList({ categoryId: Number.isFinite(categoryId) ? categoryId : undefined })
 
   // 무한 스크롤을 위한 sentinel ref 설정
   const sentinelRef = useInfiniteScroll({

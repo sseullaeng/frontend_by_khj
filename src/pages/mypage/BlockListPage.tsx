@@ -5,21 +5,9 @@ import { useState } from 'react'  // React 상태 훅
 import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
 import { ChevronLeft, User, AlertTriangle, X } from 'lucide-react'  // Lucide 아이콘
 import { useBlockList, useUnblock, useReportUser } from '@/features/block/hooks'  // 차단 관련 훅
-import type { BlockedUser } from '@/features/item/types'  // 차단 사용자 타입
-
-/**
- * 차단 일시 포맷팅 함수
- * ISO 날짜 문자열을 YYYY.MM.DD 형식으로 변환
- * @param dateStr - ISO 날짜 문자열
- * @returns 포맷팅된 날짜 문자열
- */
-function formatBlockedAt(dateStr: string): string {
-  const d   = new Date(dateStr)
-  const y   = d.getFullYear()
-  const m   = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}.${m}.${day}`
-}
+import { useUserProfile } from '@/features/user/hooks'  // 사용자 프로필 조회
+import type { UserBlock } from '@/features/block/types'
+import { formatKst } from '@/shared/lib/date'
 
 // 신고 사유 옵션 목록
 const REPORT_REASONS = [
@@ -36,7 +24,7 @@ export default function BlockListPage() {
 
   // 차단 목록 조회
   const { data, isLoading } = useBlockList()
-  const blockedUsers = data ?? []
+  const blocks: UserBlock[] = data?.content ?? []
 
   // 차단 해제 뮤테이션
   const { mutate: unblock, isPending: isUnblocking } = useUnblock()
@@ -47,8 +35,8 @@ export default function BlockListPage() {
   // 차단 해제 확인 모달 상태 (null: 닫힘, number: 대상 userId)
   const [confirmUnblockId, setConfirmUnblockId] = useState<number | null>(null)
 
-  // 신고 모달 상태 (null: 닫힘, BlockedUser: 신고 대상)
-  const [reportTarget, setReportTarget] = useState<BlockedUser | null>(null)
+  // 신고 모달 상태 (null: 닫힘, userId: 신고 대상)
+  const [reportTarget, setReportTarget] = useState<number | null>(null)
 
   // 신고 사유 선택 상태
   const [selectedReason, setSelectedReason] = useState<string>('')
@@ -69,12 +57,11 @@ export default function BlockListPage() {
    * 신고 사유 선택 후 "신고하기" 버튼 클릭 시 실행
    */
   const handleReportSubmit = () => {
-    if (!reportTarget || !selectedReason) return
+    if (reportTarget == null || !selectedReason) return
     report(
-      { userId: reportTarget.id, reason: selectedReason },
+      { userId: reportTarget, reason: selectedReason },
       {
         onSuccess: () => {
-          // 신고 완료 후 모달 초기화
           setReportTarget(null)
           setSelectedReason('')
         },
@@ -102,31 +89,27 @@ export default function BlockListPage() {
           <ChevronLeft size={22} />
         </button>
         <h1 className="text-lg font-bold text-gray-900">차단 목록</h1>
-        {/* 차단된 사용자 수 표시 */}
-        <span className="text-sm text-gray-400 ml-auto">{blockedUsers.length}명</span>
+        <span className="text-sm text-gray-400 ml-auto">{blocks.length}명</span>
       </div>
 
       {/* 차단 목록 영역 */}
       {isLoading ? (
-        // 로딩 상태
         <div className="flex items-center justify-center py-12">
           <p className="text-gray-500 text-sm">차단 목록을 불러오는 중...</p>
         </div>
-      ) : blockedUsers.length === 0 ? (
-        // 빈 목록 상태
+      ) : blocks.length === 0 ? (
         <div className="text-center py-12">
           <User size={48} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">차단한 사용자가 없습니다</p>
         </div>
       ) : (
-        // 차단 사용자 목록 렌더링
         <ul className="space-y-3">
-          {blockedUsers.map((user) => (
+          {blocks.map((block) => (
             <BlockedUserRow
-              key={user.id}
-              user={user}
-              onUnblock={() => setConfirmUnblockId(user.id)}
-              onReport={() => setReportTarget(user)}
+              key={block.id}
+              block={block}
+              onUnblock={() => setConfirmUnblockId(block.blockedId)}
+              onReport={() => setReportTarget(block.blockedId)}
             />
           ))}
         </ul>
@@ -186,7 +169,7 @@ export default function BlockListPage() {
 
             {/* 신고 대상 닉네임 */}
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-800">{reportTarget.nickname}</span> 님을 신고합니다.
+              <span className="font-semibold text-gray-800">사용자 #{reportTarget}</span> 님을 신고합니다.
             </p>
 
             {/* 신고 사유 선택 목록 */}
@@ -237,40 +220,40 @@ export default function BlockListPage() {
 
 // 차단 사용자 행 컴포넌트 Props 타입 정의
 interface BlockedUserRowProps {
-  user:      BlockedUser  // 차단된 사용자 정보
-  onUnblock: () => void   // 차단 해제 요청 핸들러
-  onReport:  () => void   // 신고 요청 핸들러
+  block:     UserBlock     // 차단 row (id, blockerId, blockedId, createdAt)
+  onUnblock: () => void
+  onReport:  () => void
 }
 
 /**
- * 차단 사용자 목록의 단일 행 컴포넌트
- * 프로필 사진, 닉네임, 차단일자, 차단해제/신고 버튼 표시
+ * 차단 사용자 목록의 단일 행 — UserBlock 으로 들어와 prof 별도 조회
  */
-function BlockedUserRow({ user, onUnblock, onReport }: BlockedUserRowProps) {
+function BlockedUserRow({ block, onUnblock, onReport }: BlockedUserRowProps) {
+  // 차단된 사용자 공개 프로필 — /users/{id}/profile (5분 캐시)
+  const { data: profile } = useUserProfile(block.blockedId)
+  const nickname = profile?.nickname ?? `사용자 #${block.blockedId}`
+  const profileImage = profile?.profileImage ?? null
+
   return (
     <li className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl">
       {/* 프로필 이미지 영역 */}
       <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-        {user.profileImageUrl ? (
-          // 프로필 이미지가 있을 때 표시
+        {profileImage ? (
           <img
-            src={user.profileImageUrl}
-            alt={`${user.nickname} 프로필`}
+            src={profileImage}
+            alt={`${nickname} 프로필`}
             className="w-full h-full object-cover"
           />
         ) : (
-          // 프로필 이미지 없을 때 기본 아이콘 표시
           <User size={22} className="text-gray-400" />
         )}
       </div>
 
       {/* 사용자 정보 영역 */}
       <div className="flex-1 min-w-0">
-        {/* 닉네임 */}
-        <p className="font-medium text-gray-900 text-sm truncate">{user.nickname}</p>
-        {/* 차단 일자 */}
+        <p className="font-medium text-gray-900 text-sm truncate">{nickname}</p>
         <p className="text-xs text-gray-400 mt-0.5">
-          차단일: {formatBlockedAt(user.blockedAt)}
+          차단일: {formatKst(block.createdAt, 'yyyy.MM.dd')}
         </p>
       </div>
 
