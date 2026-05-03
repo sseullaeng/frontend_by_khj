@@ -48,3 +48,14 @@ export interface DeliveryListParams {
 export interface DeliveryCancelRequest {
   reason?: string
 }
+
+// ── 실시간 위치 (가이드 §10.13 라운드6) ──────────────────────────────────
+//   Rider:    publish → /app/delivery/{id}/location  (1초 미만 재호출 X, 한국 범위 안)
+//   Requester: subscribe → /topic/delivery/{id}/location
+//   REST fallback: GET /api/v1/deliveries/{id}/location/last (TTL 30분)
+export interface DeliveryLocation {
+  latitude: number               // 33~39 (한국 범위)
+  longitude: number              // 124~132
+  accuracyM?: number             // 정확도 (미터, optional)
+  recordedAt: string             // Instant (UTC offset)
+}

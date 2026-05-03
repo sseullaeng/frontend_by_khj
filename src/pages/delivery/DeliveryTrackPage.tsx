@@ -1,10 +1,13 @@
-// 배달 단건 + 액션 (가이드 §10.13)
+// 배달 단건 + 액션 (가이드 §10.13 + 라운드6 실시간 위치)
 //
-// 좌표 기반 실시간 위치는 미지원 — 5초 폴링으로 상태 갱신.
+// - 폴링 5초 (status 변화 추적)
+// - 추적 가능 상태(수락/배송중)에서 실시간 위치:
+//   * 라이더 → STOMP publish (5초 주기)
+//   * 양쪽   → STOMP subscribe + REST fallback (마지막 좌표)
 
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ChevronLeft, MapPin, Clock, Truck, Hash, MessageSquare } from 'lucide-react'
+import { ChevronLeft, MapPin, Clock, Truck, Hash, MessageSquare, Navigation } from 'lucide-react'
 import {
   useAcceptDelivery,
   useCancelDelivery,
@@ -13,6 +16,10 @@ import {
   useDeliveryDetail,
   usePickupDelivery,
 } from '@/features/delivery/hooks'
+import {
+  useDeliveryLocation,
+  useRiderLocationPublisher,
+} from '@/features/delivery/locationHooks'
 import { useUserProfile } from '@/features/user/hooks'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmailGuard } from '@/features/auth/emailGuard'
@@ -68,6 +75,12 @@ export default function DeliveryTrackPage() {
   const canDeliver  = isRider && delivery.status === '배송중'
   const canComplete = isRequester && delivery.status === '배송완료'
   const canCancel   = isRequester && isOpen   // 모집중 한정
+
+  // 실시간 위치 — 추적 가능 상태(수락/배송중) 에서만 활성화
+  const isTrackable = delivery.status === '수락' || delivery.status === '배송중'
+  // 라이더는 publish, 요청자/라이더 모두 subscribe
+  useRiderLocationPublisher(deliveryId, isRider && isTrackable)
+  const liveLocation = useDeliveryLocation(deliveryId, (isRequester || isRider) && isTrackable)
 
   return (
     <div className="pb-24">
@@ -131,6 +144,53 @@ export default function DeliveryTrackPage() {
           )}
         </div>
       </div>
+
+      {/* 실시간 위치 — 수락/배송중 동안 노출 */}
+      {isTrackable && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Navigation size={16} className="text-blue-500" />
+            라이더 위치
+            {isRider && (
+              <span className="text-xs text-gray-400 font-normal">
+                (5초 주기 자동 전송 중)
+              </span>
+            )}
+          </h2>
+
+          {liveLocation ? (
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-start gap-3">
+                <span className="text-gray-500 w-14 shrink-0">좌표</span>
+                <a
+                  href={`https://map.kakao.com/link/map/라이더,${liveLocation.latitude},${liveLocation.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-primary-600 hover:underline"
+                >
+                  {liveLocation.latitude.toFixed(6)}, {liveLocation.longitude.toFixed(6)}
+                </a>
+              </div>
+              {liveLocation.accuracyM != null && (
+                <div className="flex items-start gap-3">
+                  <span className="text-gray-500 w-14 shrink-0">정확도</span>
+                  <span className="text-gray-700">±{Math.round(liveLocation.accuracyM)}m</span>
+                </div>
+              )}
+              <div className="flex items-start gap-3 text-xs text-gray-400">
+                <span className="w-14 shrink-0">갱신</span>
+                <span>{fromNow(liveLocation.recordedAt)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {isRider
+                ? '위치 권한을 허용하면 자동으로 전송됩니다.'
+                : '아직 라이더 위치 정보가 없어요.'}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 참여자 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 grid grid-cols-2 gap-3">

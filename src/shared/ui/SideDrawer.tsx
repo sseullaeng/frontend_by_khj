@@ -9,7 +9,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages } from '@/features/chat/hooks'
-import { useChatStore } from '@/features/chat/store'
 import { useItemDetail } from '@/features/item/hooks'
 import { useTransactionStore } from '@/features/transaction/store'
 import { useReviewStore } from '@/features/review/store'
@@ -17,8 +16,6 @@ import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
-
-const isMock = import.meta.env.VITE_MSW_ENABLED === 'true'
 
 export default function SideDrawer() {
   const { activeTab, open, close } = useDrawerStore()
@@ -164,7 +161,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const currentUser = useAuthStore(s => s.user)
   const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
   const { messages, sendMessage } = useChatMessages(roomId)
-  const { appendMessage } = useChatStore()
   const { data: item } = useItemDetail(room?.itemId ?? 0)
   const isSeller = !!currentUser && !!item && item.sellerId === currentUser.id
   const { statusByRoom, useEscrowByRoom, setStatus, setUseEscrow } = useTransactionStore()
@@ -216,18 +212,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     if (!pendingFirstMessage) return
     const content = pendingFirstMessage
     setPendingFirstMessage(null)  // 중복 전송 방지를 위해 즉시 초기화
-    if (isMock) {
-      appendMessage(roomId, {
-        id: String(Date.now()),
-        chatRoomId: roomId,
-        senderId: currentUser?.id ?? 0,
-        content,
-        imageUrls: [],
-        createdAt: new Date().toISOString(),
-      })
-    } else {
-      sendMessage(content)
-    }
+    sendMessage(content)
   // pendingFirstMessage가 바뀔 때만 실행 (roomId 변경 시 재실행 방지)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingFirstMessage])
@@ -257,18 +242,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     }
 
     setText('')
-    if (isMock) {
-      appendMessage(roomId, {
-        id: String(Date.now()),
-        chatRoomId: roomId,
-        senderId: currentUser?.id ?? 0,
-        content,
-        imageUrls: [],
-        createdAt: new Date().toISOString(),
-      })
-    } else {
-      sendMessage(content)
-    }
+    sendMessage(content)
   }
 
   const handleReservation = () => setEscrowOpen(true)
