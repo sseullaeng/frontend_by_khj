@@ -52,9 +52,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   CHAT_MESSAGE_EMPTY:          '내용 또는 이미지 중 하나는 필요해요.',
 
   // ── 배달 ──────────────────────────────────────────────────
-  DELIVERY_ALREADY_ACCEPTED:   '다른 라이더가 이미 수락한 배달이에요.',
-  DELIVERY_SELF_NOT_ALLOWED:   '본인 요청은 수락할 수 없어요.',
-  DELIVERY_INVALID_STATE:      '현재 상태에서는 가능한 동작이 아니에요.',
+  DELIVERY_ALREADY_ACCEPTED:       '다른 라이더가 이미 수락한 배달이에요.',
+  DELIVERY_SELF_NOT_ALLOWED:       '본인 요청은 수락할 수 없어요.',
+  DELIVERY_INVALID_STATE:          '현재 상태에서는 가능한 동작이 아니에요.',
+  DELIVERY_LOCATION_TOO_FREQUENT:  '위치 전송 간격이 너무 짧아요. 잠시 후 다시 시도해 주세요.',
+  DELIVERY_LOCATION_INVALID:       '위치 정보가 한국 범위를 벗어났어요.',
+  PAYLOAD_TOO_LARGE:               '요청 크기가 너무 커요.',
 
   // ── 시스템 ────────────────────────────────────────────────
   INVALID_REQUEST:             '입력값을 확인해 주세요.',

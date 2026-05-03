@@ -7,6 +7,7 @@ import type {
   DeliveryCancelRequest,
   DeliveryCreateRequest,
   DeliveryListParams,
+  DeliveryLocation,
 } from './types'
 import type { PageResponse } from '@/shared/types'
 
@@ -36,4 +37,9 @@ export const deliveryApi = {
   complete: (id: number) => api.patch<Delivery>(`/api/v1/deliveries/${id}/complete`),
   cancel:   (id: number, body?: DeliveryCancelRequest) =>
     api.patch<Delivery>(`/api/v1/deliveries/${id}/cancel`, body ?? {}),
+
+  // 실시간 위치 — REST fallback (TTL 30분)
+  // 200 = location, 204 = 데이터 없음 (TTL 만료/종료)
+  getLastLocation: (id: number) =>
+    api.get<DeliveryLocation | ''>(`/api/v1/deliveries/${id}/location/last`),
 }

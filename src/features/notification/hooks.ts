@@ -49,6 +49,7 @@ export function useUnreadCount() {
 }
 
 // 단건 읽음 처리
+// 가이드 §10.10 라운드6: 백엔드가 미존재 id / 타인 알림 silently 무시 → fire-and-forget OK
 export function useMarkRead() {
   const qc = useQueryClient()
   return useMutation({
@@ -69,9 +70,6 @@ export function useMarkRead() {
           }
         },
       )
-    },
-    onError: () => {
-      qc.invalidateQueries({ queryKey: notificationKeys.list() })
     },
   })
 }
