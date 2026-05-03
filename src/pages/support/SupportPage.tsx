@@ -15,6 +15,7 @@ import {
   useAdminInquiries,
   useCreateInquiry,
   useCreateSupportPost,
+  useDeleteMyInquiry,
   useDeleteSupportPost,
   useMyInquiries,
   useSupportPosts,
@@ -757,17 +758,34 @@ function AdminInquiryList({ inquiries, navigate }: { inquiries: Inquiry[]; navig
 }
 
 function MyInquiriesList({ inquiries }: { inquiries: Inquiry[] }) {
+  // PENDING 상태에서만 삭제 가능 (백엔드 INQUIRY_INVALID_STATE 가드)
+  const deleteMine = useDeleteMyInquiry()
+  const [confirmId, setConfirmId] = useState<number | null>(null)
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">내 문의 내역</h3>
       <div className="space-y-3">
         {inquiries.map((inquiry) => {
           const sm = STATUS_MAP[inquiry.status]
+          const canDelete = inquiry.status === 'PENDING'
           return (
             <div key={inquiry.id} className="p-4 border border-gray-100 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-900">{inquiry.title}</span>
-                <span className="text-xs text-gray-500">{formatKst(inquiry.createdAt, 'yyyy.MM.dd')}</span>
+              <div className="flex items-center justify-between mb-1 gap-2">
+                <span className="text-sm font-medium text-gray-900 flex-1 truncate">{inquiry.title}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-500">{formatKst(inquiry.createdAt, 'yyyy.MM.dd')}</span>
+                  {canDelete && (
+                    <button
+                      onClick={() => setConfirmId(inquiry.id)}
+                      disabled={deleteMine.isPending}
+                      className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-50 transition-colors"
+                      aria-label="문의 삭제"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
               <p className="text-sm text-gray-600 mb-2 line-clamp-1">{inquiry.content}</p>
               {inquiry.imageUrls.length > 0 && (
@@ -796,6 +814,39 @@ function MyInquiriesList({ inquiries }: { inquiries: Inquiry[] }) {
           )
         })}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {confirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 mb-1">문의를 삭제할까요?</h3>
+            <p className="text-sm text-gray-500 mb-5">삭제된 문의는 복구할 수 없어요.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmId(null)}
+                disabled={deleteMine.isPending}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteMine.mutateAsync(confirmId)
+                    setConfirmId(null)
+                  } catch {
+                    setConfirmId(null)
+                  }
+                }}
+                disabled={deleteMine.isPending}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
