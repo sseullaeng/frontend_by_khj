@@ -1,1 +1,0 @@
-import{A as s,l as t}from"./index-w6526M7m.js";const o={getProfile:e=>s.get(`/api/v1/users/${e}/profile`),report:(e,r)=>s.post(`/api/v1/users/${e}/report`,r)};function i(e){return t({queryKey:["user","profile",e],queryFn:()=>o.getProfile(e).then(r=>r.data),enabled:!!e,staleTime:1e3*60*5})}export{o as a,i as u};

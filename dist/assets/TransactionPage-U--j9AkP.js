@@ -1,1 +1,0 @@
-import{j as s}from"./index-w6526M7m.js";function e(){return s.jsxs("div",{className:"p-4",children:[s.jsx("h1",{className:"text-xl font-bold mb-4",children:"거래 관리"}),s.jsx("p",{className:"text-gray-400 text-sm",children:"구현 예정"})]})}export{e as default};

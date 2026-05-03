@@ -4,7 +4,7 @@
 // 대여의 시작/종료일 입력은 Transaction 도메인 (POST /transactions)에서 처리 — 추후 분리.
 
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   Heart, MapPin, Eye, Clock, ChevronLeft, Flag,
   Pencil, Trash2,
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useEmailGuard } from '@/features/auth/emailGuard'
 import { chatApi } from '@/features/chat/api'
 import ReportModal from '@/shared/ui/ReportModal'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'
 import { cn } from '@/shared/lib/cn'
 import { fromNow } from '@/shared/lib/date'
 import { toast } from 'sonner'
@@ -50,6 +51,7 @@ export default function ItemDetailPage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [profileFloatOpen, setProfileFloatOpen] = useState(false)
   const [rentalOpen, setRentalOpen] = useState(false)
   const [rentalStart, setRentalStart] = useState('')
   const [rentalEnd, setRentalEnd] = useState('')
@@ -214,10 +216,11 @@ export default function ItemDetailPage() {
             )}
           </div>
 
-          {/* 판매자 프로필 — GET /api/v1/users/{id}/profile */}
-          <Link
-            to={`/users/${item.sellerId}`}
-            className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors"
+          {/* 판매자 프로필 — 클릭 시 플로팅 패널, GET /api/v1/users/{id}/profile */}
+          <button
+            type="button"
+            onClick={() => setProfileFloatOpen(true)}
+            className="w-full flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-colors text-left"
           >
             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {seller?.profileImage ? (
@@ -241,7 +244,7 @@ export default function ItemDetailPage() {
             <span className="text-xs text-primary-500 font-medium flex-shrink-0">
               프로필 보기
             </span>
-          </Link>
+          </button>
 
           <hr className="border-gray-100" />
 
@@ -436,6 +439,14 @@ export default function ItemDetailPage() {
         <ReportModal
           target={{ kind: 'item', itemId: item.id }}
           onClose={() => setReportOpen(false)}
+        />
+      )}
+
+      {/* 판매자 프로필 플로팅 패널 */}
+      {profileFloatOpen && (
+        <UserProfileFloat
+          userId={item.sellerId}
+          onClose={() => setProfileFloatOpen(false)}
         />
       )}
 
