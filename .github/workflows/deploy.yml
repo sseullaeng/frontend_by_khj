@@ -1,10 +1,8 @@
 name: Deploy to GitHub Pages
 
+# ⚠️ 비활성화 상태 — Free 플랜 + private repo 에서 Pages 미지원.
+# 호스팅 결정(public 전환 / Pro 업그레이드 / Vercel 등) 후 push 트리거 복구.
 on:
-  push:
-    branches:
-      - main
-
   workflow_dispatch:
 
 permissions:
