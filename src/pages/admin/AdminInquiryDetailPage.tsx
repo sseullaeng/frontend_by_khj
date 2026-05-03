@@ -155,30 +155,40 @@ export default function AdminInquiryDetailPage() {
         </div>
       </div>
 
-      {/* 처리 상태 */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4">
-        <p className="text-xs font-semibold text-gray-700 mb-3">처리 상태</p>
-        <div className="flex gap-2 flex-wrap">
-          {(Object.entries(STATUS_MAP) as [InquiryStatus, typeof STATUS_MAP[InquiryStatus]][]).map(([key, val]) => (
-            <button
-              key={key}
-              onClick={() => setStatus(key)}
-              className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-colors',
-                status === key
-                  ? val.cls + ' border-current'
-                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
-              )}
-            >
-              {val.icon}
-              {val.label}
-            </button>
-          ))}
+      {/*
+        처리 상태 — 라운드8 백엔드 상태머신:
+          · PENDING 으로의 되돌림은 항상 400 (선택지 제외)
+          · DONE → PROCESSING/PENDING 전이 모두 400 (DONE 일 때 변경 UI 자체 숨김)
+          · 답변 없이 DONE 시도 시 400 (UI 안내)
+      */}
+      {inquiry.status !== 'DONE' && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-gray-700 mb-3">처리 상태</p>
+          <div className="flex gap-2 flex-wrap">
+            {(Object.entries(STATUS_MAP) as [InquiryStatus, typeof STATUS_MAP[InquiryStatus]][])
+              // PENDING 선택지 제외 — 이미 PENDING 인 경우만 표시 의미 있음
+              .filter(([key]) => key !== 'PENDING' || inquiry.status === 'PENDING')
+              .map(([key, val]) => (
+                <button
+                  key={key}
+                  onClick={() => setStatus(key)}
+                  className={cn(
+                    'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-colors',
+                    status === key
+                      ? val.cls + ' border-current'
+                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  )}
+                >
+                  {val.icon}
+                  {val.label}
+                </button>
+              ))}
+          </div>
+          {status === 'DONE' && !reply.trim() && (
+            <p className="text-xs text-amber-600 mt-2">답변 없이 완료로 변경할 수 없어요.</p>
+          )}
         </div>
-        {status === 'DONE' && !reply.trim() && (
-          <p className="text-xs text-amber-600 mt-2">답변 없이 완료로 변경할 수 없어요.</p>
-        )}
-      </div>
+      )}
 
       {/* 관리자 답변 */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">

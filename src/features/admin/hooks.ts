@@ -13,6 +13,7 @@ import type {
   NoticeUpsertRequest,
 } from './types'
 import type { WithdrawalStatus } from '@/features/payment/types'
+import type { AdminTransactionSearchParams } from './api'
 import { BusinessError } from '@/shared/types'
 import { getErrorMessage } from '@/shared/lib/errorMessages'
 
@@ -28,6 +29,8 @@ export const adminKeys = {
   reports:    (status?: AdminReportStatus, page = 0) => [...adminKeys.all(), 'reports', status ?? 'all', page] as const,
   report:     (id: number)                       => [...adminKeys.all(), 'report', id] as const,
   withdrawals:(status?: WithdrawalStatus, page = 0)  => [...adminKeys.all(), 'withdrawals', status ?? 'all', page] as const,
+  transactions:(params?: { startDate?: string; endDate?: string; type?: string; status?: string; keyword?: string; page?: number }) =>
+                                                        [...adminKeys.all(), 'transactions', params ?? {}] as const,
 }
 
 // ── 로그인 ────────────────────────────────────────────────────────────────
@@ -219,5 +222,13 @@ export function usePatchAdminWithdrawal() {
       qc.invalidateQueries({ queryKey: adminKeys.all() })
       toast.success('처리됐어요.')
     },
+  })
+}
+
+// ── Transactions (라운드8) ───────────────────────────────────────────────
+export function useAdminTransactions(params?: AdminTransactionSearchParams) {
+  return useQuery({
+    queryKey: adminKeys.transactions(params),
+    queryFn: () => adminApi.transactions.list(params).then((r) => r.data),
   })
 }

@@ -15,6 +15,7 @@ function notificationToHref(noti: Notification): string {
     ITEM:        `/items/${noti.linkId}`,
     REVIEW:      `/reviews`,
     PAYMENT:     `/point`,
+    INQUIRY:     `/mypage/inquiries/${noti.linkId}`,  // 라운드8: 고객지원 답변 알림
   }
   return map[noti.linkType] ?? '/notifications'
 }

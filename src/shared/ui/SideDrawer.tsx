@@ -660,6 +660,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 function NotificationPanel() {
   const currentUser = useAuthStore(s => s.user)
   const isAdmin = currentUser?.role === 'ADMIN'
+  const navigate = useNavigate()
+  const close = useDrawerStore(s => s.close)
 
   // 관리자 전체 발송 폼 상태 (백엔드 broadcast endpoint 미정 → 임시 stub)
   const [broadcastTitle, setBroadcastTitle] = useState('')
@@ -669,6 +671,24 @@ function NotificationPanel() {
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
   const items = data?.pages[0]?.content ?? []
+
+  /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
+  const handleNotificationClick = (n: typeof items[number]) => {
+    close()
+    if (!n.linkType || n.linkId == null) return
+    const path = (() => {
+      switch (n.linkType) {
+        case 'TRANSACTION': return `/trades/${n.linkId}`
+        case 'DELIVERY':    return `/delivery/${n.linkId}/track`
+        case 'ITEM':        return `/items/${n.linkId}`
+        case 'REVIEW':      return '/reviews'
+        case 'PAYMENT':     return '/point'
+        case 'INQUIRY':     return `/mypage/inquiries/${n.linkId}`
+        default:            return null
+      }
+    })()
+    if (path) navigate(path)
+  }
 
   /** 전체 발송 버튼 클릭 — 실제 API 연동 전까지 더미 처리 */
   const handleBroadcast = () => {
@@ -735,7 +755,7 @@ function NotificationPanel() {
         {items.map(n => (
           <li key={n.id}>
             <button
-              onClick={close}
+              onClick={() => handleNotificationClick(n)}
               className={`w-full flex flex-col gap-0.5 px-5 py-4 hover:bg-gray-50 transition-colors text-left ${
                 !n.read ? 'bg-primary-50' : ''
               }`}
@@ -743,7 +763,12 @@ function NotificationPanel() {
               {!n.read && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 inline-block mb-0.5" />
               )}
-              <span className="text-sm font-medium text-gray-900">{n.title}</span>
+              <span className="text-sm font-medium text-gray-900">
+                {n.type === 'SYSTEM' && (
+                  <span className="mr-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">시스템</span>
+                )}
+                {n.title}
+              </span>
               <span className="text-xs text-gray-500 line-clamp-2">{n.content}</span>
               <span className="text-xs text-gray-400 mt-0.5">{fromNow(n.createdAt)}</span>
             </button>

@@ -15,7 +15,20 @@ import type {
   NoticeUpsertRequest,
 } from './types'
 import type { Withdrawal, WithdrawalStatus } from '@/features/payment/types'
+import type { Transaction } from '@/features/transaction/types'
 import type { PageResponse } from '@/shared/types'
+
+// 라운드8 — 관리자 거래 검색 파라미터
+// status / type 은 백엔드 한글 enum: '판매'/'대여'/'나눔', '채팅중'/'예약'/'거래완료'/'취소'
+export interface AdminTransactionSearchParams {
+  startDate?: string   // ISO LocalDateTime
+  endDate?: string
+  type?: '판매' | '대여' | '나눔'
+  status?: '채팅중' | '예약' | '거래완료' | '취소'
+  keyword?: string     // ⚠️ 숫자만 (transactionId 또는 itemId 정확 매칭)
+  page?: number
+  size?: number
+}
 
 export const adminApi = {
   // 11.1 로그인 — 별도 admin AT/RT 발급
@@ -87,5 +100,11 @@ export const adminApi = {
   // 11.7 대시보드 통계
   stats: {
     dashboard: () => api.get<AdminDashboard>('/api/v1/admin/stats/dashboard'),
+  },
+
+  // 라운드8 — 거래 검색
+  transactions: {
+    list: (params?: AdminTransactionSearchParams) =>
+      api.get<PageResponse<Transaction>>('/api/v1/admin/transactions', { params }),
   },
 }
