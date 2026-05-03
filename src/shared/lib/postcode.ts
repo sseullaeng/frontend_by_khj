@@ -70,11 +70,12 @@ function shortSido(sido: string): string {
  */
 export async function openAddressSearch(): Promise<string | null> {
   await loadSDK()
-  if (!window.daum?.Postcode) throw new Error('주소검색 SDK 미로드')
+  const Postcode = window.daum?.Postcode
+  if (!Postcode) throw new Error('주소검색 SDK 미로드')
 
   return new Promise((resolve) => {
     let resolved = false
-    new window.daum.Postcode({
+    new Postcode({
       oncomplete: (data) => {
         resolved = true
         const region = `${shortSido(data.sido)} ${data.sigungu}`.trim()

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star, Image as ImageIcon } from 'lucide-react'
 import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
 import { compressImage } from '@/shared/lib/imageCompress'
 import { toast } from 'sonner'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
@@ -174,10 +175,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const [blockOpen, setBlockOpen] = useState(false)
   const [escrowOpen, setEscrowOpen] = useState(false)
   const [escrowChoice, setEscrowChoice] = useState<boolean | null>(null)
+  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
+  const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
   const txStatus = statusByRoom[roomId] ?? 'none'
   const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
+  // 관리자는 거래예약·신고·차단 기능 없이 채팅만 가능
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -412,15 +417,20 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
         {room && (
           <>
-            {/* 상대방 프로필 */}
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-              {room.opponentProfileImage ? (
-                <img src={room.opponentProfileImage} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
-              )}
-            </div>
-            <p className="text-sm font-semibold text-gray-900 shrink-0">{room.opponentNickname}</p>
+            {/* 상대방 프로필 — 클릭 시 프로필 플로팅 패널 오픈 */}
+            <button
+              onClick={() => setProfileUserId(room.opponentId)}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity shrink-0"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                {room.opponentProfileImage ? (
+                  <img src={room.opponentProfileImage} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-gray-900">{room.opponentNickname}</p>
+            </button>
 
             {/* 물품 이미지 + 제목 */}
             <Link
@@ -438,27 +448,29 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </>
         )}
 
-        {/* 신고 + 차단 */}
-        <div className="flex items-center gap-0.5 ml-auto shrink-0">
-          <button
-            onClick={() => setReportOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="신고"
-          >
-            <Flag size={15} />
-          </button>
-          <button
-            onClick={() => setBlockOpen(true)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label="차단"
-          >
-            <Ban size={15} />
-          </button>
-        </div>
+        {/* 신고 + 차단 — 관리자는 표시하지 않음 */}
+        {!isAdmin && (
+          <div className="flex items-center gap-0.5 ml-auto shrink-0">
+            <button
+              onClick={() => setReportOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="신고"
+            >
+              <Flag size={15} />
+            </button>
+            <button
+              onClick={() => setBlockOpen(true)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label="차단"
+            >
+              <Ban size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 판매자 전용 — 거래 상태 바 */}
-      {isSeller && txStatus !== 'completed' && (
+      {/* 판매자 전용 — 거래 상태 바 (관리자는 표시하지 않음) */}
+      {!isAdmin && isSeller && txStatus !== 'completed' && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-2">
           {txStatus === 'none' && (
             <button
@@ -498,8 +510,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 거래 완료 후 — 판매자 리뷰 버튼 */}
-      {isSeller && txStatus === 'completed' && (
+      {/* 거래 완료 후 — 판매자 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -514,8 +526,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 구매자 — 거래 완료 후 리뷰 버튼 */}
-      {!isSeller && txStatus === 'completed' && (
+      {/* 구매자 — 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && !isSeller && txStatus === 'completed' && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           {alreadyReviewed ? (
             <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
@@ -632,19 +644,79 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </button>
         </div>
       </div>
+
+      {/* 유저 프로필 플로팅 패널 */}
+      {profileUserId !== null && (
+        <UserProfileFloat
+          userId={profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
+      )}
     </div>
   )
 }
 
 /* ── 알림 패널 ── */
 function NotificationPanel() {
-  const close = useDrawerStore(s => s.close)
+  const currentUser = useAuthStore(s => s.user)
+  const isAdmin = currentUser?.role === 'ADMIN'
+
+  // 관리자 전체 발송 폼 상태 (백엔드 broadcast endpoint 미정 → 임시 stub)
+  const [broadcastTitle, setBroadcastTitle] = useState('')
+  const [broadcastBody,  setBroadcastBody]  = useState('')
+  const [sent, setSent] = useState(false)
+
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
   const items = data?.pages[0]?.content ?? []
 
+  /** 전체 발송 버튼 클릭 — 실제 API 연동 전까지 더미 처리 */
+  const handleBroadcast = () => {
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return
+    setSent(true)
+    setBroadcastTitle('')
+    setBroadcastBody('')
+    // 3초 후 발송 완료 메시지 숨김
+    window.setTimeout(() => setSent(false), 3000)
+  }
+
   return (
     <div className="flex flex-col h-full">
+
+      {/* 관리자 전용 — 전체 알림 발송 폼 */}
+      {isAdmin && (
+        <div className="px-4 py-3 border-b border-indigo-100 bg-indigo-50 shrink-0">
+          <p className="text-xs font-semibold text-indigo-700 mb-2">전체 유저 알림 발송</p>
+          <input
+            type="text"
+            value={broadcastTitle}
+            onChange={e => setBroadcastTitle(e.target.value)}
+            placeholder="제목"
+            className="w-full mb-1.5 px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 bg-white"
+          />
+          <textarea
+            value={broadcastBody}
+            onChange={e => setBroadcastBody(e.target.value)}
+            placeholder="내용을 입력하세요"
+            rows={2}
+            className="w-full px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 resize-none bg-white"
+          />
+          {sent ? (
+            // 발송 완료 피드백
+            <p className="mt-1.5 text-xs text-emerald-600 font-medium text-center">✓ 전체 발송 완료</p>
+          ) : (
+            <button
+              onClick={handleBroadcast}
+              disabled={!broadcastTitle.trim() || !broadcastBody.trim()}
+              className="mt-1.5 w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1"
+            >
+              <Send size={12} />
+              전체 발송
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
         <span className="text-xs text-gray-500">{items.length}개의 알림</span>
         <button

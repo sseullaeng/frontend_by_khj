@@ -66,7 +66,9 @@ export default function ChargePage() {
 
   // 2) 금액 변경 시 위젯 업데이트
   useEffect(() => {
-    widget?.updateAmount(amount, 'KRW')
+    // Toss SDK v0/v1 시그니처 차이 — 런타임 메서드 존재 여부로 분기
+    const w = widget as unknown as { updateAmount?: (amount: number, currency: string) => void } | null
+    w?.updateAmount?.(amount, 'KRW')
   }, [amount, widget])
 
   // 3) 결제 요청

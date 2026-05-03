@@ -87,7 +87,7 @@ export default function ItemDetailPage() {
         const message = `${item.title} 관련 문의드립니다.`
         setPendingFirstMessage(message)
         openChatRoom(room.data.id)
-        open()
+        open('chat')
       } catch {
         toast.error('채팅을 시작하지 못했어요.')
       }

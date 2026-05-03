@@ -169,7 +169,7 @@ export default function BlockListPage() {
 
             {/* 신고 대상 닉네임 */}
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-semibold text-gray-800">{reportTarget.nickname}</span> 님을 신고합니다.
+              <span className="font-semibold text-gray-800">사용자 #{reportTarget}</span> 님을 신고합니다.
             </p>
 
             {/* 신고 사유 선택 목록 */}

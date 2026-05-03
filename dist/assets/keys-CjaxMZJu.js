@@ -1,0 +1,1 @@
+const t={all:()=>["point"],balance:()=>[...t.all(),"balance"],history:(l,a=0,s=20)=>[...t.all(),"history",l??"all",a,s]},i={all:()=>["withdrawal"],list:(l=0,a=20)=>[...i.all(),"list",l,a],detail:l=>[...i.all(),"detail",l]};export{t as p,i as w};
