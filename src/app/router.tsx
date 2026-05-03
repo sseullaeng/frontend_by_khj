@@ -70,17 +70,21 @@ const EscrowPaymentPage     = lazy(() => import('@/pages/escrow/EscrowPaymentPag
 const EscrowCompletePage    = lazy(() => import('@/pages/escrow/EscrowCompletePage'))    // 에스크로 완료 페이지
 
 // 관리자 페이지
-const AdminLoginPage     = lazy(() => import('@/pages/admin/AdminLoginPage'))     // 관리자 로그인 페이지
-const AdminDashboard     = lazy(() => import('@/pages/admin/AdminDashboard'))     // 관리자 대시보드
-const AdminUserPage      = lazy(() => import('@/pages/admin/AdminUserPage'))      // 관리자 사용자 관리
-const AdminItemPage      = lazy(() => import('@/pages/admin/AdminItemPage'))      // 관리자 물품 관리
-const AdminReportPage    = lazy(() => import('@/pages/admin/AdminReportPage'))    // 관리자 신고 관리
-const AdminWithdrawPage  = lazy(() => import('@/pages/admin/AdminWithdrawPage'))  // 관리자 출금 관리
-const AdminDeliveryPage  = lazy(() => import('@/pages/admin/AdminDeliveryPage'))  // 관리자 배송 관리
-const AdminNoticePage    = lazy(() => import('@/pages/admin/AdminNoticePage'))    // 관리자 공지 관리
-const AdminBannerPage    = lazy(() => import('@/pages/admin/AdminBannerPage'))    // 관리자 배너 관리
-const AdminDepositPage      = lazy(() => import('@/pages/admin/AdminDepositPage'))      // 관리자 보증금 관리
-const AdminEscrowConfigPage = lazy(() => import('@/pages/admin/AdminEscrowConfigPage')) // 관리자 에스크로 설정
+const AdminLoginPage          = lazy(() => import('@/pages/admin/AdminLoginPage'))          // 관리자 로그인 페이지
+const AdminDashboard          = lazy(() => import('@/pages/admin/AdminDashboard'))          // 관리자 대시보드
+const AdminUserPage           = lazy(() => import('@/pages/admin/AdminUserPage'))           // 관리자 전체 회원 관리
+const AdminTodayUsersPage     = lazy(() => import('@/pages/admin/AdminTodayUsersPage'))     // 관리자 오늘 신규 가입자
+const AdminWithdrawnUsersPage = lazy(() => import('@/pages/admin/AdminWithdrawnUsersPage')) // 관리자 탈퇴 회원 관리
+const AdminMonthlyTradesPage  = lazy(() => import('@/pages/admin/AdminMonthlyTradesPage'))  // 관리자 이번달 거래
+const AdminItemPage           = lazy(() => import('@/pages/admin/AdminItemPage'))           // 관리자 물품 관리
+const AdminReportPage         = lazy(() => import('@/pages/admin/AdminReportPage'))         // 관리자 신고 대기 처리
+const AdminWithdrawPage       = lazy(() => import('@/pages/admin/AdminWithdrawPage'))       // 관리자 출금 관리
+const AdminDeliveryPage       = lazy(() => import('@/pages/admin/AdminDeliveryPage'))       // 관리자 배송 관리
+const AdminNoticePage         = lazy(() => import('@/pages/admin/AdminNoticePage'))         // 관리자 공지 관리
+const AdminBannerPage         = lazy(() => import('@/pages/admin/AdminBannerPage'))         // 관리자 배너 관리
+const AdminDepositPage        = lazy(() => import('@/pages/admin/AdminDepositPage'))        // 관리자 보증금 관리
+const AdminEscrowConfigPage   = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))   // 관리자 에스크로 설정
+const AdminInquiryDetailPage  = lazy(() => import('@/pages/admin/AdminInquiryDetailPage'))  // 관리자 문의 상세 페이지
 
 // 404 페이지
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage')) // 페이지를 찾을 수 없을 때 표시
@@ -163,22 +167,31 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── 관리자 라우트
+  // ── 관리자 라우트 (RootLayout으로 감싸 헤더·푸터·하단 네비 제공)
   { path: '/admin/login', element: <AdminLoginPage /> },
   {
     element: <AdminRoute />,
     children: [
-      { path: '/admin',           element: <Navigate to="/admin/dashboard" replace /> },
-      { path: '/admin/dashboard', element: <AdminDashboard /> },
-      { path: '/admin/users',     element: <AdminUserPage /> },
-      { path: '/admin/items',     element: <AdminItemPage /> },
-      { path: '/admin/reports',   element: <AdminReportPage /> },
-      { path: '/admin/withdraws', element: <AdminWithdrawPage /> },
-      { path: '/admin/delivery',  element: <AdminDeliveryPage /> },
-      { path: '/admin/notices',   element: <AdminNoticePage /> },
-      { path: '/admin/banners',   element: <AdminBannerPage /> },
-      { path: '/admin/deposits',      element: <AdminDepositPage /> },
-      { path: '/admin/escrow-config', element: <AdminEscrowConfigPage /> },
+      {
+        element: <RootLayout />,
+        children: [
+          { path: '/admin',                  element: <Navigate to="/admin/dashboard" replace /> },
+          { path: '/admin/dashboard',        element: <AdminDashboard /> },
+          { path: '/admin/users',            element: <AdminUserPage /> },           // 전체 회원
+          { path: '/admin/users/today',      element: <AdminTodayUsersPage /> },     // 오늘 신규 가입자
+          { path: '/admin/users/withdrawn',  element: <AdminWithdrawnUsersPage /> }, // 탈퇴 회원
+          { path: '/admin/trades',           element: <AdminMonthlyTradesPage /> },  // 이번달 거래
+          { path: '/admin/items',            element: <AdminItemPage /> },
+          { path: '/admin/reports',          element: <AdminReportPage /> },         // 신고 대기
+          { path: '/admin/withdraws',        element: <AdminWithdrawPage /> },
+          { path: '/admin/delivery',         element: <AdminDeliveryPage /> },
+          { path: '/admin/notices',          element: <AdminNoticePage /> },
+          { path: '/admin/banners',          element: <AdminBannerPage /> },
+          { path: '/admin/deposits',         element: <AdminDepositPage /> },
+          { path: '/admin/escrow-config',    element: <AdminEscrowConfigPage /> },
+          { path: '/admin/support/:id',     element: <AdminInquiryDetailPage /> },  // 관리자 문의 상세
+        ],
+      },
     ],
   },
 

@@ -6,7 +6,6 @@ import { useLogout } from '@/features/auth/hooks'     // 로그아웃 훅
 import { Button } from '@/shared/ui/Button'           // 버튼 컴포넌트
 import { cn } from '@/shared/lib/cn'                  // 클래스명 유틸
 import { ChevronRight, ShieldCheck, ShieldOff, UserX, X } from 'lucide-react'
-import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -178,17 +177,6 @@ const MOCK_REPORTS: AdminReport[] = [
   { id: 7, targetType: 'USER', targetId: 2,   targetName: '홍길동',          reason: '스팸 / 반복 도배',        reportCount: 1, reportedAt: '2026-05-02', status: 'ACTIVE' },
 ]
 
-/** 일별 신규 가입자 수 (최근 7일) — MOCK_USERS와 날짜 일치 */
-const DAILY_SIGNUP = [
-  { day: '4/26', count: 2 },  // 유재석, 신동엽
-  { day: '4/27', count: 2 },  // 강동원, 손예진
-  { day: '4/28', count: 2 },  // 최수진, 정우성
-  { day: '4/29', count: 1 },  // 박민준
-  { day: '4/30', count: 1 },  // 이철수
-  { day: '5/1',  count: 1 },  // 김영희
-  { day: '5/2',  count: 2 },  // 테스트유저, 홍길동
-]
-
 /** 날짜 문자열 → 가입 유저 목록 매핑 */
 const SIGNUP_BY_DATE: Record<string, AdminUser[]> = {
   '4/26': MOCK_USERS.filter(u => u.joinedAt === '2026-04-26'),
@@ -199,21 +187,6 @@ const SIGNUP_BY_DATE: Record<string, AdminUser[]> = {
   '5/1':  MOCK_USERS.filter(u => u.joinedAt === '2026-05-01'),
   '5/2':  MOCK_USERS.filter(u => u.joinedAt === '2026-05-02'),
 }
-
-/** 거래 유형별 건수 (MOCK_TRADES 기반) */
-const TRADE_TYPE_DATA = [
-  { type: '중고거래', count: MOCK_TRADES.filter(t => t.itemType === 'SELL').length },
-  { type: '대여',     count: MOCK_TRADES.filter(t => t.itemType === 'RENT').length },
-  { type: '나눔',     count: MOCK_TRADES.filter(t => t.itemType === 'SHARE').length },
-  { type: '거래대행', count: MOCK_TRADES.filter(t => t.itemType === 'ESCROW').length },
-]
-
-/** 거래 상태별 건수 (파이차트용) */
-const TRADE_STATUS_DATA = [
-  { name: '거래중', value: MOCK_TRADES.filter(t => t.tradeStatus === 'ACTIVE').length },
-  { name: '완료',   value: MOCK_TRADES.filter(t => t.tradeStatus === 'COMPLETED').length },
-  { name: '취소',   value: MOCK_TRADES.filter(t => t.tradeStatus === 'CANCELLED').length },
-]
 
 /** 파이차트 색상 배열 */
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
@@ -879,24 +852,72 @@ function PanelContent({ kind, onClose, onUserClick, users, trades, reports }: Pa
 
 // ── AdminStats 컴포넌트 ───────────────────────────────────────────────────────
 
-/** 관리자 통계 대시보드 (차트, 요약 카드, 사이드 패널 포함) */
+/** 관리자 통계 대시보드 (차트, 요약 카드 — 클릭 시 관리자 페이지로 이동) */
 function AdminStats({ nickname }: { nickname: string }) {
-  // 사이드 패널 종류 상태 (null이면 닫힘)
-  const [panel, setPanel] = useState<PanelKind | null>(null)
+  const navigate = useNavigate()
   // 영역 차트 마우스 호버 날짜 상태
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
-  // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
-  const [profileUserId, setProfileUserId] = useState<number | null>(null)
-  /** 패널 열기 */
-  const openPanel = (kind: PanelKind) => setPanel(kind)
-  /** 패널 닫기 */
-  const closePanel = () => setPanel(null)
 
   // 차트 호버 카드 숨김 딜레이 타이머 ref (마우스를 잠깐 벗어나도 카드가 유지되도록)
   const hideTimerRef = useRef<number>(0)
 
   // 탈퇴 회원 수 (카드 표시용)
   const withdrawnCount = MOCK_USERS.filter(u => u.status === 'WITHDRAWN').length
+
+  // ── 차트 공통 날짜 범위 필터 상태 (기본값: 목업 전체 기간) ──────────────
+  const [startDate, setStartDate] = useState('2026-04-23')
+  const [endDate,   setEndDate]   = useState('2026-05-02')
+
+  // YYYY-MM-DD → 차트 X축 표시용 'M/D' 변환
+  const toChartDay = (date: string) => {
+    const [, m, d] = date.split('-')
+    return `${parseInt(m)}/${parseInt(d)}`
+  }
+
+  // 날짜 범위 내 일별 가입자 차트 데이터 (일 단위 순회)
+  const filteredSignupChartData = (() => {
+    const result: { day: string; count: number; fullDate: string }[] = []
+    const cur = new Date(startDate + 'T00:00:00')
+    const fin = new Date(endDate   + 'T00:00:00')
+    while (cur <= fin) {
+      const y  = cur.getFullYear()
+      const m  = String(cur.getMonth() + 1).padStart(2, '0')
+      const d  = String(cur.getDate()).padStart(2, '0')
+      const dateStr = `${y}-${m}-${d}`
+      result.push({
+        day:      toChartDay(dateStr),
+        fullDate: dateStr,
+        count:    MOCK_USERS.filter(u => u.joinedAt === dateStr).length,
+      })
+      cur.setDate(cur.getDate() + 1)
+    }
+    return result
+  })()
+
+  // 차트 라벨(day) → 전체 날짜(fullDate) 역매핑 (호버 카드 유저 조회용)
+  const chartDayToDate: Record<string, string> = Object.fromEntries(
+    filteredSignupChartData.map(d => [d.day, d.fullDate])
+  )
+
+  // 날짜 범위 내 거래 데이터 (BarChart / PieChart 공통 필터링)
+  const filteredTradesInRange = MOCK_TRADES.filter(
+    t => t.date >= startDate && t.date <= endDate
+  )
+
+  // 거래 유형별 건수 (날짜 범위 적용)
+  const filteredTradeTypeData = [
+    { type: '중고거래', count: filteredTradesInRange.filter(t => t.itemType === 'SELL').length },
+    { type: '대여',     count: filteredTradesInRange.filter(t => t.itemType === 'RENT').length },
+    { type: '나눔',     count: filteredTradesInRange.filter(t => t.itemType === 'SHARE').length },
+    { type: '거래대행', count: filteredTradesInRange.filter(t => t.itemType === 'ESCROW').length },
+  ]
+
+  // 거래 상태 비율 (날짜 범위 적용)
+  const filteredTradeStatusData = [
+    { name: '거래중', value: filteredTradesInRange.filter(t => t.tradeStatus === 'ACTIVE').length },
+    { name: '완료',   value: filteredTradesInRange.filter(t => t.tradeStatus === 'COMPLETED').length },
+    { name: '취소',   value: filteredTradesInRange.filter(t => t.tradeStatus === 'CANCELLED').length },
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -916,7 +937,7 @@ function AdminStats({ nickname }: { nickname: string }) {
       <div className="grid grid-cols-2 gap-3">
         {/* 전체 회원 카드 */}
         <button
-          onClick={() => openPanel('USER_ALL')}
+          onClick={() => navigate('/admin/users')}
           className="bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">전체 회원</p>
@@ -929,7 +950,7 @@ function AdminStats({ nickname }: { nickname: string }) {
 
         {/* 오늘 신규 카드 */}
         <button
-          onClick={() => openPanel('USER_TODAY')}
+          onClick={() => navigate('/admin/users/today')}
           className="bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">오늘 신규</p>
@@ -942,7 +963,7 @@ function AdminStats({ nickname }: { nickname: string }) {
 
         {/* 이번달 거래 카드 */}
         <button
-          onClick={() => openPanel('TRADE_MONTHLY')}
+          onClick={() => navigate('/admin/trades')}
           className="bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">이번달 거래</p>
@@ -955,7 +976,7 @@ function AdminStats({ nickname }: { nickname: string }) {
 
         {/* 신고 대기 카드 */}
         <button
-          onClick={() => openPanel('REPORT')}
+          onClick={() => navigate('/admin/reports')}
           className="bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">신고 대기</p>
@@ -968,7 +989,7 @@ function AdminStats({ nickname }: { nickname: string }) {
 
         {/* 탈퇴 회원 카드 — 2열 전체 너비 */}
         <button
-          onClick={() => openPanel('USER_WITHDRAWN')}
+          onClick={() => navigate('/admin/users/withdrawn')}
           className="col-span-2 bg-white border border-gray-200 rounded-2xl p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
         >
           <p className="text-xs text-gray-500 mb-1">탈퇴 회원</p>
@@ -980,12 +1001,41 @@ function AdminStats({ nickname }: { nickname: string }) {
         </button>
       </div>
 
-      {/* 일별 신규 가입자 — AreaChart */}
+      {/* ── 차트 공통 날짜 범위 필터 ─────────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+        <p className="text-xs font-semibold text-gray-500 mb-2">차트 조회 기간</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 시작 날짜 달력 입력 */}
+          <input
+            type="date"
+            value={startDate}
+            max={endDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="flex-1 min-w-[130px] px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-primary-400"
+          />
+          <span className="text-gray-400 text-sm shrink-0">~</span>
+          {/* 종료 날짜 달력 입력 */}
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={e => setEndDate(e.target.value)}
+            className="flex-1 min-w-[130px] px-3 py-1.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-primary-400"
+          />
+        </div>
+      </div>
+
+      {/* 일별 신규 가입자 — AreaChart (날짜 범위 필터 적용) */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
-        <p className="text-sm font-semibold text-gray-700 mb-4">일별 신규 가입자 (최근 7일)</p>
+        <p className="text-sm font-semibold text-gray-700 mb-4">
+          일별 신규 가입자
+          <span className="text-xs font-normal text-gray-400 ml-2">
+            {startDate} ~ {endDate}
+          </span>
+        </p>
         <ResponsiveContainer width="100%" height={160}>
           <AreaChart
-            data={DAILY_SIGNUP}
+            data={filteredSignupChartData}
             margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             onMouseMove={(data: { activeLabel?: string }) => {
               // 마우스 이동 시 타이머 취소 후 날짜 업데이트
@@ -993,7 +1043,7 @@ function AdminStats({ nickname }: { nickname: string }) {
               if (data.activeLabel) setHoveredDate(data.activeLabel)
             }}
             onMouseLeave={() => {
-              // 마우스가 차트를 벗어나면 400ms 후 카드 숨김 (호버 카드 위로 이동 시 취소)
+              // 마우스가 차트를 벗어나면 400ms 후 카드 숨김
               hideTimerRef.current = window.setTimeout(() => setHoveredDate(null), 400)
             }}
           >
@@ -1027,9 +1077,9 @@ function AdminStats({ nickname }: { nickname: string }) {
           >
             <p className="text-xs font-semibold text-indigo-700 mb-2">{hoveredDate} 가입자</p>
             <ul className="space-y-1">
-              {(SIGNUP_BY_DATE[hoveredDate] ?? []).map(user => (
+              {/* chartDayToDate로 표시용 라벨 → fullDate 변환 후 유저 조회 */}
+              {MOCK_USERS.filter(u => u.joinedAt === (chartDayToDate[hoveredDate] ?? '')).map(user => (
                 <li key={user.id} className="flex items-center gap-2">
-                  {/* 가입자 이니셜 아바타 */}
                   <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center">
                     <span className="text-[9px] font-bold text-indigo-700">{user.nickname[0]}</span>
                   </div>
@@ -1037,13 +1087,13 @@ function AdminStats({ nickname }: { nickname: string }) {
                   <span className="text-[10px] text-gray-400 ml-auto">{user.signupPath}</span>
                 </li>
               ))}
-              {(SIGNUP_BY_DATE[hoveredDate] ?? []).length === 0 && (
+              {MOCK_USERS.filter(u => u.joinedAt === (chartDayToDate[hoveredDate] ?? '')).length === 0 && (
                 <li className="text-xs text-gray-400">데이터 없음</li>
               )}
             </ul>
-            {/* 해당 날짜 패널 전체 보기 버튼 */}
+            {/* 해당 날짜 신규 가입자 페이지로 이동 */}
             <button
-              onClick={() => openPanel({ kind: 'USER_DATE', date: hoveredDate })}
+              onClick={() => navigate('/admin/users/today')}
               className="mt-2 text-xs text-indigo-600 font-medium hover:underline"
             >
               전체 보기 →
@@ -1052,13 +1102,17 @@ function AdminStats({ nickname }: { nickname: string }) {
         )}
       </div>
 
-      {/* 거래 유형별 건수 — BarChart */}
+      {/* 거래 유형별 건수 — BarChart (날짜 범위 필터 적용) */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
-        <p className="text-sm font-semibold text-gray-700 mb-0.5">거래 유형별 건수</p>
-        {/* 클릭 안내 문구 */}
+        <p className="text-sm font-semibold text-gray-700 mb-0.5">
+          거래 유형별 건수
+          <span className="text-xs font-normal text-gray-400 ml-2">
+            {startDate} ~ {endDate}
+          </span>
+        </p>
         <p className="text-xs text-gray-400 mb-3">클릭하면 상세 목록을 볼 수 있어요</p>
         <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={TRADE_TYPE_DATA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <BarChart data={filteredTradeTypeData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <XAxis dataKey="type" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
@@ -1069,28 +1123,33 @@ function AdminStats({ nickname }: { nickname: string }) {
               name="건수"
               cursor="pointer"
               onClick={(data: { type: string }) => {
-                // 거래 유형명 → TradeType 코드 매핑
-                const map: Record<string, TradeType> = {
+                const map: Record<string, string> = {
                   '중고거래': 'SELL',
                   '대여':     'RENT',
                   '나눔':     'SHARE',
                   '거래대행': 'ESCROW',
                 }
                 const tradeType = map[data.type]
-                if (tradeType) openPanel({ kind: 'TRADE_TYPE', tradeType, label: data.type })
+                // 날짜 범위와 거래 유형 필터를 URL 파라미터로 전달
+                if (tradeType) navigate(`/admin/trades?start=${startDate}&end=${endDate}&type=${tradeType}`)
               }}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 거래 상태 비율 — PieChart */}
+      {/* 거래 상태 비율 — PieChart (날짜 범위 필터 적용) */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
-        <p className="text-sm font-semibold text-gray-700 mb-4">거래 상태 비율</p>
+        <p className="text-sm font-semibold text-gray-700 mb-4">
+          거래 상태 비율
+          <span className="text-xs font-normal text-gray-400 ml-2">
+            {startDate} ~ {endDate}
+          </span>
+        </p>
         <ResponsiveContainer width="100%" height={180}>
           <PieChart>
             <Pie
-              data={TRADE_STATUS_DATA}
+              data={filteredTradeStatusData}
               cx="50%"
               cy="50%"
               innerRadius={50}
@@ -1098,22 +1157,16 @@ function AdminStats({ nickname }: { nickname: string }) {
               paddingAngle={3}
               dataKey="value"
             >
-              {TRADE_STATUS_DATA.map((_, i) => {
-                // 거래 상태 코드 및 레이블 매핑
-                const statusCodes: TradeStatus[] = ['ACTIVE', 'COMPLETED', 'CANCELLED']
-                const statusLabels = ['거래중', '완료', '취소']
+              {filteredTradeStatusData.map((entry, i) => {
+                // 거래 상태 한글 → 영문 키 매핑
+                const statusKey: Record<string, string> = { '거래중': 'ACTIVE', '완료': 'COMPLETED', '취소': 'CANCELLED' }
                 return (
                   <Cell
                     key={i}
                     fill={PIE_COLORS[i % PIE_COLORS.length]}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      openPanel({
-                        kind: 'TRADE_STATUS',
-                        tradeStatus: statusCodes[i],
-                        label: statusLabels[i],
-                      })
-                    }}
+                    // 날짜 범위와 거래 상태 필터를 URL 파라미터로 전달
+                    onClick={() => navigate(`/admin/trades?start=${startDate}&end=${endDate}&status=${statusKey[entry.name] ?? ''}`)}
                   />
                 )
               })}
@@ -1124,32 +1177,6 @@ function AdminStats({ nickname }: { nickname: string }) {
         </ResponsiveContainer>
       </div>
 
-      {/* 사이드 패널 오버레이 */}
-      {panel !== null && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* 배경 딤 처리 (클릭 시 닫기) */}
-          <div onClick={closePanel} className="flex-1 bg-black/30" />
-          {/* 패널 본체 */}
-          <div className="w-full sm:w-[600px] bg-white h-full flex flex-col shadow-2xl relative">
-            <PanelContent
-              kind={panel}
-              onClose={closePanel}
-              onUserClick={(id) => setProfileUserId(id)}
-              users={MOCK_USERS}
-              trades={MOCK_TRADES}
-              reports={MOCK_REPORTS}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 유저 프로필 플로팅 패널 (사이드 패널 위 z-[70]) */}
-      {profileUserId !== null && (
-        <UserProfileFloat
-          userId={profileUserId}
-          onClose={() => setProfileUserId(null)}
-        />
-      )}
     </div>
   )
 }
