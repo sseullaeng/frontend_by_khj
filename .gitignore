@@ -2,3 +2,7 @@ node_modules
 
 # IDE
 .idea/
+
+# Build output (Vite)
+dist/
+*.tsbuildinfo
