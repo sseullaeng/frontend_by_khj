@@ -1,3 +1,7 @@
+// 고객센터 — 백엔드 hook 연동 (라운드7)
+//
+// 사용자: FAQ/QNA 조회 + 1:1 문의 작성/내 목록
+// 관리자: FAQ/QNA CRUD + 전체 문의 목록 (상세는 /admin/support/{id})
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -5,12 +9,26 @@ import {
   ChevronDown, ChevronUp, Phone, Mail, PenLine,
   Trash2, CheckCircle2, Clock, AlertCircle, X, Plus, ImageIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/features/auth/store'
 import {
-  useSupportStore,
-  type InquiryStatus,
-  type SupportPost,
-} from '@/shared/store/supportStore'
+  useAdminInquiries,
+  useCreateInquiry,
+  useCreateSupportPost,
+  useDeleteSupportPost,
+  useMyInquiries,
+  useSupportPosts,
+  useUpdateSupportPost,
+} from '@/features/support/hooks'
+import type {
+  Inquiry,
+  InquiryCategory,
+  InquiryStatus,
+  SupportPost,
+  SupportPostType,
+} from '@/features/support/types'
+import { uploadImages, validateImageFile } from '@/shared/api/upload'
+import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
 // ── 정적 FAQ 데이터 ─────────────────────────────────────────────────────────
@@ -50,7 +68,19 @@ const faqCategories = [
   },
 ]
 
-/** 카테고리별 FAQ 동적 항목 렌더링 (관리자 등록 FAQ 포함) */
+const STATUS_MAP: Record<InquiryStatus, { label: string; cls: string; icon: React.ReactNode }> = {
+  PENDING:    { label: '접수 완료', cls: 'bg-gray-100 text-gray-600',   icon: <AlertCircle  size={12} /> },
+  PROCESSING: { label: '처리 중',  cls: 'bg-blue-100 text-blue-700',   icon: <Clock        size={12} /> },
+  DONE:       { label: '답변 완료', cls: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={12} /> },
+}
+
+const INQUIRY_CATEGORIES: InquiryCategory[] = ['계정', '거래', '결제', '배송', '기타']
+
+const MAX_INQUIRY_IMAGES = 5  // 백엔드 spec — 1:1 문의 최대 5장
+const MAX_POST_IMAGES = 5
+
+// ── 동적 FAQ 항목 ──────────────────────────────────────────────────────────
+
 function DynamicFaqItem({ post, isAdmin, onEdit, onDelete }: {
   post: SupportPost
   isAdmin: boolean
@@ -67,14 +97,12 @@ function DynamicFaqItem({ post, isAdmin, onEdit, onDelete }: {
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {/* 카테고리 뱃지 */}
             <span className="shrink-0 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
               {post.category}
             </span>
             <p className="font-medium text-gray-900 truncate">{post.question}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {/* 관리자 수정·삭제 버튼 */}
             {isAdmin && (
               <>
                 <button
@@ -97,12 +125,13 @@ function DynamicFaqItem({ post, isAdmin, onEdit, onDelete }: {
       </button>
       {open && (
         <div className="px-6 pb-4">
-          <p className="text-gray-600 leading-relaxed">{post.answer}</p>
-          {/* 첨부 이미지 */}
-          {post.images.length > 0 && (
+          <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{post.answer}</p>
+          {post.imageUrls.length > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-2">
-              {post.images.map((img, i) => (
-                <img key={i} src={img} alt="" className="w-full h-24 object-cover rounded-lg border border-gray-200" />
+              {post.imageUrls.map((img, i) => (
+                <a key={i} href={img} target="_blank" rel="noreferrer">
+                  <img src={img} alt="" className="w-full h-24 object-cover rounded-lg border border-gray-200" />
+                </a>
               ))}
             </div>
           )}
@@ -112,15 +141,8 @@ function DynamicFaqItem({ post, isAdmin, onEdit, onDelete }: {
   )
 }
 
-const STATUS_MAP: Record<InquiryStatus, { label: string; cls: string; icon: React.ReactNode }> = {
-  pending:    { label: '접수 완료', cls: 'bg-gray-100 text-gray-600',   icon: <AlertCircle  size={12} /> },
-  processing: { label: '처리 중',  cls: 'bg-blue-100 text-blue-700',   icon: <Clock        size={12} /> },
-  done:       { label: '답변 완료', cls: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={12} /> },
-}
+// ── 게시글 작성/수정 모달 ──────────────────────────────────────────────────
 
-const INQUIRY_CATEGORIES = ['계정 관련', '거래 관련', '결제 관련', '배송 관련', '기타']
-
-/** FAQ/Q&A 게시글 작성·수정 모달 (관리자 전용) */
 function PostWriteModal({
   existingPost,
   onClose,
@@ -128,51 +150,61 @@ function PostWriteModal({
   existingPost?: SupportPost
   onClose: () => void
 }) {
-  const { addPost, updatePost } = useSupportStore()
+  const create = useCreateSupportPost()
+  const update = useUpdateSupportPost()
+  const submitting = create.isPending || update.isPending
 
-  // 게시 유형 (FAQ | QNA)
-  const [postType, setPostType] = useState<'FAQ' | 'QNA'>(existingPost?.postType ?? 'FAQ')
-  // 카테고리
-  const [category, setCategory] = useState(existingPost?.category ?? '')
-  // 질문
-  const [question, setQuestion] = useState(existingPost?.question ?? '')
-  // 답변
-  const [answer, setAnswer]     = useState(existingPost?.answer ?? '')
-  // 첨부 이미지 (base64 dataURL, 최대 5장)
-  const [images, setImages]     = useState<string[]>(existingPost?.images ?? [])
+  const [postType, setPostType]   = useState<SupportPostType>(existingPost?.postType ?? 'FAQ')
+  const [category, setCategory]   = useState<InquiryCategory | ''>(existingPost?.category ?? '')
+  const [question, setQuestion]   = useState(existingPost?.question ?? '')
+  const [answer,   setAnswer]     = useState(existingPost?.answer ?? '')
+  const [keepUrls, setKeepUrls]   = useState<string[]>(existingPost?.imageUrls ?? [])
+  const [newFiles, setNewFiles]   = useState<File[]>([])
 
-  const POST_CATEGORIES = ['계정', '거래', '결제', '배송', '기타']
+  const totalImages = keepUrls.length + newFiles.length
 
-  /** 이미지 파일 → dataURL 변환 후 상태에 추가 */
   const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files    = Array.from(e.target.files ?? [])
-    const remaining = 5 - images.length
-    const toProcess = files.slice(0, remaining)
-    Promise.all(
-      toProcess.map(f => new Promise<string>(resolve => {
-        const reader = new FileReader()
-        reader.onload = ev => resolve(ev.target?.result as string)
-        reader.readAsDataURL(f)
-      }))
-    ).then(dataUrls => setImages(prev => [...prev, ...dataUrls]))
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
+    const remaining = MAX_POST_IMAGES - totalImages
+    if (remaining <= 0) return
+    const valid: File[] = []
+    for (const f of files.slice(0, remaining)) {
+      const err = validateImageFile(f)
+      if (err) { toast.error(err); continue }
+      valid.push(f)
+    }
+    setNewFiles((prev) => [...prev, ...valid])
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!question.trim() || !answer.trim() || !category) return
-    if (existingPost) {
-      updatePost(existingPost.id, { postType, category, question, answer, images })
-    } else {
-      addPost({ postType, category, question, answer, images })
+    try {
+      const uploadedUrls = newFiles.length > 0
+        ? (await uploadImages('SUPPORT', newFiles)).map((u) => u.getUrl)
+        : []
+      const body = {
+        postType,
+        category,
+        question: question.trim(),
+        answer: answer.trim(),
+        imageUrls: [...keepUrls, ...uploadedUrls],
+      }
+      if (existingPost) {
+        await update.mutateAsync({ id: existingPost.id, body })
+      } else {
+        await create.mutateAsync(body)
+      }
+      onClose()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '저장에 실패했어요.')
     }
-    onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
 
-        {/* 헤더 */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-base font-bold text-gray-900">
             {existingPost ? '게시글 수정' : '게시글 작성'}
@@ -184,11 +216,10 @@ function PostWriteModal({
 
         <div className="p-5 space-y-4">
 
-          {/* 게시 유형 선택 */}
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-2">게시 유형</p>
             <div className="flex gap-2">
-              {(['FAQ', 'QNA'] as const).map(t => (
+              {(['FAQ', 'QNA'] as SupportPostType[]).map(t => (
                 <button
                   key={t}
                   onClick={() => setPostType(t)}
@@ -205,20 +236,18 @@ function PostWriteModal({
             </div>
           </div>
 
-          {/* 카테고리 선택 */}
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-2">카테고리</p>
             <select
               value={category}
-              onChange={e => setCategory(e.target.value)}
+              onChange={e => setCategory(e.target.value as InquiryCategory | '')}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-primary-400 bg-white"
             >
               <option value="">카테고리를 선택해주세요</option>
-              {POST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {INQUIRY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
-          {/* 질문 입력 */}
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-2">질문</p>
             <input
@@ -230,7 +259,6 @@ function PostWriteModal({
             />
           </div>
 
-          {/* 답변 입력 */}
           <div>
             <p className="text-xs font-semibold text-gray-700 mb-2">답변</p>
             <textarea
@@ -242,20 +270,29 @@ function PostWriteModal({
             />
           </div>
 
-          {/* 이미지 첨부 (최대 5장) */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-700">이미지 첨부</p>
-              <p className="text-xs text-gray-400">{images.length}/5</p>
+              <p className="text-xs text-gray-400">{totalImages}/{MAX_POST_IMAGES}</p>
             </div>
-            {/* 이미지 미리보기 그리드 */}
-            {images.length > 0 && (
+            {(keepUrls.length + newFiles.length) > 0 && (
               <div className="grid grid-cols-4 gap-2 mb-2">
-                {images.map((img, i) => (
-                  <div key={i} className="relative">
-                    <img src={img} alt="" className="w-full h-16 object-cover rounded-lg border border-gray-200" />
+                {keepUrls.map((url, i) => (
+                  <div key={`u-${i}`} className="relative">
+                    <img src={url} alt="" className="w-full h-16 object-cover rounded-lg border border-gray-200" />
                     <button
-                      onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
+                      onClick={() => setKeepUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center shadow"
+                    >
+                      <X size={9} />
+                    </button>
+                  </div>
+                ))}
+                {newFiles.map((f, i) => (
+                  <div key={`f-${i}`} className="relative">
+                    <img src={URL.createObjectURL(f)} alt="" className="w-full h-16 object-cover rounded-lg border border-gray-200" />
+                    <button
+                      onClick={() => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
                       className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center shadow"
                     >
                       <X size={9} />
@@ -264,8 +301,7 @@ function PostWriteModal({
                 ))}
               </div>
             )}
-            {/* 이미지 추가 버튼 */}
-            {images.length < 5 && (
+            {totalImages < MAX_POST_IMAGES && (
               <label className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-primary-300 hover:text-primary-500 cursor-pointer transition-colors">
                 <ImageIcon size={14} />
                 이미지 추가
@@ -280,20 +316,20 @@ function PostWriteModal({
             )}
           </div>
 
-          {/* 버튼 */}
           <div className="flex gap-2 pt-1">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+              disabled={submitting}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
             >
               취소
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!question.trim() || !answer.trim() || !category}
+              disabled={!question.trim() || !answer.trim() || !category || submitting}
               className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-200 text-white text-sm font-semibold rounded-xl transition-colors"
             >
-              {existingPost ? '수정' : '등록'}
+              {submitting ? '저장 중...' : existingPost ? '수정' : '등록'}
             </button>
           </div>
         </div>
@@ -309,30 +345,43 @@ export default function SupportPage() {
   const currentUser  = useAuthStore((s) => s.user)
   const isAdmin      = currentUser?.role === 'ADMIN'
 
-  const { inquiries, posts, addInquiry, deletePost } = useSupportStore()
+  // 게시글 (FAQ + QNA 따로 fetch)
+  const { data: faqPage } = useSupportPosts({ type: 'FAQ', page: 0, size: 50 })
+  const { data: qnaPage } = useSupportPosts({ type: 'QNA', page: 0, size: 50 })
+  const faqPosts = faqPage?.content ?? []
+  const qnaPosts = qnaPage?.content ?? []
+  const allPosts = [...faqPosts, ...qnaPosts]
+
+  // 문의 — 관리자 전체 / 일반 본인
+  const { data: adminPage } = useAdminInquiries({ page: 0, size: 50 })
+  const { data: myPage }    = useMyInquiries({ page: 0, size: 50 })
+  const adminInquiries = isAdmin ? (adminPage?.content ?? []) : []
+  const myInquiries    = !isAdmin ? (myPage?.content ?? []) : []
+
+  const createInquiry = useCreateInquiry()
+  const deletePost    = useDeleteSupportPost()
 
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null)
-  const [searchTerm,       setSearchTerm]        = useState('')
-  const [selectedTab,      setSelectedTab]        = useState<'faq' | 'inquiry'>('faq')
+  const [searchTerm,       setSearchTerm]       = useState('')
+  const [selectedTab,      setSelectedTab]      = useState<'faq' | 'inquiry'>('faq')
 
-  // 관리자 — 게시글 작성/수정 모달 상태
+  // 관리자 — 게시글 작성/수정 모달
   const [postWriteOpen, setPostWriteOpen] = useState(false)
   const [editingPost,   setEditingPost]   = useState<SupportPost | null>(null)
 
-  // 일반 유저 — 문의 폼 상태
-  const [inquiryCategory, setInquiryCategory] = useState('')
+  // 일반 유저 — 문의 폼
+  const [inquiryCategory, setInquiryCategory] = useState<InquiryCategory | ''>('')
   const [inquiryTitle,    setInquiryTitle]    = useState('')
   const [inquiryContent,  setInquiryContent]  = useState('')
   const [inquiryEmail,    setInquiryEmail]    = useState(currentUser?.email ?? '')
-  const [inquiryImages,   setInquiryImages]   = useState<string[]>([])
+  const [inquiryFiles,    setInquiryFiles]    = useState<File[]>([])
   const [submitted,       setSubmitted]       = useState(false)
 
   const toggleCategory = (id: string) => {
     setExpandedCategory(expandedCategory === id ? null : id)
     setExpandedQuestion(null)
   }
-
   const toggleQuestion = (index: number) =>
     setExpandedQuestion(expandedQuestion === index ? null : index)
 
@@ -347,47 +396,44 @@ export default function SupportPage() {
     }))
     .filter((cat) => cat.questions.length > 0)
 
-  /** 첨부 이미지 파일 → dataURL 변환 (최대 10장) */
   const handleInquiryImages = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files     = Array.from(e.target.files ?? [])
-    const remaining = 10 - inquiryImages.length
-    const toProcess = files.slice(0, remaining)
-    Promise.all(
-      toProcess.map(f => new Promise<string>(resolve => {
-        const reader = new FileReader()
-        reader.onload = ev => resolve(ev.target?.result as string)
-        reader.readAsDataURL(f)
-      }))
-    ).then(dataUrls => setInquiryImages(prev => [...prev, ...dataUrls]))
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
+    const remaining = MAX_INQUIRY_IMAGES - inquiryFiles.length
+    if (remaining <= 0) return
+    const valid: File[] = []
+    for (const f of files.slice(0, remaining)) {
+      const err = validateImageFile(f)
+      if (err) { toast.error(err); continue }
+      valid.push(f)
+    }
+    setInquiryFiles((prev) => [...prev, ...valid])
   }
 
-  /** 일반 유저 문의 제출 */
-  const handleInquirySubmit = () => {
+  const handleInquirySubmit = async () => {
     if (!inquiryTitle.trim() || !inquiryContent.trim() || !inquiryCategory || !inquiryEmail.trim()) return
-    addInquiry({
-      userId:   currentUser?.id ?? 0,
-      userName: currentUser?.nickname ?? '익명',
-      category: inquiryCategory,
-      title:    inquiryTitle,
-      content:  inquiryContent,
-      email:    inquiryEmail,
-      images:   inquiryImages,
-    })
-    setSubmitted(true)
-    setInquiryTitle(''); setInquiryContent(''); setInquiryCategory(''); setInquiryEmail('')
-    setInquiryImages([])
+    try {
+      const imageUrls = inquiryFiles.length > 0
+        ? (await uploadImages('SUPPORT', inquiryFiles)).map((u) => u.getUrl)
+        : []
+      await createInquiry.mutateAsync({
+        category: inquiryCategory,
+        title: inquiryTitle.trim(),
+        content: inquiryContent.trim(),
+        email: inquiryEmail.trim(),
+        imageUrls,
+      })
+      setSubmitted(true)
+      setInquiryTitle(''); setInquiryContent(''); setInquiryCategory(''); setInquiryFiles([])
+      // email 은 다음 문의도 같은 거 쓸 가능성 → 유지
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '제출에 실패했어요.')
+    }
   }
-
-  // 내 문의 목록 (일반 유저)
-  const myInquiries = inquiries.filter((i) => i.userId === currentUser?.id)
-
-  // 관리자 게시글: FAQ / QNA 분류
-  const faqPosts = posts.filter(p => p.postType === 'FAQ')
-  const qnaPosts = posts.filter(p => p.postType === 'QNA')
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -453,7 +499,7 @@ export default function SupportPage() {
             }`}
           >
             <MessageCircle size={20} />
-            {isAdmin ? `문의 관리 (${inquiries.length})` : '1:1 상담'}
+            {isAdmin ? `문의 관리 (${adminInquiries.length})` : '1:1 상담'}
           </button>
         </div>
       </div>
@@ -463,7 +509,7 @@ export default function SupportPage() {
         {/* ── FAQ / Q&A 탭 ── */}
         {selectedTab === 'faq' && (
           <>
-            {/* 관리자 — 게시글 관리 패널 */}
+            {/* 관리자 — 게시글 관리 */}
             {isAdmin && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -476,58 +522,53 @@ export default function SupportPage() {
                     게시글 추가
                   </button>
                 </div>
-                {posts.length === 0 && (
+                {allPosts.length === 0 && (
                   <p className="px-6 py-8 text-sm text-gray-400 text-center">등록된 게시글이 없어요</p>
                 )}
-                {/* 전체 게시글 목록 (관리자 편집 가능) */}
-                {posts.length > 0 && (
+                {faqPosts.length > 0 && (
                   <div>
-                    {faqPosts.length > 0 && (
-                      <div>
-                        <p className="px-6 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border-b border-gray-100">
-                          자주하는 질문 ({faqPosts.length})
-                        </p>
-                        {faqPosts.map(post => (
-                          <DynamicFaqItem
-                            key={post.id}
-                            post={post}
-                            isAdmin
-                            onEdit={() => { setEditingPost(post); setPostWriteOpen(true) }}
-                            onDelete={() => deletePost(post.id)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {qnaPosts.length > 0 && (
-                      <div className="border-t border-gray-100">
-                        <p className="px-6 py-2 text-xs font-semibold text-green-600 bg-green-50 border-b border-gray-100">
-                          Q&A ({qnaPosts.length})
-                        </p>
-                        {qnaPosts.map(post => (
-                          <DynamicFaqItem
-                            key={post.id}
-                            post={post}
-                            isAdmin
-                            onEdit={() => { setEditingPost(post); setPostWriteOpen(true) }}
-                            onDelete={() => deletePost(post.id)}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    <p className="px-6 py-2 text-xs font-semibold text-blue-600 bg-blue-50 border-b border-gray-100">
+                      자주하는 질문 ({faqPosts.length})
+                    </p>
+                    {faqPosts.map((post) => (
+                      <DynamicFaqItem
+                        key={post.id}
+                        post={post}
+                        isAdmin
+                        onEdit={() => { setEditingPost(post); setPostWriteOpen(true) }}
+                        onDelete={() => deletePost.mutate(post.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {qnaPosts.length > 0 && (
+                  <div className="border-t border-gray-100">
+                    <p className="px-6 py-2 text-xs font-semibold text-green-600 bg-green-50 border-b border-gray-100">
+                      Q&A ({qnaPosts.length})
+                    </p>
+                    {qnaPosts.map((post) => (
+                      <DynamicFaqItem
+                        key={post.id}
+                        post={post}
+                        isAdmin
+                        onEdit={() => { setEditingPost(post); setPostWriteOpen(true) }}
+                        onDelete={() => deletePost.mutate(post.id)}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
-            {/* 관리자 등록 FAQ/Q&A (일반 유저 보기) */}
-            {!isAdmin && posts.length > 0 && (
+            {/* 일반 유저 — 백엔드 등록 FAQ/Q&A */}
+            {!isAdmin && allPosts.length > 0 && (
               <div className="space-y-4">
                 {faqPosts.length > 0 && (
                   <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100">
                       <h2 className="text-base font-bold text-gray-900">자주하는 질문</h2>
                     </div>
-                    {faqPosts.map(post => (
+                    {faqPosts.map((post) => (
                       <DynamicFaqItem
                         key={post.id}
                         post={post}
@@ -543,7 +584,7 @@ export default function SupportPage() {
                     <div className="px-6 py-4 border-b border-gray-100">
                       <h2 className="text-base font-bold text-gray-900">Q&A</h2>
                     </div>
-                    {qnaPosts.map(post => (
+                    {qnaPosts.map((post) => (
                       <DynamicFaqItem
                         key={post.id}
                         post={post}
@@ -629,222 +670,270 @@ export default function SupportPage() {
         {selectedTab === 'inquiry' && (
           <>
             {isAdmin ? (
-              /* ── 관리자 — 전체 문의 목록 (클릭 시 상세 페이지 이동) ── */
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="text-base font-bold text-gray-900">전체 문의 목록</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">클릭하면 상세 페이지에서 처리할 수 있어요</p>
-                </div>
-                {inquiries.length === 0 && (
-                  <p className="px-6 py-8 text-sm text-gray-400 text-center">문의 내역이 없어요</p>
-                )}
-                <ul className="divide-y divide-gray-100">
-                  {inquiries.map((inquiry) => {
-                    const sm = STATUS_MAP[inquiry.status]
-                    return (
-                      <li key={inquiry.id}>
-                        {/* 클릭 시 관리자 문의 상세 페이지로 이동 */}
-                        <button
-                          onClick={() => navigate(`/admin/support/${inquiry.id}`)}
-                          className="w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="text-xs text-gray-400">{inquiry.category}</span>
-                                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', sm.cls)}>
-                                  {sm.icon}
-                                  {sm.label}
-                                </span>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-900 truncate">{inquiry.title}</p>
-                              <p className="text-xs text-gray-500 truncate mt-0.5">{inquiry.content}</p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {inquiry.userName} · {new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}
-                              </p>
-                            </div>
-                            <PenLine size={15} className="text-gray-300 shrink-0 mt-1" />
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
+              <AdminInquiryList inquiries={adminInquiries} navigate={navigate} />
             ) : (
-              /* ── 일반 유저 — 문의 폼 + 내 문의 목록 ── */
               <>
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">1:1 상담 신청</h2>
+                <UserInquiryForm
+                  category={inquiryCategory}
+                  title={inquiryTitle}
+                  content={inquiryContent}
+                  email={inquiryEmail}
+                  files={inquiryFiles}
+                  submitted={submitted}
+                  pending={createInquiry.isPending}
+                  onCategory={setInquiryCategory}
+                  onTitle={setInquiryTitle}
+                  onContent={setInquiryContent}
+                  onEmail={setInquiryEmail}
+                  onFiles={handleInquiryImages}
+                  onRemoveFile={(i) => setInquiryFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                  onSubmit={handleInquirySubmit}
+                  onAgain={() => setSubmitted(false)}
+                />
 
-                  {submitted ? (
-                    <div className="py-8 text-center">
-                      <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
-                      <p className="font-semibold text-gray-900">문의가 접수되었습니다</p>
-                      <p className="text-sm text-gray-500 mt-1">빠른 시일 내에 답변 드리겠습니다.</p>
-                      <button
-                        onClick={() => setSubmitted(false)}
-                        className="mt-4 text-sm text-primary-600 hover:underline"
-                      >
-                        추가 문의하기
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* 문의 유형 */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">문의 유형</label>
-                        <select
-                          value={inquiryCategory}
-                          onChange={(e) => setInquiryCategory(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                        >
-                          <option value="">문의 유형을 선택해주세요</option>
-                          {INQUIRY_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                        </select>
-                      </div>
-
-                      {/* 제목 */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">제목</label>
-                        <input
-                          type="text"
-                          value={inquiryTitle}
-                          onChange={(e) => setInquiryTitle(e.target.value)}
-                          placeholder="문의 제목을 입력해주세요"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                        />
-                      </div>
-
-                      {/* 내용 */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
-                        <textarea
-                          rows={6}
-                          value={inquiryContent}
-                          onChange={(e) => setInquiryContent(e.target.value)}
-                          placeholder="문의 내용을 상세하게 작성해주세요"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
-                        />
-                      </div>
-
-                      {/* 이미지 첨부 (최대 10장) */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-sm font-medium text-gray-700">이미지 첨부</label>
-                          <span className="text-xs text-gray-400">{inquiryImages.length}/10</span>
-                        </div>
-                        {/* 이미지 미리보기 */}
-                        {inquiryImages.length > 0 && (
-                          <div className="grid grid-cols-4 gap-2 mb-2">
-                            {inquiryImages.map((img, i) => (
-                              <div key={i} className="relative">
-                                <img src={img} alt="" className="w-full h-20 object-cover rounded-lg border border-gray-200" />
-                                <button
-                                  type="button"
-                                  onClick={() => setInquiryImages(prev => prev.filter((_, idx) => idx !== i))}
-                                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow"
-                                >
-                                  <X size={11} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {/* 이미지 추가 버튼 */}
-                        {inquiryImages.length < 10 && (
-                          <label className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-primary-300 hover:text-primary-500 cursor-pointer transition-colors">
-                            <Plus size={16} />
-                            사진 추가 ({10 - inquiryImages.length}장 남음)
-                            <input
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleInquiryImages}
-                            />
-                          </label>
-                        )}
-                      </div>
-
-                      {/* 이메일 */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
-                        <input
-                          type="email"
-                          value={inquiryEmail}
-                          onChange={(e) => setInquiryEmail(e.target.value)}
-                          placeholder="답변받을 이메일을 입력해주세요"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                        />
-                      </div>
-
-                      <button
-                        onClick={handleInquirySubmit}
-                        disabled={!inquiryTitle.trim() || !inquiryContent.trim() || !inquiryCategory || !inquiryEmail.trim()}
-                        className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-200 text-white py-3 rounded-lg font-medium transition-colors"
-                      >
-                        상담 신청하기
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* 내 문의 내역 */}
-                {myInquiries.length > 0 && (
-                  <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">내 문의 내역</h3>
-                    <div className="space-y-3">
-                      {myInquiries.map((inquiry) => {
-                        const sm = STATUS_MAP[inquiry.status]
-                        return (
-                          <div key={inquiry.id} className="p-4 border border-gray-100 rounded-lg">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-medium text-gray-900">{inquiry.title}</span>
-                              <span className="text-xs text-gray-500">{new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}</span>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-1">{inquiry.content}</p>
-                            {/* 첨부 이미지 미리보기 */}
-                            {inquiry.images && inquiry.images.length > 0 && (
-                              <div className="flex gap-1.5 mb-2">
-                                {inquiry.images.slice(0, 4).map((img, i) => (
-                                  <img key={i} src={img} alt="" className="w-12 h-12 object-cover rounded-md border border-gray-200" />
-                                ))}
-                                {inquiry.images.length > 4 && (
-                                  <div className="w-12 h-12 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center">
-                                    <span className="text-xs text-gray-500">+{inquiry.images.length - 4}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            <span className={cn('inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full', sm.cls)}>
-                              {sm.icon}
-                              {sm.label}
-                            </span>
-                            {inquiry.adminReply && (
-                              <div className="mt-2 p-2 bg-primary-50 rounded-lg border border-primary-100">
-                                <p className="text-xs font-semibold text-primary-700 mb-0.5">관리자 답변</p>
-                                <p className="text-xs text-primary-800">{inquiry.adminReply}</p>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                {myInquiries.length > 0 && <MyInquiriesList inquiries={myInquiries} />}
               </>
             )}
           </>
         )}
       </div>
 
-      {/* 관리자 — FAQ/Q&A 게시글 작성/수정 모달 */}
+      {/* 게시글 작성/수정 */}
       {postWriteOpen && (
         <PostWriteModal
           existingPost={editingPost ?? undefined}
           onClose={() => { setPostWriteOpen(false); setEditingPost(null) }}
         />
+      )}
+    </div>
+  )
+}
+
+// ── 분리 컴포넌트 ──────────────────────────────────────────────────────────
+
+function AdminInquiryList({ inquiries, navigate }: { inquiries: Inquiry[]; navigate: (to: string) => void }) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100">
+        <h2 className="text-base font-bold text-gray-900">전체 문의 목록</h2>
+        <p className="text-xs text-gray-400 mt-0.5">클릭하면 상세 페이지에서 처리할 수 있어요</p>
+      </div>
+      {inquiries.length === 0 && (
+        <p className="px-6 py-8 text-sm text-gray-400 text-center">문의 내역이 없어요</p>
+      )}
+      <ul className="divide-y divide-gray-100">
+        {inquiries.map((inquiry) => {
+          const sm = STATUS_MAP[inquiry.status]
+          return (
+            <li key={inquiry.id}>
+              <button
+                onClick={() => navigate(`/admin/support/${inquiry.id}`)}
+                className="w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs text-gray-400">{inquiry.category}</span>
+                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', sm.cls)}>
+                        {sm.icon}
+                        {sm.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{inquiry.title}</p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">{inquiry.content}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      사용자 #{inquiry.userId} · {formatKst(inquiry.createdAt, 'yyyy.MM.dd')}
+                    </p>
+                  </div>
+                  <PenLine size={15} className="text-gray-300 shrink-0 mt-1" />
+                </div>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+function MyInquiriesList({ inquiries }: { inquiries: Inquiry[] }) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">내 문의 내역</h3>
+      <div className="space-y-3">
+        {inquiries.map((inquiry) => {
+          const sm = STATUS_MAP[inquiry.status]
+          return (
+            <div key={inquiry.id} className="p-4 border border-gray-100 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-900">{inquiry.title}</span>
+                <span className="text-xs text-gray-500">{formatKst(inquiry.createdAt, 'yyyy.MM.dd')}</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-2 line-clamp-1">{inquiry.content}</p>
+              {inquiry.imageUrls.length > 0 && (
+                <div className="flex gap-1.5 mb-2">
+                  {inquiry.imageUrls.slice(0, 4).map((img, i) => (
+                    <img key={i} src={img} alt="" className="w-12 h-12 object-cover rounded-md border border-gray-200" />
+                  ))}
+                  {inquiry.imageUrls.length > 4 && (
+                    <div className="w-12 h-12 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center">
+                      <span className="text-xs text-gray-500">+{inquiry.imageUrls.length - 4}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <span className={cn('inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full', sm.cls)}>
+                {sm.icon}
+                {sm.label}
+              </span>
+              {inquiry.adminReply && (
+                <div className="mt-2 p-2 bg-primary-50 rounded-lg border border-primary-100">
+                  <p className="text-xs font-semibold text-primary-700 mb-0.5">관리자 답변</p>
+                  <p className="text-xs text-primary-800 whitespace-pre-wrap">{inquiry.adminReply}</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface UserInquiryFormProps {
+  category: InquiryCategory | ''
+  title: string
+  content: string
+  email: string
+  files: File[]
+  submitted: boolean
+  pending: boolean
+  onCategory: (v: InquiryCategory | '') => void
+  onTitle: (v: string) => void
+  onContent: (v: string) => void
+  onEmail: (v: string) => void
+  onFiles: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onRemoveFile: (index: number) => void
+  onSubmit: () => void
+  onAgain: () => void
+}
+
+function UserInquiryForm(props: UserInquiryFormProps) {
+  const {
+    category, title, content, email, files, submitted, pending,
+    onCategory, onTitle, onContent, onEmail, onFiles, onRemoveFile, onSubmit, onAgain,
+  } = props
+
+  const canSubmit = title.trim() && content.trim() && category && email.trim() && !pending
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">1:1 상담 신청</h2>
+
+      {submitted ? (
+        <div className="py-8 text-center">
+          <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
+          <p className="font-semibold text-gray-900">문의가 접수되었습니다</p>
+          <p className="text-sm text-gray-500 mt-1">빠른 시일 내에 답변 드리겠습니다.</p>
+          <button
+            onClick={onAgain}
+            className="mt-4 text-sm text-primary-600 hover:underline"
+          >
+            추가 문의하기
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">문의 유형</label>
+            <select
+              value={category}
+              onChange={(e) => onCategory(e.target.value as InquiryCategory | '')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+            >
+              <option value="">문의 유형을 선택해주세요</option>
+              {INQUIRY_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">제목</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => onTitle(e.target.value)}
+              placeholder="문의 제목을 입력해주세요"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
+            <textarea
+              rows={6}
+              value={content}
+              onChange={(e) => onContent(e.target.value)}
+              placeholder="문의 내용을 상세하게 작성해주세요"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">이미지 첨부</label>
+              <span className="text-xs text-gray-400">{files.length}/{MAX_INQUIRY_IMAGES}</span>
+            </div>
+            {files.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {files.map((f, i) => (
+                  <div key={i} className="relative">
+                    <img src={URL.createObjectURL(f)} alt="" className="w-full h-20 object-cover rounded-lg border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFile(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {files.length < MAX_INQUIRY_IMAGES && (
+              <label className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-primary-300 hover:text-primary-500 cursor-pointer transition-colors">
+                <Plus size={16} />
+                사진 추가 ({MAX_INQUIRY_IMAGES - files.length}장 남음)
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFiles}
+                />
+              </label>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => onEmail(e.target.value)}
+              placeholder="답변받을 이메일을 입력해주세요"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+            />
+          </div>
+
+          <button
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-gray-200 text-white py-3 rounded-lg font-medium transition-colors"
+          >
+            {pending ? '제출 중...' : '상담 신청하기'}
+          </button>
+        </div>
       )}
     </div>
   )
