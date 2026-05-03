@@ -46,24 +46,6 @@ export const ADMIN_STATUS_LABEL: Record<AdminUserStatus, string> = {
 /** 정지 기간 선택 옵션 (일) */
 const SUSPEND_OPTIONS = [3, 7, 30, 100]
 
-/** 전체 목업 회원 데이터 */
-export const MOCK_ADMIN_USERS: AdminUser[] = [
-  { id: 1,  nickname: '테스트유저', email: 'test@sseulang.kr',  memberId: 'user_001', signupPath: '이메일', joinedAt: '2026-05-02', status: 'ACTIVE',    trustScore: 80, tradeCount: 12, reportCount: 0 },
-  { id: 2,  nickname: '홍길동',     email: 'hong@example.com',  memberId: 'user_002', signupPath: '카카오', joinedAt: '2026-05-02', status: 'ACTIVE',    trustScore: 72, tradeCount: 7,  reportCount: 1 },
-  { id: 3,  nickname: '김영희',     email: 'kim@example.com',   memberId: 'user_003', signupPath: '네이버', joinedAt: '2026-05-01', status: 'SUSPENDED', trustScore: 40, tradeCount: 3,  reportCount: 5, suspendedAt: '2026-05-01', suspendDays: 7 },
-  { id: 4,  nickname: '이철수',     email: 'lee@example.com',   memberId: 'user_004', signupPath: '이메일', joinedAt: '2026-04-30', status: 'ACTIVE',    trustScore: 90, tradeCount: 25, reportCount: 0 },
-  { id: 5,  nickname: '박민준',     email: 'park@example.com',  memberId: 'user_005', signupPath: '카카오', joinedAt: '2026-04-29', status: 'WITHDRAWN', trustScore: 0,  tradeCount: 2,  reportCount: 3 },
-  { id: 6,  nickname: '최수진',     email: 'choi@example.com',  memberId: 'user_006', signupPath: '이메일', joinedAt: '2026-04-28', status: 'ACTIVE',    trustScore: 65, tradeCount: 9,  reportCount: 0 },
-  { id: 7,  nickname: '정우성',     email: 'jung@example.com',  memberId: 'user_007', signupPath: '네이버', joinedAt: '2026-04-28', status: 'ACTIVE',    trustScore: 55, tradeCount: 4,  reportCount: 2 },
-  { id: 8,  nickname: '강동원',     email: 'kang@example.com',  memberId: 'user_008', signupPath: '카카오', joinedAt: '2026-04-27', status: 'SUSPENDED', trustScore: 30, tradeCount: 1,  reportCount: 8, suspendedAt: '2026-04-30', suspendDays: 30 },
-  { id: 9,  nickname: '손예진',     email: 'son@example.com',   memberId: 'user_009', signupPath: '이메일', joinedAt: '2026-04-27', status: 'ACTIVE',    trustScore: 95, tradeCount: 31, reportCount: 0 },
-  { id: 10, nickname: '유재석',     email: 'yoo@example.com',   memberId: 'user_010', signupPath: '카카오', joinedAt: '2026-04-26', status: 'ACTIVE',    trustScore: 88, tradeCount: 18, reportCount: 0 },
-  { id: 11, nickname: '신동엽',     email: 'shin@example.com',  memberId: 'user_011', signupPath: '이메일', joinedAt: '2026-04-26', status: 'WITHDRAWN', trustScore: 0,  tradeCount: 0,  reportCount: 1 },
-  { id: 12, nickname: '이미래',     email: 'imi@example.com',   memberId: 'user_012', signupPath: '카카오', joinedAt: '2026-04-25', status: 'DORMANT',   trustScore: 60, tradeCount: 5,  reportCount: 0 },
-  { id: 13, nickname: '박지훈',     email: 'pjh@example.com',   memberId: 'user_013', signupPath: '이메일', joinedAt: '2026-04-24', status: 'DORMANT',   trustScore: 45, tradeCount: 2,  reportCount: 0 },
-  { id: 14, nickname: '조은별',     email: 'jeb@example.com',   memberId: 'user_014', signupPath: '네이버', joinedAt: '2026-04-23', status: 'DORMANT',   trustScore: 70, tradeCount: 8,  reportCount: 0 },
-]
-
 // ─── 컴포넌트 Props ────────────────────────────────────────────────────────
 
 type UserTab = AdminUserStatus | 'ALL' | 'REPORTED'
