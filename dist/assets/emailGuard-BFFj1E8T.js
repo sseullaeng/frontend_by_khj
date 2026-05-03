@@ -1,0 +1,1 @@
+import{h as t,a as u}from"./index-Bn3gy7yO.js";function f(){const r=t(e=>e.user),i=(r==null?void 0:r.emailVerified)===!0;return{isVerified:i,requireVerified:e=>{if(!r){u.error("로그인이 필요해요.");return}if(!i){u.error("이메일 인증이 필요한 기능이에요. 가입 시 받은 인증 메일을 확인해 주세요.");return}e()}}}export{f as u};

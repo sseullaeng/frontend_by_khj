@@ -1,0 +1,1 @@
+import{j as s}from"./index-Bn3gy7yO.js";function e(){return s.jsxs("div",{className:"p-4",children:[s.jsx("h1",{className:"text-xl font-bold mb-4",children:"출금 승인"}),s.jsx("p",{className:"text-gray-400 text-sm",children:"구현 예정"})]})}export{e as default};
