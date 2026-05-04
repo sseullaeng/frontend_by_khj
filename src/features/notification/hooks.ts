@@ -75,19 +75,12 @@ export function useMarkRead() {
 }
 
 /**
- * 모두 읽음 — 백엔드 endpoint 없음. 미읽음 개별 markRead 병렬 호출.
- * (대량이면 미효율. 추후 백엔드 read-all endpoint 추가되면 교체)
+ * 모두 읽음 — 라운드9: 백엔드 PATCH /api/v1/notifications/read-all
  */
 export function useMarkAllRead() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const data = qc.getQueryData<InfiniteData<PageResponse<Notification>>>(
-        notificationKeys.list(),
-      )
-      const unread = data?.pages.flatMap((p) => p.content).filter((n) => !n.read) ?? []
-      await Promise.allSettled(unread.map((n) => notificationApi.markRead(n.id)))
-    },
+    mutationFn: () => notificationApi.markAllRead().then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: notificationKeys.list() })
     },

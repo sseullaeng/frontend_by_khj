@@ -14,6 +14,9 @@ export interface AdminLoginRequest {
 }
 
 // ── User 관리 (§11.2) ─────────────────────────────────────────────────────
+// 라운드9 — 백엔드 응답 enriched
+export type AdminUserStatusBE = 'ACTIVE' | 'DORMANT' | 'SUSPENDED' | 'WITHDRAWN'
+
 export interface AdminUser {
   id: number
   email: string
@@ -26,6 +29,15 @@ export interface AdminUser {
   reviewCount: number
   pointBalance: number
   createdAt: string
+  // 라운드9 enriched
+  status: AdminUserStatusBE
+  tradeCount: number
+  reportCount: number
+  dormant: boolean
+  suspendedAt: string | null
+  suspendedUntil: string | null
+  suspendDays: number | null
+  lastLoginAt: string | null
 }
 
 // ── Banner (§10.8 + §11.3) ────────────────────────────────────────────────
@@ -52,7 +64,8 @@ export interface BannerUpsertRequest {
 }
 
 // ── Notice (§10.9 + §11.4) ────────────────────────────────────────────────
-export type NoticeType = '공지' | '이벤트'
+// 라운드9: 백엔드 NoticeType 에 '새소식' 추가됨
+export type NoticeType = '공지' | '이벤트' | '새소식'
 
 export interface Notice {
   id: number

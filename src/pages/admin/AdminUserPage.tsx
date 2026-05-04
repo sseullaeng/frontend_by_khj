@@ -1,5 +1,4 @@
-// 관리자 전체 회원 관리 페이지 — 백엔드 hook 연동
-// 검색은 클라이언트 필터 (백엔드 검색 파라미터 합의 시 서버 쿼리로 교체).
+// 관리자 전체 회원 — 라운드9: 서버 쿼리 검색 (keyword)
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Search, ChevronLeft, X } from 'lucide-react'
@@ -12,22 +11,18 @@ export default function AdminUserPage() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
 
-  const { data, isLoading } = useAdminUsers({ page: 0, size: 200 })
+  // 백엔드 keyword 서버 쿼리
+  const { data, isLoading } = useAdminUsers({
+    keyword: query.trim() || undefined,
+    page: 0,
+    size: 50,
+  })
   const users = useMemo(() => (data?.content ?? []).map(toPanelUser), [data])
-
-  // 닉네임·이메일 검색
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter((u) =>
-      u.nickname.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
-    )
-  }, [users, query])
+  const total = data?.totalElements ?? 0
 
   return (
     <div className="pb-10">
 
-      {/* 뒤로가기 + 페이지 제목 */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -40,13 +35,12 @@ export default function AdminUserPage() {
           <Users size={20} className="text-gray-500" />
           <h1 className="text-lg font-bold text-gray-900">전체 회원</h1>
         </div>
-        <span className="text-sm text-gray-400 ml-auto">총 {users.length}명</span>
+        <span className="text-sm text-gray-400 ml-auto">총 {total}명</span>
       </div>
 
-      {/* 요약 카드 3개 */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: '전체',     value: users.length,                                         cls: 'text-gray-900' },
+          { label: '전체',     value: total,                                                cls: 'text-gray-900' },
           { label: '활동정지', value: users.filter((u) => u.status === 'SUSPENDED').length, cls: 'text-amber-600' },
           { label: '탈퇴',     value: users.filter((u) => u.status === 'WITHDRAWN').length, cls: 'text-gray-400' },
         ].map((s) => (
@@ -57,7 +51,6 @@ export default function AdminUserPage() {
         ))}
       </div>
 
-      {/* 검색 */}
       <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -77,11 +70,10 @@ export default function AdminUserPage() {
         )}
       </div>
 
-      {/* 회원 목록 */}
       {isLoading ? (
         <p className="py-12 text-center text-sm text-gray-400">불러오는 중...</p>
       ) : (
-        <AdminUserListPanel users={filtered} />
+        <AdminUserListPanel users={users} />
       )}
     </div>
   )

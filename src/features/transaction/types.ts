@@ -15,6 +15,8 @@ export interface Transaction {
   sellerNickname: string
   price: number
   status: TransactionStatus
+  // 라운드9: 백엔드 응답 필드명 'tradeType' (이전엔 'itemType' 으로 잘못 가정)
+  tradeType?: '판매' | '대여' | '나눔'
   createdAt: string
   completedAt: string | null
 }

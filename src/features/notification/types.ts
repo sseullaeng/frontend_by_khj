@@ -3,13 +3,17 @@
 // ⚠️ id 는 MongoDB ObjectId hex string (24자), Long 아님
 // ⚠️ createdAt 은 Instant (UTC offset 포함)
 
-// 알림 타입 (영문 enum)
+// 알림 타입 (영문 enum) — 라운드9 백엔드는 한글 enum, api.ts 에서 매핑
+//   백엔드: 메시지/거래/리뷰/공지/시스템
+//   프론트: MESSAGE/TRANSACTION/REVIEW/NOTICE/SYSTEM (+ 기존 CHAT/DELIVERY/POINT 호환)
 export type NotificationType =
   | 'CHAT'
+  | 'MESSAGE'
   | 'TRANSACTION'
   | 'DELIVERY'
   | 'REVIEW'
   | 'POINT'
+  | 'NOTICE'
   | 'SYSTEM'
 
 // 클라이언트 라우팅 키

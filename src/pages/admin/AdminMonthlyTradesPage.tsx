@@ -42,6 +42,13 @@ const STATUS_CLS: Record<TransactionStatus, string> = {
   CANCELLED: 'bg-red-100 text-red-600',
 }
 
+// 라운드9: 백엔드 응답 tradeType (한글) → 뱃지 색상
+const TRADE_TYPE_CLS: Record<BackendType, string> = {
+  '판매': 'bg-orange-100 text-orange-700',
+  '대여': 'bg-blue-100 text-blue-700',
+  '나눔': 'bg-green-100 text-green-700',
+}
+
 // 거래 응답에 type 필드가 별도로 안 와서 프론트에서 합리적 fallback — 가격이 0 이면 나눔, rentalUnit/period 가 있으면 대여, 그 외 판매
 // 실제 spec 으로 합의되면 이 추정 제거 (TODO).
 
@@ -74,10 +81,9 @@ export default function AdminMonthlyTradesPage() {
   const [statusDropOpen, setStatusDropOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
 
-  // keyword 는 숫자만 (백엔드 spec)
+  // 라운드9 PR #83: keyword 가 숫자면 ID 정확 매칭, 비숫자면 닉네임/이메일 LIKE
   const onKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value.replace(/[^0-9]/g, '')
-    setKeyword(v)
+    setKeyword(e.target.value)
   }
 
   const params = useMemo(() => ({
@@ -139,14 +145,12 @@ export default function AdminMonthlyTradesPage() {
       </div>
 
       {/* 거래/물품 ID 검색 */}
-      <div className="relative mb-4">
+      <div className="relative mb-1">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
-          inputMode="numeric"
-          pattern="[0-9]*"
           value={keyword}
           onChange={onKeywordChange}
-          placeholder="거래 ID 또는 물품 ID (숫자만)"
+          placeholder="거래/물품 ID 또는 회원 (홍길동, user@example.com, 12345)"
           className="w-full pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
         />
         {keyword && (
@@ -158,6 +162,9 @@ export default function AdminMonthlyTradesPage() {
           </button>
         )}
       </div>
+      <p className="text-xs text-gray-400 mb-4 px-1">
+        숫자: 거래/물품 ID 정확 매칭 · 그 외: 닉네임/이메일 검색 (top 200 user)
+      </p>
 
       {/* 유형 탭 */}
       <div className="border-b border-gray-200 mb-4">
@@ -232,6 +239,11 @@ export default function AdminMonthlyTradesPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    {trade.tradeType && (
+                      <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TRADE_TYPE_CLS[trade.tradeType])}>
+                        {trade.tradeType}
+                      </span>
+                    )}
                     <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[trade.status])}>
                       {TRANSACTION_STATUS_LABEL[trade.status]}
                     </span>
