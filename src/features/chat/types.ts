@@ -14,6 +14,7 @@ export interface ChatRoom {
   opponentId: number
   opponentNickname: string
   opponentProfileImage: string | null
+  isSeller: boolean   // 라운드9 — 백엔드 응답에 포함 (본인이 판매자인지)
   myUnread: number
   itemTitle: string
   itemThumbnailUrl: string | null

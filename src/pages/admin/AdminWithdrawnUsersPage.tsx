@@ -1,8 +1,4 @@
-// 관리자 탈퇴 회원 페이지: 탈퇴 처리된 회원 목록 — 백엔드 hook 연동
-//
-// 백엔드 useAdminUsers 가 status 필터 미제공 → 1페이지(size=200) 받아서 클라이언트에서 deleted=true 필터.
-// 추후 백엔드 ?status=WITHDRAWN 또는 ?deleted=true 파라미터 합의 시 서버 쿼리로 교체.
-import { useMemo } from 'react'
+// 관리자 탈퇴 회원 — 라운드9: 서버 status=WITHDRAWN 필터
 import { useNavigate } from 'react-router-dom'
 import { UserX, ChevronLeft } from 'lucide-react'
 import AdminUserListPanel from './components/AdminUserListPanel'
@@ -12,16 +8,16 @@ import { toPanelUser } from './lib/userAdapter'
 export default function AdminWithdrawnUsersPage() {
   const navigate = useNavigate()
 
-  const { data, isLoading } = useAdminUsers({ page: 0, size: 200 })
-  const withdrawnUsers = useMemo(
-    () => (data?.content ?? []).filter((u) => u.deleted).map(toPanelUser),
-    [data],
-  )
+  const { data, isLoading } = useAdminUsers({
+    status: 'WITHDRAWN',
+    page: 0,
+    size: 100,
+  })
+  const withdrawnUsers = (data?.content ?? []).map(toPanelUser)
 
   return (
     <div className="pb-10">
 
-      {/* 뒤로가기 + 페이지 제목 */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -37,7 +33,6 @@ export default function AdminWithdrawnUsersPage() {
         <span className="text-sm text-gray-400 ml-auto">총 {withdrawnUsers.length}명</span>
       </div>
 
-      {/* 안내 배너 */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
         <p className="text-sm text-amber-700 font-medium">복구 가능 안내</p>
         <p className="text-xs text-amber-600 mt-0.5">
@@ -46,7 +41,6 @@ export default function AdminWithdrawnUsersPage() {
         </p>
       </div>
 
-      {/* 탈퇴 회원 목록 */}
       {isLoading ? (
         <p className="py-12 text-center text-sm text-gray-400">불러오는 중...</p>
       ) : withdrawnUsers.length === 0 ? (

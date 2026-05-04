@@ -20,12 +20,24 @@ import type { PageResponse } from '@/shared/types'
 
 // 라운드8 — 관리자 거래 검색 파라미터
 // status / type 은 백엔드 한글 enum: '판매'/'대여'/'나눔', '채팅중'/'예약'/'거래완료'/'취소'
+// 라운드9 — keyword 가 비숫자면 닉네임/이메일 LIKE (PR #83)
 export interface AdminTransactionSearchParams {
   startDate?: string   // ISO LocalDateTime
   endDate?: string
   type?: '판매' | '대여' | '나눔'
   status?: '채팅중' | '예약' | '거래완료' | '취소'
-  keyword?: string     // ⚠️ 숫자만 (transactionId 또는 itemId 정확 매칭)
+  keyword?: string     // 숫자: transactionId/itemId 정확 매칭, 그 외: 닉네임/이메일 LIKE (top 200 user)
+  page?: number
+  size?: number
+}
+
+// 라운드9 — 관리자 회원 검색 파라미터
+import type { AdminUserStatusBE } from './types'
+export interface AdminUserSearchParams {
+  keyword?: string
+  status?: AdminUserStatusBE
+  createdAfter?: string   // YYYY-MM-DD 또는 ISO LocalDateTime
+  createdBefore?: string
   page?: number
   size?: number
 }
@@ -35,9 +47,9 @@ export const adminApi = {
   login: (body: AdminLoginRequest) =>
     api.post<void>('/api/v1/auth/admin/login', body),
 
-  // 11.2 회원
+  // 11.2 회원 (라운드9 — keyword/status/createdAfter/createdBefore 추가)
   users: {
-    list: (params?: { page?: number; size?: number }) =>
+    list: (params?: AdminUserSearchParams) =>
       api.get<PageResponse<AdminUser>>('/api/v1/admin/users', { params }),
     detail: (id: number) =>
       api.get<AdminUser>(`/api/v1/admin/users/${id}`),
@@ -106,5 +118,11 @@ export const adminApi = {
   transactions: {
     list: (params?: AdminTransactionSearchParams) =>
       api.get<PageResponse<Transaction>>('/api/v1/admin/transactions', { params }),
+  },
+
+  // 라운드9 — 전체 알림 발송
+  notifications: {
+    broadcast: (body: { title: string; content: string; targetRole?: string }) =>
+      api.post<{ sent: number }>('/api/v1/admin/notifications/broadcast', body),
   },
 }

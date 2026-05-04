@@ -67,6 +67,7 @@ export interface ItemDetail extends Item {
 export interface ItemFilter {
   q?: string                // 검색 키워드 (백엔드 인식 param)
   categoryId?: number
+  sellerId?: number         // 라운드9 — 특정 판매자 물품
   tradeType?: TradeType
   minPrice?: number
   maxPrice?: number

@@ -13,7 +13,7 @@ import type {
   NoticeUpsertRequest,
 } from './types'
 import type { WithdrawalStatus } from '@/features/payment/types'
-import type { AdminTransactionSearchParams } from './api'
+import type { AdminTransactionSearchParams, AdminUserSearchParams } from './api'
 import { BusinessError } from '@/shared/types'
 import { getErrorMessage } from '@/shared/lib/errorMessages'
 
@@ -54,10 +54,10 @@ export function useAdminDashboard() {
   })
 }
 
-// ── Users ─────────────────────────────────────────────────────────────────
-export function useAdminUsers(params?: { page?: number; size?: number }) {
+// ── Users (라운드9 — 검색/필터 서버 쿼리) ─────────────────────────────────
+export function useAdminUsers(params?: AdminUserSearchParams) {
   return useQuery({
-    queryKey: adminKeys.users(params?.page, params?.size),
+    queryKey: [...adminKeys.all(), 'users', params ?? {}] as const,
     queryFn: () => adminApi.users.list(params).then((r) => r.data),
   })
 }
@@ -230,5 +230,16 @@ export function useAdminTransactions(params?: AdminTransactionSearchParams) {
   return useQuery({
     queryKey: adminKeys.transactions(params),
     queryFn: () => adminApi.transactions.list(params).then((r) => r.data),
+  })
+}
+
+// ── Broadcast (라운드9 — 관리자 전체 알림 발송) ─────────────────────────
+export function useBroadcastNotification() {
+  return useMutation({
+    mutationFn: (body: { title: string; content: string; targetRole?: string }) =>
+      adminApi.notifications.broadcast(body).then((r) => r.data),
+    onSuccess: (data) => {
+      toast.success(`${data?.sent ?? 0}명에게 발송됐어요.`)
+    },
   })
 }

@@ -22,7 +22,15 @@ import api from './axios'
 //   ITEM    — 물품 이미지 (이메일 인증 필수)
 //   MESSAGE — 채팅 첨부 (이메일 인증 필수)
 //   SUPPORT — 1:1 문의 첨부 (이메일 인증 필수, 라운드7)
-export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT'
+//   NOTICE  — 공지 이미지 (관리자 전용, 라운드9 — admin endpoint)
+export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT' | 'NOTICE'
+
+// 라운드9: NOTICE 는 /api/v1/admin/files/presigned-url, 그 외는 /api/v1/files/presigned-url
+const ADMIN_PURPOSES = new Set<UploadPurpose>(['NOTICE'])
+const presignedPath = (purpose: UploadPurpose) =>
+  ADMIN_PURPOSES.has(purpose)
+    ? '/api/v1/admin/files/presigned-url'
+    : '/api/v1/files/presigned-url'
 
 // 가이드 §7 허용 MIME
 export const ALLOWED_IMAGE_TYPES = [
@@ -88,7 +96,7 @@ export async function fetchPresignedUrls(
       contentLength: f.size,
     })),
   }
-  const res = await api.post<PresignedResponse>('/api/v1/files/presigned-url', body)
+  const res = await api.post<PresignedResponse>(presignedPath(purpose), body)
   return res.data.uploads
 }
 

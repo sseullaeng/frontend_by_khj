@@ -1,35 +1,30 @@
-// 공지/이벤트 글쓰기·수정 페이지 (관리자 전용) — 백엔드 hook 연동
+// 공지/이벤트/새소식 글쓰기·수정 페이지 (관리자 전용) — 라운드9 정합
 //
-// 백엔드 NoticeType 은 '공지' | '이벤트' 두 가지. main 의 'news'(새소식) 옵션은 '공지' 로 매핑.
-// 이미지 첨부 UI 는 보존하되, 현재 백엔드 imageUrl 단일 + NOTICE upload purpose 미합의 → 미전송 (TODO).
+// 백엔드 NoticeType: '공지' | '이벤트' | '새소식' (라운드9 enum 확장).
+// 이미지 첨부: /api/v1/admin/files/presigned 의 NOTICE purpose 사용 (라운드9).
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Bold, Italic, Underline, List, ListOrdered,
   Heading2, Heading3, Link2, X, ImagePlus, ArrowLeft, Eye, EyeOff,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/features/auth/store'
 import { useCreateNotice, useUpdateNotice } from '@/features/admin/hooks'
 import { useNoticeDetail } from '@/features/notice/hooks'
 import type { NoticeType } from '@/features/admin/types'
+import { uploadImages, validateImageFile } from '@/shared/api/upload'
 import { cn } from '@/shared/lib/cn'
 
-// UI 표시용 type — 백엔드에는 '공지' | '이벤트' 만 존재. 'news' 는 '공지' 로 보냄.
-type LocalNoticeType = 'notice' | 'news' | 'event'
-
-const TYPE_MAP: Record<LocalNoticeType, { label: string; cls: string }> = {
-  event:  { label: '이벤트',   cls: 'bg-orange-100 text-orange-700 border-orange-300' },
-  news:   { label: '새소식',   cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
-  notice: { label: '공지사항', cls: 'bg-blue-100 text-blue-700 border-blue-300' },
+const TYPE_MAP: Record<NoticeType, { label: string; cls: string }> = {
+  '이벤트': { label: '이벤트', cls: 'bg-orange-100 text-orange-700 border-orange-300' },
+  '새소식': { label: '새소식', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+  '공지':   { label: '공지사항', cls: 'bg-blue-100 text-blue-700 border-blue-300' },
 }
 
-const toBackendType = (t: LocalNoticeType): NoticeType =>
-  t === 'event' ? '이벤트' : '공지'
+const TYPE_OPTIONS: NoticeType[] = ['공지', '새소식', '이벤트']
 
-const toLocalType = (t: NoticeType): LocalNoticeType =>
-  t === '이벤트' ? 'event' : 'notice'
-
-const MAX_IMAGES = 50
+const MAX_IMAGES = 5  // 백엔드 admin/files/presigned 룰 (한 번에 ≤10건, UX 위해 5장 제한)
 
 export default function NoticeWritePage() {
   const navigate = useNavigate()
@@ -48,9 +43,10 @@ export default function NoticeWritePage() {
   const editorRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [noticeType, setNoticeType] = useState<LocalNoticeType>('notice')
+  const [noticeType, setNoticeType] = useState<NoticeType>('공지')
   const [title, setTitle] = useState('')
-  const [images, setImages] = useState<File[]>([])
+  const [keepUrls, setKeepUrls] = useState<string[]>([])  // 수정 모드 기존 이미지
+  const [newFiles, setNewFiles] = useState<File[]>([])
   const [previewMode, setPreviewMode] = useState(false)
   const [previewHtml, setPreviewHtml] = useState('')
 
@@ -63,9 +59,10 @@ export default function NoticeWritePage() {
   const initialFromServer = useMemo(() => {
     if (!editId || !editTarget) return null
     return {
-      type: toLocalType(editTarget.type),
+      type: editTarget.type,
       title: editTarget.title,
       content: editTarget.content,
+      imageUrl: editTarget.imageUrl,
     }
   }, [editId, editTarget])
 
@@ -73,10 +70,13 @@ export default function NoticeWritePage() {
     if (!initialFromServer) return
     setNoticeType(initialFromServer.type)
     setTitle(initialFromServer.title)
+    setKeepUrls(initialFromServer.imageUrl ? [initialFromServer.imageUrl] : [])
     if (editorRef.current) {
       editorRef.current.innerHTML = initialFromServer.content
     }
   }, [initialFromServer])
+
+  const totalImages = keepUrls.length + newFiles.length
 
   const applyFormat = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value ?? undefined)
@@ -90,12 +90,16 @@ export default function NoticeWritePage() {
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
-    setImages((prev) => [...prev, ...files].slice(0, MAX_IMAGES))
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index))
+    const remaining = MAX_IMAGES - totalImages
+    if (remaining <= 0) return
+    const valid: File[] = []
+    for (const f of files.slice(0, remaining)) {
+      const err = validateImageFile(f)
+      if (err) { toast.error(err); continue }
+      valid.push(f)
+    }
+    setNewFiles((prev) => [...prev, ...valid])
   }
 
   const togglePreview = () => {
@@ -107,14 +111,21 @@ export default function NoticeWritePage() {
     const content = editorRef.current?.innerHTML ?? ''
     if (!title.trim() || content === '<br>' || content === '' || content === '<div><br></div>') return
 
-    // TODO: 이미지 첨부 — 백엔드 NOTICE upload purpose 합의 후 S3 업로드 → imageUrl 전송
-    const body = {
-      type: toBackendType(noticeType),
-      title: title.trim(),
-      content,
-    }
-
     try {
+      // 라운드9: 새 첨부 → /admin/files/presigned NOTICE purpose 로 업로드
+      const uploadedUrls = newFiles.length > 0
+        ? (await uploadImages('NOTICE', newFiles)).map((u) => u.getUrl)
+        : []
+      // 백엔드 NoticeUpsertRequest.imageUrl 은 단일 → 첫 번째 URL 만 (keep 우선)
+      const finalImageUrl = keepUrls[0] ?? uploadedUrls[0]
+
+      const body = {
+        type: noticeType,
+        title: title.trim(),
+        content,
+        imageUrl: finalImageUrl,
+      }
+
       if (editId !== null) {
         await update.mutateAsync({ id: editId, body })
         navigate(`/notices/${editId}`, { replace: true })
@@ -122,8 +133,8 @@ export default function NoticeWritePage() {
         await create.mutateAsync(body)
         navigate('/notices', { replace: true })
       }
-    } catch {
-      // hook 에서 토스트 처리됨
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '저장에 실패했어요.')
     }
   }
 
@@ -147,7 +158,7 @@ export default function NoticeWritePage() {
       <div>
         <label className="block text-xs font-semibold text-gray-600 mb-2">유형</label>
         <div className="flex gap-2">
-          {(['notice', 'news', 'event'] as LocalNoticeType[]).map((t) => (
+          {TYPE_OPTIONS.map((t) => (
             <button
               key={t}
               onClick={() => setNoticeType(t)}
@@ -232,23 +243,23 @@ export default function NoticeWritePage() {
         `}</style>
       </div>
 
-      {/* 이미지 첨부 (TODO: 백엔드 NOTICE upload purpose 합의 후 활성화) */}
+      {/* 이미지 첨부 (라운드9: NOTICE purpose / admin 전용 endpoint) */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-semibold text-gray-600">
             이미지 첨부
-            <span className="ml-1.5 text-[10px] font-normal text-amber-600">백엔드 합의 대기 — 미전송</span>
+            <span className="ml-1.5 text-[10px] font-normal text-gray-400">대표 1장만 저장됨</span>
           </label>
           <span className={cn(
             'text-xs font-medium',
-            images.length >= MAX_IMAGES ? 'text-red-500' : 'text-gray-400'
+            totalImages >= MAX_IMAGES ? 'text-red-500' : 'text-gray-400'
           )}>
-            {images.length} / {MAX_IMAGES}
+            {totalImages} / {MAX_IMAGES}
           </span>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {images.length < MAX_IMAGES && (
+          {totalImages < MAX_IMAGES && (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -259,8 +270,21 @@ export default function NoticeWritePage() {
             </button>
           )}
 
-          {images.map((file, i) => (
-            <div key={i} className="relative w-16 h-16 flex-shrink-0 group">
+          {keepUrls.map((url, i) => (
+            <div key={`u-${i}`} className="relative w-16 h-16 flex-shrink-0 group">
+              <img src={url} alt="" className="w-full h-full object-cover rounded-xl border border-gray-200" />
+              <button
+                type="button"
+                onClick={() => setKeepUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+
+          {newFiles.map((file, i) => (
+            <div key={`f-${i}`} className="relative w-16 h-16 flex-shrink-0 group">
               <img
                 src={URL.createObjectURL(file)}
                 alt={`첨부 ${i + 1}`}
@@ -268,7 +292,7 @@ export default function NoticeWritePage() {
               />
               <button
                 type="button"
-                onClick={() => removeImage(i)}
+                onClick={() => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X size={11} />

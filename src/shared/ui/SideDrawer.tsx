@@ -10,10 +10,10 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages } from '@/features/chat/hooks'
-import { useItemDetail } from '@/features/item/hooks'
 import { useTransactionStore } from '@/features/transaction/store'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
+import { useBroadcastNotification } from '@/features/admin/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
@@ -162,8 +162,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const currentUser = useAuthStore(s => s.user)
   const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
   const { messages, sendMessage } = useChatMessages(roomId)
-  const { data: item } = useItemDetail(room?.itemId ?? 0)
-  const isSeller = !!currentUser && !!item && item.sellerId === currentUser.id
+  // 라운드9: ChatRoom.isSeller 백엔드 응답 사용 (이전엔 useItemDetail 추가 호출)
+  const isSeller = room?.isSeller ?? false
   const { statusByRoom, useEscrowByRoom, setStatus, setUseEscrow } = useTransactionStore()
   const { hasReviewed } = useReviewStore()
   const [text, setText] = useState('')
@@ -663,10 +663,11 @@ function NotificationPanel() {
   const navigate = useNavigate()
   const close = useDrawerStore(s => s.close)
 
-  // 관리자 전체 발송 폼 상태 (백엔드 broadcast endpoint 미정 → 임시 stub)
+  // 관리자 전체 발송 폼 (라운드9 — POST /admin/notifications/broadcast)
   const [broadcastTitle, setBroadcastTitle] = useState('')
   const [broadcastBody,  setBroadcastBody]  = useState('')
   const [sent, setSent] = useState(false)
+  const broadcast = useBroadcastNotification()
 
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
@@ -690,14 +691,21 @@ function NotificationPanel() {
     if (path) navigate(path)
   }
 
-  /** 전체 발송 버튼 클릭 — 실제 API 연동 전까지 더미 처리 */
-  const handleBroadcast = () => {
+  /** 전체 발송 — 라운드9: POST /admin/notifications/broadcast */
+  const handleBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastBody.trim()) return
-    setSent(true)
-    setBroadcastTitle('')
-    setBroadcastBody('')
-    // 3초 후 발송 완료 메시지 숨김
-    window.setTimeout(() => setSent(false), 3000)
+    try {
+      await broadcast.mutateAsync({
+        title: broadcastTitle.trim(),
+        content: broadcastBody.trim(),
+      })
+      setSent(true)
+      setBroadcastTitle('')
+      setBroadcastBody('')
+      window.setTimeout(() => setSent(false), 3000)
+    } catch {
+      // hook 에서 토스트
+    }
   }
 
   return (

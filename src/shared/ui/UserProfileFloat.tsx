@@ -1,18 +1,18 @@
-// 유저 프로필 플로팅 패널 — 백엔드 hook 연동
+// 유저 프로필 플로팅 패널 — 백엔드 hook 연동 (라운드9: 물품 탭 활성화)
 //
 // 데이터 소스:
-//   - 프로필: GET /api/v1/users/{id}/profile (useUserProfile)
-//   - 리뷰:   GET /api/v1/reviews/users/{id} (useUserReviews) — 타인 조회 시 comment=null
-//
-// 미제공:
-//   - 사용자가 등록한 물품 목록: 백엔드 sellerId 필터 미합의 → 빈 안내 (TODO)
+//   - 프로필: GET /api/v1/users/{id}/profile  (useUserProfile)
+//   - 리뷰:   GET /api/v1/reviews/users/{id}  (useUserReviews) — 타인 조회 시 comment=null
+//   - 물품:   GET /api/v1/items?sellerId=    (useItemList — 라운드9)
 //
 // 닉네임만 표시 — 이메일 절대 노출 금지
 import { useState } from 'react'
-import { X, Star } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, Star, Package } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { useUserProfile } from '@/features/user/hooks'
 import { useUserReviews } from '@/features/review/hooks'
+import { useItemList } from '@/features/item/hooks'
 import { formatKst } from '@/shared/lib/date'
 
 interface Props {
@@ -22,10 +22,15 @@ interface Props {
 
 export default function UserProfileFloat({ userId, onClose }: Props) {
   const [tab, setTab] = useState<'items' | 'reviews'>('items')
+  const navigate = useNavigate()
 
   const { data: profile, isLoading: profileLoading } = useUserProfile(userId)
   const { data: reviewsPage } = useUserReviews(userId, { page: 0, size: 20 })
   const reviews = reviewsPage?.content ?? []
+
+  // 라운드9: 판매자 물품 목록 (sellerId 필터)
+  const { data: itemsPage, isLoading: itemsLoading } = useItemList({ sellerId: userId, size: 20 })
+  const items = itemsPage?.pages.flatMap((p) => p.content) ?? []
 
   const trustScore = profile?.trustScore ?? 0
   const trustCls =
@@ -124,12 +129,39 @@ export default function UserProfileFloat({ userId, onClose }: Props) {
             </button>
           </div>
 
-          {/* 물품 목록 — TODO: 백엔드 ItemFilter.sellerId 합의 후 활성화 */}
+          {/* 물품 목록 — 라운드9 활성화 */}
           {tab === 'items' && (
-            <div className="py-12 text-center text-sm text-gray-400 px-5">
-              <p>판매자별 물품 목록은 곧 제공될 예정이에요.</p>
-              <p className="text-xs text-gray-300 mt-1">백엔드 sellerId 필터 합의 대기 중</p>
-            </div>
+            itemsLoading ? (
+              <p className="py-10 text-center text-sm text-gray-400">불러오는 중...</p>
+            ) : items.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray-400">등록된 물품이 없어요</p>
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      onClick={() => { onClose(); navigate(`/items/${item.id}`) }}
+                      className="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                        {item.thumbnailUrl
+                          ? <img src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
+                          : <Package size={18} className="text-gray-300" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{item.tradeType} · {item.status}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {item.tradeType === '나눔'
+                          ? <p className="text-sm font-semibold text-green-600">무료</p>
+                          : <p className="text-sm font-semibold text-gray-900">{item.price.toLocaleString()}원</p>}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
           )}
 
           {/* 리뷰 목록 */}
