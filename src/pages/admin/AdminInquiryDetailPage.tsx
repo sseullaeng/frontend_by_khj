@@ -1,18 +1,25 @@
-// 관리자 문의 상세 페이지: 문의 내용 확인·처리 상태 변경·관리자 답변 작성·삭제
-import { useState } from 'react'
+// 관리자 문의 상세 페이지: 백엔드 hook 연동 (라운드7)
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronUp, ChevronDown,
   Trash2, AlertCircle, Clock, CheckCircle2,
 } from 'lucide-react'
-import { useSupportStore, type InquiryStatus } from '@/shared/store/supportStore'
+import {
+  useAdminInquiries,
+  useAdminInquiryDetail,
+  useDeleteAdminInquiry,
+  useReplyInquiry,
+  useUpdateInquiryStatus,
+} from '@/features/support/hooks'
+import type { InquiryStatus } from '@/features/support/types'
 import { cn } from '@/shared/lib/cn'
+import { formatKst } from '@/shared/lib/date'
 
-/** 처리 상태 메타데이터 */
 const STATUS_MAP: Record<InquiryStatus, { label: string; cls: string; icon: React.ReactNode }> = {
-  pending:    { label: '접수 완료', cls: 'bg-gray-100 text-gray-600',   icon: <AlertCircle  size={12} /> },
-  processing: { label: '처리 중',  cls: 'bg-blue-100 text-blue-700',   icon: <Clock        size={12} /> },
-  done:       { label: '답변 완료', cls: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={12} /> },
+  PENDING:    { label: '접수 완료', cls: 'bg-gray-100 text-gray-600',   icon: <AlertCircle  size={12} /> },
+  PROCESSING: { label: '처리 중',  cls: 'bg-blue-100 text-blue-700',   icon: <Clock        size={12} /> },
+  DONE:       { label: '답변 완료', cls: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={12} /> },
 }
 
 export default function AdminInquiryDetailPage() {
@@ -20,20 +27,36 @@ export default function AdminInquiryDetailPage() {
   const navigate  = useNavigate()
   const inquiryId = parseInt(id ?? '0')
 
-  const { inquiries, updateInquiryStatus, deleteInquiry } = useSupportStore()
+  const { data: inquiry, isLoading } = useAdminInquiryDetail(inquiryId || undefined)
 
-  // 현재·이전·다음 문의
-  const inquiry      = inquiries.find(i => i.id === inquiryId)
-  const currentIndex = inquiries.findIndex(i => i.id === inquiryId)
-  const prevInquiry  = currentIndex > 0 ? inquiries[currentIndex - 1] : null
-  const nextInquiry  = currentIndex < inquiries.length - 1 ? inquiries[currentIndex + 1] : null
+  // 이전/다음 — 첫 페이지(size=20) 기준 인덱스 (페이지네이션 다음 페이지는 해당 안 됨)
+  const { data: listPage } = useAdminInquiries({ page: 0, size: 20 })
+  const list = listPage?.content ?? []
+  const currentIndex = list.findIndex((i) => i.id === inquiryId)
+  const prevInquiry  = currentIndex > 0 ? list[currentIndex - 1] : null
+  const nextInquiry  = currentIndex >= 0 && currentIndex < list.length - 1 ? list[currentIndex + 1] : null
 
-  // 로컬 편집 상태 (저장 전)
-  const [reply,      setReply]      = useState(inquiry?.adminReply ?? '')
-  const [status,     setStatus]     = useState<InquiryStatus>(inquiry?.status ?? 'pending')
+  const replyMut       = useReplyInquiry()
+  const statusMut      = useUpdateInquiryStatus()
+  const deleteMut      = useDeleteAdminInquiry()
+  const submitting     = replyMut.isPending || statusMut.isPending || deleteMut.isPending
+
+  // 로컬 편집 상태 (서버 데이터 도착 시 동기화)
+  const [reply,      setReply]      = useState('')
+  const [status,     setStatus]     = useState<InquiryStatus>('PENDING')
   const [deleteOpen, setDeleteOpen] = useState(false)
 
-  // 문의를 찾지 못한 경우
+  useEffect(() => {
+    if (inquiry) {
+      setReply(inquiry.adminReply ?? '')
+      setStatus(inquiry.status)
+    }
+  }, [inquiry])
+
+  if (isLoading) {
+    return <p className="py-12 text-center text-sm text-gray-400">불러오는 중...</p>
+  }
+
   if (!inquiry) {
     return (
       <div className="py-16 text-center text-gray-400">
@@ -50,22 +73,44 @@ export default function AdminInquiryDetailPage() {
 
   const sm = STATUS_MAP[status]
 
-  /** 수정사항 저장 후 뒤로 이동 */
-  const handleSave = () => {
-    updateInquiryStatus(inquiry.id, status, reply)
-    navigate(-1)
+  /**
+   * 저장 — reply 와 status 변경을 한 번에 적용:
+   *   · reply 변경 → PATCH /reply (status 같이 보냄)
+   *   · reply 변경 없고 status 만 변경 → PATCH /status
+   *   · 답변 없이 DONE 시도 → 백엔드가 INQUIRY_INVALID_STATE 반환
+   */
+  const handleSave = async () => {
+    const replyChanged  = reply !== (inquiry.adminReply ?? '')
+    const statusChanged = status !== inquiry.status
+
+    try {
+      if (replyChanged) {
+        await replyMut.mutateAsync({
+          id: inquiry.id,
+          body: { adminReply: reply, status },
+        })
+      } else if (statusChanged) {
+        await statusMut.mutateAsync({ id: inquiry.id, body: { status } })
+      }
+      navigate(-1)
+    } catch {
+      // hook 에서 토스트 — 머무름
+    }
   }
 
-  /** 문의 삭제 후 고객센터 목록으로 이동 */
-  const handleDelete = () => {
-    deleteInquiry(inquiry.id)
-    navigate('/support', { replace: true })
+  const handleDelete = async () => {
+    try {
+      await deleteMut.mutateAsync(inquiry.id)
+      navigate('/support', { replace: true })
+    } catch {
+      // hook 에서 토스트
+    }
   }
 
   return (
     <div className="pb-10 space-y-4">
 
-      {/* 상단: 뒤로가기 + 제목 + 처리 상태 태그 */}
+      {/* 상단 */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
@@ -75,65 +120,77 @@ export default function AdminInquiryDetailPage() {
           <ChevronLeft size={22} />
         </button>
         <h1 className="text-lg font-bold text-gray-900 flex-1 truncate">문의 상세</h1>
-        {/* 현재 처리 상태 태그 */}
         <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full shrink-0', sm.cls)}>
           {sm.icon}
           {sm.label}
         </span>
       </div>
 
-      {/* 문의 내용 카드 */}
+      {/* 문의 내용 */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2 mb-1 flex-wrap text-xs text-gray-400">
             <span>{inquiry.category}</span>
             <span>·</span>
-            <span>{new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}</span>
+            <span>{formatKst(inquiry.createdAt, 'yyyy.MM.dd HH:mm')}</span>
           </div>
           <h2 className="text-base font-bold text-gray-900">{inquiry.title}</h2>
-          <p className="text-xs text-gray-500 mt-1">{inquiry.userName} · {inquiry.email}</p>
+          <p className="text-xs text-gray-500 mt-1">사용자 #{inquiry.userId} · {inquiry.email}</p>
         </div>
         <div className="px-5 py-4">
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{inquiry.content}</p>
-          {/* 유저가 첨부한 이미지 */}
-          {inquiry.images && inquiry.images.length > 0 && (
+          {inquiry.imageUrls.length > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-2">
-              {inquiry.images.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt={`첨부이미지 ${i + 1}`}
-                  className="w-full h-28 object-cover rounded-lg border border-gray-200"
-                />
+              {inquiry.imageUrls.map((img, i) => (
+                <a key={i} href={img} target="_blank" rel="noreferrer">
+                  <img
+                    src={img}
+                    alt={`첨부이미지 ${i + 1}`}
+                    className="w-full h-28 object-cover rounded-lg border border-gray-200"
+                  />
+                </a>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* 처리 상태 선택 */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4">
-        <p className="text-xs font-semibold text-gray-700 mb-3">처리 상태</p>
-        <div className="flex gap-2 flex-wrap">
-          {(Object.entries(STATUS_MAP) as [InquiryStatus, typeof STATUS_MAP[InquiryStatus]][]).map(([key, val]) => (
-            <button
-              key={key}
-              onClick={() => setStatus(key)}
-              className={cn(
-                'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-colors',
-                status === key
-                  ? val.cls + ' border-current'
-                  : 'border-gray-200 text-gray-400 hover:border-gray-300'
-              )}
-            >
-              {val.icon}
-              {val.label}
-            </button>
-          ))}
+      {/*
+        처리 상태 — 라운드8 백엔드 상태머신:
+          · PENDING 으로의 되돌림은 항상 400 (선택지 제외)
+          · DONE → PROCESSING/PENDING 전이 모두 400 (DONE 일 때 변경 UI 자체 숨김)
+          · 답변 없이 DONE 시도 시 400 (UI 안내)
+      */}
+      {inquiry.status !== 'DONE' && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-gray-700 mb-3">처리 상태</p>
+          <div className="flex gap-2 flex-wrap">
+            {(Object.entries(STATUS_MAP) as [InquiryStatus, typeof STATUS_MAP[InquiryStatus]][])
+              // PENDING 선택지 제외 — 이미 PENDING 인 경우만 표시 의미 있음
+              .filter(([key]) => key !== 'PENDING' || inquiry.status === 'PENDING')
+              .map(([key, val]) => (
+                <button
+                  key={key}
+                  onClick={() => setStatus(key)}
+                  className={cn(
+                    'flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-colors',
+                    status === key
+                      ? val.cls + ' border-current'
+                      : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  )}
+                >
+                  {val.icon}
+                  {val.label}
+                </button>
+              ))}
+          </div>
+          {status === 'DONE' && !reply.trim() && (
+            <p className="text-xs text-amber-600 mt-2">답변 없이 완료로 변경할 수 없어요.</p>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* 관리자 답변 입력 */}
+      {/* 관리자 답변 */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
         <p className="text-xs font-semibold text-gray-700 mb-2">관리자 답변</p>
         <textarea
@@ -145,30 +202,33 @@ export default function AdminInquiryDetailPage() {
         />
       </div>
 
-      {/* 액션 버튼: 삭제 / 취소 / 저장 */}
+      {/* 액션 */}
       <div className="flex gap-2">
         <button
           onClick={() => setDeleteOpen(true)}
-          className="flex items-center gap-1 px-4 py-2.5 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm transition-colors"
+          disabled={submitting}
+          className="flex items-center gap-1 px-4 py-2.5 border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-50 rounded-xl text-sm transition-colors"
         >
           <Trash2 size={14} />
           삭제
         </button>
         <button
           onClick={() => navigate(-1)}
-          className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+          disabled={submitting}
+          className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
         >
           취소
         </button>
         <button
           onClick={handleSave}
-          className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors"
+          disabled={submitting}
+          className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
         >
-          저장
+          {submitting ? '저장 중...' : '저장'}
         </button>
       </div>
 
-      {/* 이전글 / 다음글 + 목록 버튼 (새소식/이벤트 레이아웃과 동일) */}
+      {/* 이전/다음 (1페이지 내) */}
       <div className="flex gap-4 items-center">
         <button
           onClick={() => navigate('/support')}
@@ -178,7 +238,6 @@ export default function AdminInquiryDetailPage() {
         </button>
 
         <div className="flex flex-col gap-2 flex-1">
-          {/* 이전 문의 */}
           {prevInquiry && (
             <button
               onClick={() => navigate(`/admin/support/${prevInquiry.id}`)}
@@ -186,13 +245,11 @@ export default function AdminInquiryDetailPage() {
             >
               <ChevronUp size={14} className="shrink-0" />
               <span className="font-medium text-gray-900 line-clamp-1 flex-1">{prevInquiry.title}</span>
-              {/* 이전 문의 처리 상태 태그 */}
               <span className={cn('ml-auto shrink-0 inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-medium rounded-full', STATUS_MAP[prevInquiry.status].cls)}>
                 {STATUS_MAP[prevInquiry.status].label}
               </span>
             </button>
           )}
-          {/* 다음 문의 */}
           {nextInquiry && (
             <button
               onClick={() => navigate(`/admin/support/${nextInquiry.id}`)}
@@ -200,7 +257,6 @@ export default function AdminInquiryDetailPage() {
             >
               <ChevronDown size={14} className="shrink-0" />
               <span className="font-medium text-gray-900 line-clamp-1 flex-1">{nextInquiry.title}</span>
-              {/* 다음 문의 처리 상태 태그 */}
               <span className={cn('ml-auto shrink-0 inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-medium rounded-full', STATUS_MAP[nextInquiry.status].cls)}>
                 {STATUS_MAP[nextInquiry.status].label}
               </span>
@@ -209,7 +265,7 @@ export default function AdminInquiryDetailPage() {
         </div>
       </div>
 
-      {/* 삭제 확인 모달 */}
+      {/* 삭제 확인 */}
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
@@ -224,7 +280,8 @@ export default function AdminInquiryDetailPage() {
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                disabled={submitting}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
               >
                 삭제
               </button>

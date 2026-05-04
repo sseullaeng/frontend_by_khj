@@ -21,7 +21,8 @@ import api from './axios'
 //   PROFILE — 본인 프로필 (로그인만 OK)
 //   ITEM    — 물품 이미지 (이메일 인증 필수)
 //   MESSAGE — 채팅 첨부 (이메일 인증 필수)
-export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE'
+//   SUPPORT — 1:1 문의 첨부 (이메일 인증 필수, 라운드7)
+export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT'
 
 // 가이드 §7 허용 MIME
 export const ALLOWED_IMAGE_TYPES = [

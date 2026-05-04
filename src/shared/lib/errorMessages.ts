@@ -46,6 +46,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   REVIEW_DUPLICATED:           '이미 작성한 리뷰가 있어요.',
   REVIEW_PERIOD_EXPIRED:       '리뷰 작성 기간(7일)이 지났어요.',
 
+  // ── 고객지원 (라운드7) ────────────────────────────────────
+  INQUIRY_NOT_FOUND:           '문의를 찾을 수 없어요.',
+  INQUIRY_FORBIDDEN:           '본인 문의에서만 가능해요.',
+  INQUIRY_INVALID_STATE:       '답변이 시작된 문의는 변경할 수 없어요.',
+  SUPPORT_POST_NOT_FOUND:      '게시글을 찾을 수 없어요.',
+
   // ── 채팅 / 찜 / 신고 ──────────────────────────────────────
   CHAT_ROOM_NOT_FOUND:         '채팅방을 찾을 수 없어요.',
   CHAT_FORBIDDEN:              '채팅 참여자만 가능해요.',

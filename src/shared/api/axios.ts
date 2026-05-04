@@ -82,7 +82,7 @@ api.interceptors.response.use(
     // 401 + AUTH_TOKEN_EXPIRED 에러 시 토큰 갱신 후 원 요청 재시도 (1회만)
     if (code === 'AUTH_TOKEN_EXPIRED' && !originalConfig._retry) {
       originalConfig._retry = true  // 재시도 플래그 설정
-      
+
       try {
         await refreshOnce()           // 토큰 갱신
         return api(originalConfig)    // 원래 요청 재시도
@@ -90,6 +90,13 @@ api.interceptors.response.use(
         // 토큰 갱신 실패 시 로그아웃 이벤트 발생 (authStore에서 처리)
         window.dispatchEvent(new Event('auth:logout'))
       }
+    }
+
+    // 라운드8: 정지/차단된 사용자 즉시 로그아웃
+    //   AUTH_REFRESH_TOKEN_INVALID — 정지/차단 후 refresh 시도
+    //   USER_BLOCKED — 차단된 사용자가 기존 AT 로 보호 endpoint 진입
+    if (code === 'AUTH_REFRESH_TOKEN_INVALID' || code === 'USER_BLOCKED') {
+      window.dispatchEvent(new Event('auth:logout'))
     }
 
     throw error  // 그 외 에러는 그대로 발생

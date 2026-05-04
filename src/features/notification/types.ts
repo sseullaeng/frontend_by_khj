@@ -20,6 +20,7 @@ export type NotificationLinkType =
   | 'ITEM'
   | 'REVIEW'
   | 'PAYMENT'
+  | 'INQUIRY'        // 라운드8: 고객지원 답변 알림
 
 export interface Notification {
   id: string                              // ⚠️ MongoDB ObjectId hex
