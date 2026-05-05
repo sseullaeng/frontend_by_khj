@@ -26,6 +26,7 @@ import { useEmailGuard } from '@/features/auth/emailGuard'
 import { fromNow, formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui/Button'
+import KakaoMap from '@/shared/ui/KakaoMap'
 import type { DeliveryStatus } from '@/features/delivery/types'
 
 const STATUS_CFG: Record<DeliveryStatus, { color: string; step: number }> = {
@@ -159,27 +160,36 @@ export default function DeliveryTrackPage() {
           </h2>
 
           {liveLocation ? (
-            <div className="space-y-1.5 text-sm">
-              <div className="flex items-start gap-3">
-                <span className="text-gray-500 w-14 shrink-0">좌표</span>
-                <a
-                  href={`https://map.kakao.com/link/map/라이더,${liveLocation.latitude},${liveLocation.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-primary-600 hover:underline"
-                >
-                  {liveLocation.latitude.toFixed(6)}, {liveLocation.longitude.toFixed(6)}
-                </a>
-              </div>
-              {liveLocation.accuracyM != null && (
+            <div className="space-y-3">
+              {/* 카카오맵 — 라이더 마커 + center 자동 panTo */}
+              <KakaoMap
+                center={{ lat: liveLocation.latitude, lng: liveLocation.longitude }}
+                marker={{ lat: liveLocation.latitude, lng: liveLocation.longitude, label: '라이더' }}
+                height="280px"
+              />
+
+              <div className="space-y-1.5 text-sm">
                 <div className="flex items-start gap-3">
-                  <span className="text-gray-500 w-14 shrink-0">정확도</span>
-                  <span className="text-gray-700">±{Math.round(liveLocation.accuracyM)}m</span>
+                  <span className="text-gray-500 w-14 shrink-0">좌표</span>
+                  <a
+                    href={`https://map.kakao.com/link/map/라이더,${liveLocation.latitude},${liveLocation.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary-600 hover:underline"
+                  >
+                    {liveLocation.latitude.toFixed(6)}, {liveLocation.longitude.toFixed(6)}
+                  </a>
                 </div>
-              )}
-              <div className="flex items-start gap-3 text-xs text-gray-400">
-                <span className="w-14 shrink-0">갱신</span>
-                <span>{fromNow(liveLocation.recordedAt)}</span>
+                {liveLocation.accuracyM != null && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-gray-500 w-14 shrink-0">정확도</span>
+                    <span className="text-gray-700">±{Math.round(liveLocation.accuracyM)}m</span>
+                  </div>
+                )}
+                <div className="flex items-start gap-3 text-xs text-gray-400">
+                  <span className="w-14 shrink-0">갱신</span>
+                  <span>{fromNow(liveLocation.recordedAt)}</span>
+                </div>
               </div>
             </div>
           ) : (
