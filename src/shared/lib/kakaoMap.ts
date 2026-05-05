@@ -19,6 +19,11 @@ declare global {
         Size: new (w: number, h: number) => KakaoSize
         Point: new (x: number, y: number) => KakaoPoint
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow
+        services: {
+          Places: new () => KakaoPlaces
+          Geocoder: new () => KakaoGeocoder
+          Status: { OK: string; ZERO_RESULT: string; ERROR: string }
+        }
       }
     }
   }
@@ -41,6 +46,46 @@ export interface KakaoPoint { _opaque?: never }
 export interface KakaoInfoWindow {
   open: (map: KakaoMapInstance, marker: KakaoMarker) => void
   close: () => void
+}
+
+// 카카오 로컬 검색 (services 라이브러리)
+export interface KakaoPlace {
+  id: string
+  place_name: string         // 장소명 또는 도로명/지번
+  address_name: string       // 지번 주소 (예: "서울 종로구 세종로 1-1")
+  road_address_name: string  // 도로명 주소 (없으면 빈 문자열)
+  category_name: string
+  phone: string
+  x: string                  // 경도(lng) — 문자열로 옴
+  y: string                  // 위도(lat)
+}
+export interface KakaoPlaces {
+  keywordSearch: (
+    query: string,
+    callback: (data: KakaoPlace[], status: string) => void,
+    options?: { size?: number },
+  ) => void
+}
+
+export interface KakaoGeocoderResult {
+  address_name: string
+  region_1depth_name: string
+  region_2depth_name: string
+  region_3depth_name: string
+  road_address?: { address_name: string }
+  x: string
+  y: string
+}
+export interface KakaoGeocoder {
+  addressSearch: (
+    query: string,
+    callback: (data: KakaoGeocoderResult[], status: string) => void,
+  ) => void
+  coord2RegionCode: (
+    lng: number,
+    lat: number,
+    callback: (data: KakaoGeocoderResult[], status: string) => void,
+  ) => void
 }
 
 /**
