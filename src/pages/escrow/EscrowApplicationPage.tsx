@@ -1,80 +1,53 @@
-// 에스크로 신청 페이지 컴포넌트: 거래대행 서비스 신청 및 배달비 계산
-import { useState, useCallback, useMemo } from 'react'  // React 훅들
-import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
-import { Upload, X, MapPin, Info, AlertTriangle, Truck, ShieldAlert } from 'lucide-react'  // Lucide 아이콘들
-import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
-import { getAdminConfig } from '@/features/escrow/adminConfig'  // 에스크로 관리자 설정
+// 거래대행 신청서 작성 — 수신자 폼 + Kakao 주소 + 이미지 업로드 + fee 계산
+//
+// 백엔드 spec 5/11:
+//   POST /escrow/applications  — atomic claim (중복 응답 방지)
+//   백엔드가 fee 재계산 후 ±10원 검증 → ESCROW_FEE_MISMATCH
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Upload, X, MapPin, Info, AlertTriangle, Truck, ShieldAlert } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/shared/ui/Button'
+import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
+import type { AddressResult } from '@/shared/ui/KakaoAddressSearch'
+import { uploadImages, validateImageFile } from '@/shared/api/upload'
+import { useCreateEscrowApplication, useEscrowLink } from '@/features/escrow/hooks'
+import { useEscrowFeeSettings } from '@/features/escrow/hooks'
+import type {
+  EscrowApplication,
+  EscrowApplicationCreateRequest,
+  EscrowLink,
+  FragilityKey,
+  VolumeKey,
+  WeightKey,
+} from '@/features/escrow/types'
+import { BusinessError } from '@/shared/types/api'
 
-// 관리자 설정값 가져오기: 배달비 계산 기준
-const ADMIN_CONFIG = getAdminConfig()
+// ── 옵션 (백엔드 fee_settings.multipliers 키와 동일) ─────────────────────
 
-// 무게 옵션: 물품 무게별 배달비 배수 및 차량 타입
 const WEIGHT_OPTIONS = [
-  { value: 'lt1',   label: '1kg 미만',  multiplier: 1.0, isVan: false },  // 1kg 미만: 기본 요금, 오토바이
-  { value: '1to3',  label: '1~3kg',     multiplier: 1.2, isVan: false },  // 1~3kg: 1.2배, 오토바이
-  { value: '3to5',  label: '3~5kg',     multiplier: 1.5, isVan: false },  // 3~5kg: 1.5배, 오토바이
-  { value: '5to10', label: '5~10kg',    multiplier: 2.0, isVan: true  },  // 5~10kg: 2배, 용달차
-  { value: 'gt10',  label: '10kg 이상', multiplier: 2.5, isVan: true  },  // 10kg 이상: 2.5배, 용달차
-] as const
-
-// 부피 옵션: 물품 크기별 배달비 배수 및 차량 타입
+  { value: 'lt1'   as WeightKey, label: '1kg 미만',  isVan: false },
+  { value: '1to3'  as WeightKey, label: '1~3kg',     isVan: false },
+  { value: '3to5'  as WeightKey, label: '3~5kg',     isVan: false },
+  { value: '5to10' as WeightKey, label: '5~10kg',    isVan: true  },
+  { value: 'gt10'  as WeightKey, label: '10kg 이상', isVan: true  },
+]
 const VOLUME_OPTIONS = [
-  { value: 's', label: '소형', sub: '30cm 미만', multiplier: 1.0, isVan: false },  // 소형: 기본 요금, 오토바이
-  { value: 'm', label: '중형', sub: '50cm 미만', multiplier: 1.2, isVan: false },  // 중형: 1.2배, 오토바이
-  { value: 'l', label: '대형', sub: '50cm 이상', multiplier: 1.5, isVan: true  },  // 대형: 1.5배, 용달차
-] as const
-
-// 파손 위험 옵션: 물품 취급 난이도별 배달비 배수 및 색상
+  { value: 's' as VolumeKey, label: '소형', sub: '30cm 미만', isVan: false },
+  { value: 'm' as VolumeKey, label: '중형', sub: '50cm 미만', isVan: false },
+  { value: 'l' as VolumeKey, label: '대형', sub: '50cm 이상', isVan: true  },
+]
 const FRAGILITY_OPTIONS = [
-  {
-    value: 'f1',
-    label: '안전',
-    examples: '의류·책·플라스틱',
-    multiplier: 1.0,
-    color: { active: 'bg-green-500 border-green-500', icon: 'text-green-400' },  // 안전 물품: 기본 요금, 녹색
-  },
-  {
-    value: 'f2',
-    label: '낮음',
-    examples: '목재·금속',
-    multiplier: 1.1,
-    color: { active: 'bg-lime-500 border-lime-500', icon: 'text-lime-400' },
-  },
-  {
-    value: 'f3',
-    label: '보통',
-    examples: '전자제품·악기',
-    multiplier: 1.3,
-    color: { active: 'bg-yellow-500 border-yellow-500', icon: 'text-yellow-400' },
-  },
-  {
-    value: 'f4',
-    label: '높음',
-    examples: '도자기·식기·액자',
-    multiplier: 1.5,
-    color: { active: 'bg-orange-500 border-orange-500', icon: 'text-orange-400' },
-  },
-  {
-    value: 'f5',
-    label: '매우 높음',
-    examples: '유리·미술품·앤티크',
-    multiplier: 2.0,
-    color: { active: 'bg-red-500 border-red-500', icon: 'text-red-400' },
-  },
-] as const
-
-const MOCK_LOCATIONS = [
-  { name: '서울 강남구 테헤란로 123', lat: 37.5065, lng: 127.0530 },
-  { name: '서울 서초구 반포대로 45',  lat: 37.5172, lng: 127.0473 },
-  { name: '서울 송파구 올림픽로 300', lat: 37.5144, lng: 127.1058 },
-  { name: '경기 성남시 분당구 판교로', lat: 37.4017, lng: 127.1086 },
-  { name: '경기 수원시 팔달구 인계로', lat: 37.2636, lng: 127.0286 },
+  { value: 'f1' as FragilityKey, label: '안전',       examples: '의류·책·플라스틱',  color: 'bg-green-500 border-green-500' },
+  { value: 'f2' as FragilityKey, label: '낮음',       examples: '목재·금속',          color: 'bg-lime-500 border-lime-500' },
+  { value: 'f3' as FragilityKey, label: '보통',       examples: '전자제품·악기',      color: 'bg-yellow-500 border-yellow-500' },
+  { value: 'f4' as FragilityKey, label: '높음',       examples: '도자기·식기·액자',   color: 'bg-orange-500 border-orange-500' },
+  { value: 'f5' as FragilityKey, label: '매우 높음',  examples: '유리·미술품·앤티크', color: 'bg-red-500 border-red-500' },
 ]
 
-type Location     = { name: string; lat: number; lng: number }
-type WeightKey    = typeof WEIGHT_OPTIONS[number]['value']
-type VolumeKey    = typeof VOLUME_OPTIONS[number]['value']
-type FragilityKey = typeof FRAGILITY_OPTIONS[number]['value']
+const MAX_IMAGES = 10
+
+// ── fee 계산 (백엔드 fee_settings 값으로 동작) ──────────────────────────
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const toRad = (d: number) => (d * Math.PI) / 180
@@ -86,531 +59,356 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10
 }
 
+interface FeeSettings {
+  commissionRate: number
+  fuelPricePerL: number
+  baseFuelPrice: number
+  baseDeliveryFee: number
+  baseKmRate: number
+  fuelEfficiency: number
+  minDeliveryFee: number
+  truckBaseDeliveryFee: number
+  truckBaseKmRate: number
+  truckFuelEfficiency: number
+  truckMinDeliveryFee: number
+}
+
+// 무게/부피/취급 multiplier — admin fee_settings 의 dictionary 와 동일하게 하드코딩
+// (백엔드가 multipliers 를 fee_settings 에 포함시키지 않은 경우 대비 — 라운드 9 schema 는 11개 필드)
+const WEIGHT_MUL: Record<WeightKey, number>      = { lt1: 1.0, '1to3': 1.2, '3to5': 1.5, '5to10': 2.0, gt10: 2.5 }
+const VOLUME_MUL: Record<VolumeKey, number>      = { s: 1.0, m: 1.2, l: 1.5 }
+const FRAGILITY_MUL: Record<FragilityKey, number> = { f1: 1.0, f2: 1.1, f3: 1.3, f4: 1.5, f5: 2.0 }
+
 function calcFees(
-  itemPrice: number,
-  distKm: number,
-  wtMul: number,
-  vlMul: number,
-  fragMul: number,
-  isVan: boolean,
+  itemPrice: number, distKm: number, weight: WeightKey, volume: VolumeKey, fragility: FragilityKey,
+  isVan: boolean, settings: FeeSettings,
 ) {
-  const { commissionRate, fuelPricePerL, baseFuelPrice } = ADMIN_CONFIG
-  const commissionFee = Math.floor(itemPrice * commissionRate)
+  const commissionFee = Math.floor(itemPrice * settings.commissionRate)
+  const wtMul = WEIGHT_MUL[weight], vlMul = VOLUME_MUL[volume], fragMul = FRAGILITY_MUL[fragility]
 
   let deliveryFee: number
   if (isVan) {
-    const { truckBaseDeliveryFee, truckBaseKmRate, truckFuelEfficiency, truckMinDeliveryFee } =
-      ADMIN_CONFIG
-    const mpkm = baseFuelPrice / truckFuelEfficiency
-    const fc = fuelPricePerL / baseFuelPrice
-    const kmRate = truckBaseKmRate - mpkm + mpkm * fc
-    const rawDel = (truckBaseDeliveryFee + kmRate * distKm) * fragMul
-    deliveryFee = Math.round(Math.max(truckMinDeliveryFee, Math.round(rawDel / 100) * 100))
+    const mpkm = settings.baseFuelPrice / settings.truckFuelEfficiency
+    const fc = settings.fuelPricePerL / settings.baseFuelPrice
+    const kmRate = settings.truckBaseKmRate - mpkm + mpkm * fc
+    const raw = (settings.truckBaseDeliveryFee + kmRate * distKm) * fragMul
+    deliveryFee = Math.round(Math.max(settings.truckMinDeliveryFee, Math.round(raw / 100) * 100))
   } else {
-    const { baseDeliveryFee, baseKmRate, fuelEfficiency, minDeliveryFee } = ADMIN_CONFIG
-    const mpkm = baseFuelPrice / fuelEfficiency
-    const fc = fuelPricePerL / baseFuelPrice
-    const kmRate = baseKmRate - mpkm + mpkm * fc
-    const rawDel = (baseDeliveryFee + kmRate * distKm) * wtMul * vlMul * fragMul
-    deliveryFee = Math.round(Math.max(minDeliveryFee, Math.round(rawDel / 100) * 100))
+    const mpkm = settings.baseFuelPrice / settings.fuelEfficiency
+    const fc = settings.fuelPricePerL / settings.baseFuelPrice
+    const kmRate = settings.baseKmRate - mpkm + mpkm * fc
+    const raw = (settings.baseDeliveryFee + kmRate * distKm) * wtMul * vlMul * fragMul
+    deliveryFee = Math.round(Math.max(settings.minDeliveryFee, Math.round(raw / 100) * 100))
   }
-
   return { deliveryFee, commissionFee, totalFee: itemPrice + commissionFee + deliveryFee }
 }
 
+// ── 컴포넌트 ────────────────────────────────────────────────────────────
+
 export default function EscrowApplicationPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { linkId } = useParams<{ linkId: string }>()
+  const linkToken = linkId ?? ''
 
-  const [imageFiles, setImageFiles]           = useState<File[]>([])
-  const [itemPrice, setItemPrice]             = useState<number | ''>('')
-  const [itemDescription, setItemDescription] = useState('')
+  // EscrowInvitePage 에서 state 로 전달받은 link (없으면 다시 fetch)
+  const stateLink = (location.state as { link?: EscrowLink } | null)?.link
+  const { data: fetchedLink } = useEscrowLink(stateLink ? undefined : linkToken)
+  const link = stateLink ?? fetchedLink
 
-  const [pickupSearch, setPickupSearch]       = useState('')
-  const [showPickupDrop, setShowPickupDrop]   = useState(false)
-  const [pickupLocation, setPickupLocation]   = useState<Location | null>(null)
+  const { data: feeSettings } = useEscrowFeeSettings()
+  const create = useCreateEscrowApplication()
 
-  const [deliverySearch, setDeliverySearch]     = useState('')
-  const [showDeliveryDrop, setShowDeliveryDrop] = useState(false)
-  const [deliveryLocation, setDeliveryLocation] = useState<Location | null>(null)
-
-  const [weightKey,    setWeightKey]    = useState<WeightKey | null>(null)
-  const [volumeKey,    setVolumeKey]    = useState<VolumeKey | null>(null)
-  const [fragilityKey, setFragilityKey] = useState<FragilityKey | null>(null)
+  // 폼 상태
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [itemPrice, setItemPrice]   = useState<number | ''>('')
+  const [pickupOpen, setPickupOpen]     = useState(false)
+  const [deliveryOpen, setDeliveryOpen] = useState(false)
+  const [pickupAddr,   setPickupAddr]   = useState<AddressResult | null>(null)
+  const [deliveryAddr, setDeliveryAddr] = useState<AddressResult | null>(null)
+  const [weight,    setWeight]    = useState<WeightKey | null>(null)
+  const [volume,    setVolume]    = useState<VolumeKey | null>(null)
+  const [fragility, setFragility] = useState<FragilityKey | null>(null)
   const [deliveryNotes, setDeliveryNotes] = useState('')
   const [agreedCancel,  setAgreedCancel]  = useState(false)
+  const [submitting,    setSubmitting]    = useState(false)
 
-  const price = typeof itemPrice === 'number' ? itemPrice : 0
+  // EXTERNAL 모드면 itemPrice 강제 0
+  const isExternal = link?.tradeMode === 'EXTERNAL'
+  useEffect(() => {
+    if (isExternal) setItemPrice(0)
+  }, [isExternal])
 
   const distanceKm = useMemo(() => {
-    if (!pickupLocation || !deliveryLocation) return 0
-    return haversineKm(
-      pickupLocation.lat, pickupLocation.lng,
-      deliveryLocation.lat, deliveryLocation.lng,
-    )
-  }, [pickupLocation, deliveryLocation])
+    if (!pickupAddr || !deliveryAddr) return 0
+    return haversineKm(pickupAddr.lat, pickupAddr.lng, deliveryAddr.lat, deliveryAddr.lng)
+  }, [pickupAddr, deliveryAddr])
 
-  const weightOpt    = WEIGHT_OPTIONS.find(w => w.value === weightKey)
-  const volumeOpt    = VOLUME_OPTIONS.find(v => v.value === volumeKey)
-  const fragilityOpt = FRAGILITY_OPTIONS.find(f => f.value === fragilityKey)
-  const wtMul   = weightOpt?.multiplier    ?? 1
-  const vlMul   = volumeOpt?.multiplier    ?? 1
-  const fragMul = fragilityOpt?.multiplier ?? 1
-  const isVan   = (weightOpt?.isVan ?? false) || (volumeOpt?.isVan ?? false)
+  const isVan = (WEIGHT_OPTIONS.find(w => w.value === weight)?.isVan ?? false)
+            || (VOLUME_OPTIONS.find(v => v.value === volume)?.isVan ?? false)
 
-  const locationsReady = pickupLocation !== null && deliveryLocation !== null
-  const calcReady      = weightKey !== null && volumeKey !== null && fragilityKey !== null && locationsReady
-
-  const { deliveryFee, commissionFee, totalFee } = calcFees(
-    price, distanceKm, wtMul, vlMul, fragMul, isVan,
-  )
+  const price = typeof itemPrice === 'number' ? itemPrice : 0
+  const fees = useMemo(() => {
+    if (!feeSettings || !weight || !volume || !fragility || !pickupAddr || !deliveryAddr) {
+      return { deliveryFee: 0, commissionFee: 0, totalFee: 0 }
+    }
+    return calcFees(price, distanceKm, weight, volume, fragility, isVan, feeSettings)
+  }, [feeSettings, price, distanceKm, weight, volume, fragility, isVan, pickupAddr, deliveryAddr])
 
   const isValid =
     imageFiles.length > 0 &&
-    price > 0 &&
-    itemDescription.trim().length > 0 &&
-    locationsReady &&
-    weightKey    !== null &&
-    volumeKey    !== null &&
-    fragilityKey !== null &&
+    (isExternal || price > 0) &&
+    pickupAddr !== null &&
+    deliveryAddr !== null &&
+    weight !== null && volume !== null && fragility !== null &&
     agreedCancel
 
-  const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? [])
-      if (imageFiles.length + files.length > 10) {
-        alert('이미지는 최대 10장까지 업로드할 수 있습니다.')
-        return
-      }
-      setImageFiles(prev => [...prev, ...files])
-    },
-    [imageFiles.length],
-  )
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (imageFiles.length + files.length > MAX_IMAGES) {
+      toast.error(`이미지는 최대 ${MAX_IMAGES}장까지 업로드할 수 있어요.`)
+      return
+    }
+    const valid: File[] = []
+    for (const f of files) {
+      const err = validateImageFile(f)
+      if (err) { toast.error(err); continue }
+      valid.push(f)
+    }
+    setImageFiles(prev => [...prev, ...valid])
+  }, [imageFiles.length])
 
-  const removeImage = useCallback((idx: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== idx))
-  }, [])
+  const removeImage = (idx: number) => setImageFiles(prev => prev.filter((_, i) => i !== idx))
 
-  const filteredPickup   = MOCK_LOCATIONS.filter(l => l.name.includes(pickupSearch))
-  const filteredDelivery = MOCK_LOCATIONS.filter(l => l.name.includes(deliverySearch))
+  const handleSubmit = async () => {
+    if (!isValid || !link || !weight || !volume || !fragility || !pickupAddr || !deliveryAddr) return
 
-  const handleSubmit = () => {
-    if (!isValid) return
-    navigate(`/escrow/join/${linkId}/payment`, {
-      state: {
+    setSubmitting(true)
+    try {
+      // 1) S3 업로드
+      const uploaded = await uploadImages('ESCROW', imageFiles)
+      const imageUrls = uploaded.map(u => u.getUrl)
+
+      // 2) application 생성
+      const body: EscrowApplicationCreateRequest = {
+        linkToken,
         itemPrice: price,
-        itemDescription,
-        imageUrl: imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : '',
-        pickupAddress:   pickupLocation!.name,
-        deliveryAddress: deliveryLocation!.name,
+        pickupAddress: pickupAddr.address,
+        pickupLat: pickupAddr.lat,
+        pickupLng: pickupAddr.lng,
+        deliveryAddress: deliveryAddr.address,
+        deliveryLat: deliveryAddr.lat,
+        deliveryLng: deliveryAddr.lng,
+        weight, volume, fragility,
+        deliveryNotes: deliveryNotes.trim() || undefined,
+        deliveryFee: fees.deliveryFee,
+        commissionFee: fees.commissionFee,
+        totalFee: fees.totalFee,
         distanceKm,
-        weightLabel:    weightOpt!.label,
-        volumeLabel:    `${volumeOpt!.label} (${volumeOpt!.sub})`,
-        fragilityLabel: `${fragilityOpt!.label} — ${fragilityOpt!.examples}`,
-        isVan,
-        deliveryFee,
-        commissionFee,
-        totalFee,
-        deliveryNotes,
-        linkId,
-      },
-    })
+        imageUrls,
+      }
+
+      const application: EscrowApplication = await create.mutateAsync(body)
+
+      // 3) 결제 페이지로 이동 — 본인 share 만 결제
+      navigate(`/escrow/join/${linkToken}/payment`, { state: { application } })
+    } catch (err) {
+      const msg = err instanceof BusinessError ? err.message
+                : err instanceof Error ? err.message
+                : '신청 등록에 실패했어요.'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  // ── 재사용 주소 검색 렌더
-  const AddressSearch = ({
-    label, hint, search, setSearch, showDrop, setShowDrop,
-    selected, setSelected, filtered,
-  }: {
-    label: string; hint: string
-    search: string; setSearch: (v: string) => void
-    showDrop: boolean; setShowDrop: (v: boolean) => void
-    selected: Location | null; setSelected: (l: Location) => void
-    filtered: typeof MOCK_LOCATIONS
-  }) => (
-    <section>
-      <p className="text-sm font-semibold text-gray-900 mb-1">
-        {label} <span className="text-red-500">*</span>
-      </p>
-      <p className="text-xs text-gray-500 mb-2">{hint}</p>
-      <div className="relative">
-        <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-primary-500">
-          <MapPin size={15} className="text-gray-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="주소를 검색하세요"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setShowDrop(true) }}
-            onFocus={() => setShowDrop(true)}
-            onBlur={() => setTimeout(() => setShowDrop(false), 150)}
-            className="flex-1 outline-none text-sm bg-transparent"
-          />
-        </div>
-        {showDrop && search && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto z-20">
-            {filtered.length > 0
-              ? filtered.map((loc, i) => (
-                  <button key={i} type="button"
-                    onMouseDown={() => { setSelected(loc); setShowDrop(false); setSearch('') }}
-                    className="w-full px-4 py-2.5 text-sm text-left hover:bg-gray-50"
-                  >
-                    {loc.name}
-                  </button>
-                ))
-              : <p className="px-4 py-3 text-sm text-gray-400">검색 결과가 없습니다.</p>
-            }
-          </div>
-        )}
-        {selected && (
-          <div className="mt-2 px-3 py-2 bg-primary-50 text-primary-700 rounded-lg text-sm flex items-center gap-2">
-            <MapPin size={13} />
-            {selected.name}
-          </div>
-        )}
-      </div>
-    </section>
-  )
+  if (!link) {
+    return <p className="py-20 text-center text-sm text-gray-400">링크 정보 불러오는 중...</p>
+  }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">거래 대행 신청서</h1>
-        <p className="text-sm text-gray-500">항목을 모두 입력해야 신청이 가능합니다.</p>
-      </div>
+    <div className="max-w-lg mx-auto px-4 py-6 pb-32">
+      <h1 className="text-xl font-bold text-gray-900 mb-1">신청서 작성</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        {link.tradeMode === 'INTERNAL' ? '쓸랭 거래' : '외부 거래'} · 신청자: {link.initiatorNickname}
+      </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-
-        <div className="flex flex-col gap-6">
-
-          {/* 물품 이미지 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <p className="text-sm font-semibold text-gray-900 mb-3">
-              물품 이미지 <span className="text-red-500">*</span>
-            </p>
-            <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
-              {imageFiles.map((file, i) => (
-                <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-              {imageFiles.length < 10 && (
-                <label className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
-                  <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  <Upload className="text-gray-400 mb-1" size={18} />
-                  <span className="text-xs text-gray-400">{imageFiles.length}/10</span>
-                </label>
-              )}
+      {/* 이미지 첨부 */}
+      <Section title="물품 사진" icon={<Upload size={16} />} required>
+        <div className="grid grid-cols-3 gap-2 mb-2">
+          {imageFiles.map((f, i) => (
+            <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+              <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+              <button onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1">
+                <X size={11} />
+              </button>
             </div>
-          </section>
-
-          {/* 물품 정보 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
-            <p className="text-sm font-semibold text-gray-900">물품 정보</p>
-            <div>
-              <label className="text-xs text-gray-600 mb-1 block">
-                거래 금액 (원) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                placeholder="0"
-                min={0}
-                value={itemPrice}
-                onChange={e => setItemPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600 mb-1 block">
-                물품 설명 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={itemDescription}
-                onChange={e => setItemDescription(e.target.value)}
-                placeholder="물품 상태, 특이사항 등을 입력해 주세요"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
-              />
-            </div>
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-              <AddressSearch
-                label="물품 수령지" hint="배달원이 물품을 가져갈 장소"
-                search={pickupSearch} setSearch={setPickupSearch}
-                showDrop={showPickupDrop} setShowDrop={setShowPickupDrop}
-                selected={pickupLocation} setSelected={setPickupLocation}
-                filtered={filteredPickup}
-              />
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-              <AddressSearch
-                label="물품 배달지" hint="물품을 전달할 장소"
-                search={deliverySearch} setSearch={setDeliverySearch}
-                showDrop={showDeliveryDrop} setShowDrop={setShowDeliveryDrop}
-                selected={deliveryLocation} setSelected={setDeliveryLocation}
-                filtered={filteredDelivery}
-              />
-            </div>
-          </div>
-
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <label className="text-sm font-semibold text-gray-900 mb-2 block">배달원에게 요청사항</label>
-            <textarea
-              value={deliveryNotes}
-              onChange={e => setDeliveryNotes(e.target.value)}
-              placeholder="배달원에게 전달할 사항을 입력해 주세요 (선택)"
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
-            />
-          </section>
+          ))}
+          {imageFiles.length < MAX_IMAGES && (
+            <label className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-200">
+              <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+              <Upload className="text-gray-400" size={20} />
+            </label>
+          )}
         </div>
+        <p className="text-xs text-gray-400">{imageFiles.length}/{MAX_IMAGES}장</p>
+      </Section>
 
-        <div className="flex flex-col gap-6">
-
-          <section className="bg-gray-50 rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-900">수수료 & 배달료 계산기</p>
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Info size={12} />
-                <span>관리자 설정 요율</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-3 border border-gray-200 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-gray-600">
-              <div className="flex justify-between col-span-2 sm:col-span-1">
-                <span>대행 수수료율</span>
-                <span className="font-medium text-gray-900">{(ADMIN_CONFIG.commissionRate * 100).toFixed(0)}%</span>
-              </div>
-              <div className="flex justify-between col-span-2 sm:col-span-1">
-                <span>유류비</span>
-                <span className="font-medium text-gray-900">{ADMIN_CONFIG.fuelPricePerL.toLocaleString()}원/L</span>
-              </div>
-              <div className="flex justify-between col-span-2 sm:col-span-1">
-                <span>기본료 (오토바이)</span>
-                <span className="font-medium text-gray-900">{ADMIN_CONFIG.baseDeliveryFee.toLocaleString()}원</span>
-              </div>
-              <div className="flex justify-between col-span-2 sm:col-span-1">
-                <span>기본료 (용달차)</span>
-                <span className="font-medium text-gray-900">{ADMIN_CONFIG.truckBaseDeliveryFee.toLocaleString()}원</span>
-              </div>
-            </div>
-
-            {/* 예상 거리 자동 계산 */}
-            <div className="flex justify-between items-center px-3 py-2.5 bg-white rounded-lg border border-gray-200 text-sm">
-              <span className="text-xs text-gray-600">예상 거리 (자동 계산)</span>
-              {locationsReady
-                ? <span className="font-semibold text-gray-900">{distanceKm} km</span>
-                : <span className="text-xs text-gray-400">수령지·배달지 선택 후 자동 산출</span>
-              }
-            </div>
-
-            {/* 용달차 전환 배너 */}
-            {isVan && (
-              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 text-xs text-orange-700">
-                <Truck size={14} className="shrink-0" />
-                <span>무게 또는 부피 기준 초과 → <strong>용달차</strong>로 자동 전환됩니다.</span>
-              </div>
-            )}
-
-            {/* 무게 */}
-            <div>
-              <p className="text-xs text-gray-600 mb-2">무게 <span className="text-red-500">*</span></p>
-              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5 gap-1.5">
-                {WEIGHT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setWeightKey(opt.value)}
-                    className={`py-2 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 ${
-                      weightKey === opt.value
-                        ? opt.isVan
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'bg-primary-500 text-white border-primary-500'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary-400'
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                    {opt.isVan && (
-                      <Truck size={11} className={weightKey === opt.value ? 'text-white' : 'text-orange-400'} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 부피 */}
-            <div>
-              <p className="text-xs text-gray-600 mb-2">부피 <span className="text-red-500">*</span></p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {VOLUME_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setVolumeKey(opt.value)}
-                    className={`py-2.5 px-2 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 ${
-                      volumeKey === opt.value
-                        ? opt.isVan
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'bg-primary-500 text-white border-primary-500'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary-400'
-                    }`}
-                  >
-                    <span className="font-semibold">{opt.label}</span>
-                    <span className={`text-[10px] ${volumeKey === opt.value ? 'text-white/80' : 'text-gray-400'}`}>
-                      {opt.sub}
-                    </span>
-                    {opt.isVan && (
-                      <Truck size={11} className={volumeKey === opt.value ? 'text-white' : 'text-orange-400'} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 파손 위험도 */}
-            <div>
-              <p className="text-xs text-gray-600 mb-2 flex items-center gap-1">
-                <ShieldAlert size={12} />
-                파손 위험도 <span className="text-red-500">*</span>
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-2 xl:grid-cols-5 gap-1.5">
-                {FRAGILITY_OPTIONS.map(opt => {
-                  const isSelected = fragilityKey === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setFragilityKey(opt.value)}
-                      className={`py-2.5 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 ${
-                        isSelected
-                          ? `${opt.color.active} text-white`
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                      }`}
-                    >
-                      <span className="font-semibold leading-tight text-center">{opt.label}</span>
-                      <span className={`text-[10px] leading-tight text-center ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>
-                        {opt.examples}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-              {fragilityOpt && fragilityOpt.multiplier > 1 && (
-                <p className="text-xs text-gray-500 mt-1.5">
-                  파손 위험 계수 ×{fragilityOpt.multiplier} 적용
-                </p>
-              )}
-            </div>
-          </section>
-
-          {/* ⑥ 청구금액 내역 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <p className="text-sm font-semibold text-gray-900 mb-3">청구금액 내역</p>
-            <div className="space-y-2.5 text-sm">
-              <div className="flex justify-between text-gray-600">
-                <span>물품 금액</span>
-                <span>{price > 0 ? `${price.toLocaleString()}원` : '—'}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>대행 수수료 ({(ADMIN_CONFIG.commissionRate * 100).toFixed(0)}%)</span>
-                <span>{price > 0 ? `${commissionFee.toLocaleString()}원` : '—'}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span className="flex items-center gap-1.5 flex-wrap">
-                  배달료
-                  {calcReady && (
-                    <>
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                        isVan ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {isVan ? '용달차' : '오토바이'}
-                      </span>
-                      {fragilityOpt && fragilityOpt.multiplier > 1 && (
-                        <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-red-100 text-red-700">
-                          위험도 ×{fragilityOpt.multiplier}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </span>
-                <span>{calcReady ? `${deliveryFee.toLocaleString()}원` : '—'}</span>
-              </div>
-              <div className="border-t pt-2.5 flex justify-between font-semibold">
-                <span className="text-gray-900">합계</span>
-                <span className={price > 0 && calcReady ? 'text-primary-600 text-base' : 'text-gray-400'}>
-                  {price > 0 && calcReady ? `${totalFee.toLocaleString()}원` : '—'}
-                </span>
-              </div>
-            </div>
-          </section>
-
-        </div>
-      </div>
-
-      {/* ⑧ 취소 수수료 경고 — 항상 최하단 */}
-      <section className="bg-red-50 border border-red-200 rounded-xl p-4 sm:p-5 mt-2">
-        <div className="flex items-start gap-2 mb-3">
-          <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={16} />
-          <p className="text-sm font-semibold text-red-900">취소 수수료 안내</p>
-        </div>
-        <p className="text-xs text-red-700 mb-3 leading-relaxed">
-          배달기사 배정 후 취소 시 <strong>취소 수수료가 부과</strong>됩니다.
-        </p>
-        <label className="flex items-start gap-3 cursor-pointer">
+      {/* 물품 가격 (INTERNAL 만) */}
+      {!isExternal && (
+        <Section title="물품 가격" icon={<Info size={16} />} required>
           <input
-            type="checkbox"
-            checked={agreedCancel}
-            onChange={e => setAgreedCancel(e.target.checked)}
-            className="mt-0.5 w-4 h-4 text-red-600 rounded focus:ring-red-500"
+            type="number" inputMode="numeric"
+            value={itemPrice}
+            onChange={(e) => setItemPrice(e.target.value === '' ? '' : Number(e.target.value))}
+            placeholder="원"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
           />
-          <span className="text-sm text-red-900">위 취소 수수료 정책에 동의합니다.</span>
-        </label>
-      </section>
+        </Section>
+      )}
 
-      <div className="flex flex-col gap-3 mt-4">
-        <Button type="button" fullWidth disabled={!isValid} onClick={handleSubmit}>
-          신청하기
-        </Button>
+      {/* 픽업 / 배달 */}
+      <Section title="픽업 위치" icon={<MapPin size={16} />} required>
+        <button
+          type="button" onClick={() => setPickupOpen(true)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-left hover:border-primary-400"
+        >
+          {pickupAddr ? <span className="text-gray-900">{pickupAddr.address}</span> : <span className="text-gray-400">주소 검색</span>}
+        </button>
+      </Section>
 
-        {/* 개발 전용: 결제 페이지 직접 이동 */}
-        {import.meta.env.DEV && (
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/escrow/join/${linkId}/payment`, {
-                state: {
-                  itemPrice: 50_000,
-                  itemDescription: '테스트 물품',
-                  imageUrl: '',
-                  pickupAddress: '서울 강남구 테헤란로 123',
-                  deliveryAddress: '경기 성남시 분당구 판교로',
-                  distanceKm: 12.5,
-                  weightLabel: '1~3kg',
-                  volumeLabel: '소형 (30cm 미만)',
-                  fragilityLabel: '보통 — 전자제품·악기',
-                  isVan: false,
-                  deliveryFee: 8_500,
-                  commissionFee: 2_500,
-                  totalFee: 61_000,
-                  deliveryNotes: '',
-                  linkId,
-                },
-              })
-            }
-            className="w-full py-2 text-xs text-gray-400 border border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:text-gray-500 transition-colors"
-          >
-            [DEV] 결제 페이지로 바로 이동
-          </button>
+      <Section title="배달 위치" icon={<MapPin size={16} />} required>
+        <button
+          type="button" onClick={() => setDeliveryOpen(true)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-left hover:border-primary-400"
+        >
+          {deliveryAddr ? <span className="text-gray-900">{deliveryAddr.address}</span> : <span className="text-gray-400">주소 검색</span>}
+        </button>
+        {pickupAddr && deliveryAddr && (
+          <p className="text-xs text-gray-400 mt-1">예상 거리: {distanceKm.toFixed(1)} km</p>
         )}
+      </Section>
+
+      {/* 옵션 */}
+      <Section title="무게" icon={<Truck size={16} />} required>
+        <div className="grid grid-cols-5 gap-2">
+          {WEIGHT_OPTIONS.map(w => (
+            <button key={w.value} onClick={() => setWeight(w.value)}
+              className={`py-2 text-xs rounded-lg border ${weight === w.value ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}`}>
+              {w.label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="부피" icon={<Truck size={16} />} required>
+        <div className="grid grid-cols-3 gap-2">
+          {VOLUME_OPTIONS.map(v => (
+            <button key={v.value} onClick={() => setVolume(v.value)}
+              className={`py-3 text-xs rounded-lg border flex flex-col ${volume === v.value ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}`}>
+              <span className="font-medium">{v.label}</span>
+              <span className="text-[10px] opacity-70">{v.sub}</span>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="취급 주의" icon={<AlertTriangle size={16} />} required>
+        <div className="grid grid-cols-5 gap-2">
+          {FRAGILITY_OPTIONS.map(f => (
+            <button key={f.value} onClick={() => setFragility(f.value)}
+              className={`py-2 text-[11px] rounded-lg border flex flex-col ${fragility === f.value ? `${f.color} text-white` : 'border-gray-200 text-gray-600'}`}>
+              <span className="font-medium">{f.label}</span>
+              <span className="text-[9px] opacity-80">{f.examples}</span>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="배송 메모" icon={<Info size={16} />}>
+        <textarea
+          value={deliveryNotes}
+          onChange={(e) => setDeliveryNotes(e.target.value)}
+          maxLength={500}
+          rows={3}
+          placeholder="추가 요청사항 (≤500자)"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400 resize-none"
+        />
+      </Section>
+
+      {/* 비용 미리보기 */}
+      {pickupAddr && deliveryAddr && weight && volume && fragility && (
+        <div className="bg-blue-50 rounded-xl p-4 mb-4 text-sm">
+          <p className="font-medium text-blue-900 mb-2">비용 미리보기</p>
+          <Row label="배달비" value={`${fees.deliveryFee.toLocaleString()}원`} />
+          <Row label="대행 수수료" value={`${fees.commissionFee.toLocaleString()}원`} />
+          {!isExternal && <Row label="물품가" value={`${price.toLocaleString()}원`} />}
+          <hr className="my-2 border-blue-200" />
+          <Row label="총액" value={`${fees.totalFee.toLocaleString()}원`} bold />
+          <p className="text-xs text-blue-700 mt-2">
+            ※ 백엔드가 ±10원 범위로 검증해요. 정책 변경 시 다시 시도 메시지가 떠요.
+          </p>
+        </div>
+      )}
+
+      {/* 취소 정책 동의 */}
+      <label className="flex items-start gap-2 mb-6 cursor-pointer">
+        <input
+          type="checkbox" checked={agreedCancel}
+          onChange={(e) => setAgreedCancel(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span className="text-xs text-gray-700">
+          <span className="font-medium">취소 정책 동의</span> — 결제 완료 전(결제 대기) 까지만 본인 취소 가능. 매칭 후엔 취소 불가.
+          <ShieldAlert size={12} className="inline ml-1 text-gray-400" />
+        </span>
+      </label>
+
+      {/* 제출 */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+        <div className="max-w-lg mx-auto">
+          <Button onClick={handleSubmit} fullWidth disabled={!isValid || submitting} isLoading={submitting}>
+            결제 진행하기
+          </Button>
+        </div>
       </div>
+
+      {/* 주소 검색 모달 */}
+      <KakaoAddressSearch
+        open={pickupOpen}
+        onClose={() => setPickupOpen(false)}
+        onSelect={(r) => { setPickupAddr(r); setPickupOpen(false) }}
+      />
+      <KakaoAddressSearch
+        open={deliveryOpen}
+        onClose={() => setDeliveryOpen(false)}
+        onSelect={(r) => { setDeliveryAddr(r); setDeliveryOpen(false) }}
+      />
+    </div>
+  )
+}
+
+function Section({ title, icon, children, required }: {
+  title: string; icon?: React.ReactNode; children: React.ReactNode; required?: boolean
+}) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+        {icon}
+        {title}
+        {required && <span className="text-red-500">*</span>}
+      </h3>
+      {children}
+    </div>
+  )
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-blue-700">{label}</span>
+      <span className={bold ? 'font-bold text-blue-900' : 'text-blue-900'}>{value}</span>
     </div>
   )
 }
