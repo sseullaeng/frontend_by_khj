@@ -15,6 +15,8 @@ export interface PaymentConfirmRequest {
   paymentKey: string
   orderId: string  // = merchantUid
   amount: number
+  // 라운드9: escrow 결제일 때만 (백엔드가 application status 자동 갱신)
+  escrowApplicationId?: number
 }
 
 // 결제 종류 (한글 enum)
