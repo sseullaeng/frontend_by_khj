@@ -1,12 +1,9 @@
 // 관리자 에스크로 설정 페이지 컴포넌트: 거래대행 요율 및 배달비 설정 관리
-import { useState } from 'react'  // React 상태 훅
-import { Save, RotateCcw, CheckCircle } from 'lucide-react'  // Lucide 아이콘들
-import {
-  getAdminConfig,      // 관리자 설정 가져오기 함수
-  saveAdminConfig,      // 관리자 설정 저장 함수
-  DEFAULT_CONFIG,       // 기본 설정값
-  type EscrowAdminConfig, // 에스크로 관리자 설정 타입
-} from '@/features/escrow/adminConfig'  // 에스크로 관리자 설정 모듈
+import { useEffect, useState } from 'react'
+import { Save, RotateCcw, CheckCircle } from 'lucide-react'
+import { DEFAULT_CONFIG, type EscrowAdminConfig } from '@/features/escrow/adminConfig'
+import { useEscrowFeeSettings, usePatchEscrowFeeSettings } from '@/features/escrow/hooks'
+import type { EscrowFeeSettingsRequest } from '@/features/escrow/types'
 
 // 필드 타입: 설정 입력 필드의 구조 정의
 type Field = {
@@ -51,26 +48,51 @@ const TRUCK_FIELDS: Field[] = [
  * - 차량별 설정: 오토바이, 용달차 각각 설정
  */
 export default function AdminEscrowConfigPage() {
-  // 현재 설정 상태: localStorage에서 불러온 설정값
-  const [config, setConfig] = useState<EscrowAdminConfig>(getAdminConfig)
-  
-  // 저장 완료 상태: 저장 성공 시 일시적으로 표시
+  // 백엔드 hook 연동 — GET 으로 prefill, PATCH 로 저장
+  const { data: serverConfig, isLoading } = useEscrowFeeSettings()
+  const patch = usePatchEscrowFeeSettings()
+
+  const [config, setConfig] = useState<EscrowAdminConfig>(DEFAULT_CONFIG)
   const [saved, setSaved]   = useState(false)
 
-  // 설정값 업데이트 함수: 특정 키의 값을 변경
+  // 서버 응답 도착 시 폼 prefill (updatedAt/updatedBy 제외 11개 필드)
+  useEffect(() => {
+    if (!serverConfig) return
+    setConfig({
+      commissionRate:        serverConfig.commissionRate,
+      fuelPricePerL:         serverConfig.fuelPricePerL,
+      baseFuelPrice:         serverConfig.baseFuelPrice,
+      baseDeliveryFee:       serverConfig.baseDeliveryFee,
+      baseKmRate:            serverConfig.baseKmRate,
+      fuelEfficiency:        serverConfig.fuelEfficiency,
+      minDeliveryFee:        serverConfig.minDeliveryFee,
+      truckBaseDeliveryFee:  serverConfig.truckBaseDeliveryFee,
+      truckBaseKmRate:       serverConfig.truckBaseKmRate,
+      truckFuelEfficiency:   serverConfig.truckFuelEfficiency,
+      truckMinDeliveryFee:   serverConfig.truckMinDeliveryFee,
+    })
+  }, [serverConfig])
+
   const set = (key: keyof EscrowAdminConfig, value: number) =>
     setConfig(prev => ({ ...prev, [key]: value }))
 
-  // 설정 저장 처리 함수
-  const handleSave = () => {
-    saveAdminConfig(config)  // localStorage에 설정 저장
-    setSaved(true)           // 저장 완료 상태 설정
-    setTimeout(() => setSaved(false), 2_000)  // 2초 후 상태 초기화
+  const handleSave = async () => {
+    try {
+      const body: EscrowFeeSettingsRequest = config
+      await patch.mutateAsync(body)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2_000)
+    } catch {
+      // hook 에서 토스트
+    }
   }
 
-  // 설정 초기화 함수: 기본값으로 되돌리기
   const handleReset = () => {
     setConfig({ ...DEFAULT_CONFIG })
+  }
+
+  if (isLoading) {
+    return <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>
   }
 
   // 숫자 입력 컴포넌트: 설정 필드를 위한 재사용 가능한 숫자 입력 UI

@@ -1,81 +1,67 @@
-// 에스크로 초대 페이지 컴포넌트: 에스크로 신청 초대 및 참여 기능
-import { useState } from 'react'  // React 상태 훅
-import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
-import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
-import { useNavigate, useParams } from 'react-router-dom'  // React Router 훅
-import { escrowStartSchema, type EscrowStartRequest, type EscrowRole, type FeePayer } from '@/features/escrow/types'  // 에스크로 관련 타입
-import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
-import { Shield, Users, AlertCircle, CheckCircle } from 'lucide-react'  // Lucide 아이콘들
+// 거래대행 초대 진입 — 수신자가 링크 클릭 후 신청자 정보 확인
+import { useNavigate, useParams } from 'react-router-dom'
+import { Button } from '@/shared/ui/Button'
+import { Shield, AlertCircle, CheckCircle, Users } from 'lucide-react'
+import { useEscrowLink } from '@/features/escrow/hooks'
+import type { EscrowRole, FeePayer, TradeMode } from '@/features/escrow/types'
 import { formatKst } from '@/shared/lib/date'
+import { BusinessError } from '@/shared/types/api'
 
-// TODO: 백엔드 escrow 도메인 합의 후 GET /api/v1/escrow/links/{linkId} 등으로 교체.
-// 현재는 placeholder — 실제 데이터 도착 전 빈 값.
-const MOCK_LINK_DATA: {
-  initiatorRole: EscrowRole
-  feePayer: FeePayer
-  initiatorName: string
-  expiresAt: string
-} = {
-  initiatorRole: 'buyer',
-  feePayer: 'buyer',
-  initiatorName: '',
-  expiresAt: '',
-}
-
-// 역할 옵션: 사용자 역할 선택 옵션
-const ROLE_OPTIONS = [
-  { value: 'buyer' as const, label: '구매자', desc: '상대방에게 물품을 구매합니다.' },  // 구매자 역할
-  { value: 'seller' as const, label: '판매자', desc: '상대방에게 물품을 판매합니다.' },  // 판매자 역할
-]
-
-// 수수료 부담 옵션: 수수료 부담 방식 선택 옵션
-const FEE_OPTIONS = [
-  { value: 'buyer' as const, label: '구매자가 부담', desc: '수수료 전액을 구매자가 냅니다.' },  // 구매자 부담
-  { value: 'seller' as const, label: '판매자가 부담', desc: '수수료 전액을 판매자가 냅니다.' },  // 판매자 부담
-  { value: 'both' as const, label: '반반 부담', desc: '수수료를 구매자·판매자가 절반씩 냅니다.' },  // 반반 부담
-]
-
-// 역할 라벨 맵핑: 역할별 한글 라벨
 const ROLE_LABEL: Record<EscrowRole, string> = { buyer: '구매자', seller: '판매자' }
-
-// 수수료 부담 라벨 맵핑: 부담 방식별 한글 라벨
-const FEE_LABEL: Record<FeePayer, string> = { buyer: '구매자 부담', seller: '판매자 부담', both: '반반 부담' }
+const FEE_LABEL:  Record<FeePayer, string>   = { buyer: '구매자 부담', seller: '판매자 부담', both: '반반 부담' }
+const MODE_LABEL: Record<TradeMode, string>  = { INTERNAL: '쓸랭 거래', EXTERNAL: '외부 거래' }
 
 export default function EscrowInvitePage() {
   const navigate = useNavigate()
-  const { linkId } = useParams<{ linkId: string }>()
-  const [linkData] = useState(MOCK_LINK_DATA)
+  const { linkId } = useParams<{ linkId: string }>()  // = linkToken (URL 호환성 위해 :linkId 유지)
+  const linkToken = linkId
 
-  const { register, handleSubmit, watch, formState: { errors, isValid } } = useForm<EscrowStartRequest>({
-    resolver: zodResolver(escrowStartSchema),
-    mode: 'onChange',
-  })
+  const { data: link, isLoading, error } = useEscrowLink(linkToken)
 
-  const selectedRole = watch('role')
-  const selectedFeePayer = watch('feePayer')
+  if (isLoading) {
+    return <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>
+  }
 
-  // 신청자와 반대 역할이어야 하고, 수수료 방식은 동일해야 함
-  const expectedRole: EscrowRole = linkData.initiatorRole === 'buyer' ? 'seller' : 'buyer'
-  const isRoleMatch = selectedRole === expectedRole
-  const isFeeMatch = selectedFeePayer === linkData.feePayer
-  const isMatch = isRoleMatch && isFeeMatch
+  if (error || !link) {
+    const code = error instanceof BusinessError ? error.code : null
+    const msg =
+      code === 'ESCROW_LINK_EXPIRED'       ? '링크가 만료됐어요. 신청자에게 새 링크를 요청해 주세요.' :
+      code === 'ESCROW_LINK_ALREADY_TAKEN' ? '이미 다른 사용자가 진행 중인 링크예요.' :
+      code === 'ESCROW_LINK_NOT_FOUND'     ? '잘못된 링크예요.' :
+      '링크 정보를 가져오지 못했어요.'
 
-  const onSubmit = (data: EscrowStartRequest) => {
-    if (!isMatch) return
-    console.log('invite confirmed:', data)
-    navigate(`/escrow/join/${linkId}/form`)
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 text-center">
+        <AlertCircle className="text-red-500 mx-auto mb-3" size={32} />
+        <p className="text-sm text-gray-700">{msg}</p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-4 text-sm text-primary-600 hover:underline"
+        >
+          홈으로
+        </button>
+      </div>
+    )
+  }
+
+  // 수신자는 신청자와 반대 역할이 자동 부여됨 (백엔드가 결정)
+  const myRole: EscrowRole = link.initiatorRole === 'buyer' ? 'seller' : 'buyer'
+
+  const handleProceed = () => {
+    navigate(`/escrow/join/${link.linkToken}/form`, { state: { link } })
   }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 pb-28">
+
       {/* 헤더 */}
       <div className="text-center py-6">
         <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Shield className="text-primary-600" size={32} />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-1">거래 대행 초대</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">거래대행 초대</h1>
         <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-700">{linkData.initiatorName}</span>님이 대행 서비스에 초대했습니다.
+          <span className="font-medium text-gray-700">{link.initiatorNickname}</span>님이 대행 서비스에 초대했어요.
         </p>
       </div>
 
@@ -86,122 +72,42 @@ export default function EscrowInvitePage() {
           신청자 선택 내용
         </h2>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-blue-700">신청자</span>
-            <span className="font-medium text-blue-900">{linkData.initiatorName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-blue-700">신청자 역할</span>
-            <span className="font-medium text-blue-900">{ROLE_LABEL[linkData.initiatorRole]}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-blue-700">수수료 부담</span>
-            <span className="font-medium text-blue-900">{FEE_LABEL[linkData.feePayer]}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-blue-700">링크 만료</span>
-            <span className="font-medium text-blue-900">
-              {formatKst(linkData.expiresAt, 'yyyy.MM.dd HH:mm')}
-            </span>
-          </div>
+          <Row label="신청자"        value={link.initiatorNickname} />
+          <Row label="신청자 역할"   value={ROLE_LABEL[link.initiatorRole]} />
+          <Row label="수수료 부담"   value={FEE_LABEL[link.feePayer]} />
+          <Row label="거래 모드"     value={MODE_LABEL[link.tradeMode]} />
+          <Row label="링크 만료"     value={formatKst(link.expiresAt, 'yyyy.MM.dd HH:mm')} />
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8">
-        {/* 역할 선택 */}
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-1">나는 어떤 역할인가요?</h2>
-          <p className="text-xs text-gray-400 mb-3">신청자와 반대 역할을 선택해야 합니다.</p>
-          <div className="flex flex-col gap-3">
-            {ROLE_OPTIONS.map(({ value, label, desc }) => (
-              <label key={value} className="block cursor-pointer">
-                <input type="radio" value={value} {...register('role')} className="sr-only" />
-                <div className={`p-4 rounded-xl border-2 transition-colors ${
-                  selectedRole === value ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900 mb-0.5">{label}</p>
-                      <p className="text-sm text-gray-500">{desc}</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      selectedRole === value ? 'border-primary-500' : 'border-gray-300'
-                    }`}>
-                      {selectedRole === value && <div className="w-3 h-3 rounded-full bg-primary-500" />}
-                    </div>
-                  </div>
-                </div>
-              </label>
-            ))}
-          </div>
-          {errors.role && <p className="text-xs text-red-500 mt-2">{errors.role.message}</p>}
+      {/* 자동 부여된 내 역할 */}
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <CheckCircle className="text-green-600 mt-0.5 shrink-0" size={20} />
+        <div className="text-sm">
+          <p className="font-medium text-green-900 mb-1">내 역할: {ROLE_LABEL[myRole]}</p>
+          <p className="text-green-700">
+            신청자가 {ROLE_LABEL[link.initiatorRole]} 이므로 자동으로 {ROLE_LABEL[myRole]} 로 진행돼요.
+            물품/배달지 정보를 입력하면 결제까지 진행할 수 있어요.
+          </p>
         </div>
+      </div>
 
-        {/* 수수료 확인 */}
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-1">수수료 부담 방식 확인</h2>
-          <p className="text-xs text-gray-400 mb-3">신청자가 선택한 방식과 동일하게 선택해야 합니다.</p>
-          <div className="flex flex-col gap-3">
-            {FEE_OPTIONS.map(({ value, label, desc }) => (
-              <label key={value} className="block cursor-pointer">
-                <input type="radio" value={value} {...register('feePayer')} className="sr-only" />
-                <div className={`p-4 rounded-xl border-2 transition-colors ${
-                  selectedFeePayer === value ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900 mb-0.5">{label}</p>
-                      <p className="text-sm text-gray-500">{desc}</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      selectedFeePayer === value ? 'border-primary-500' : 'border-gray-300'
-                    }`}>
-                      {selectedFeePayer === value && <div className="w-3 h-3 rounded-full bg-primary-500" />}
-                    </div>
-                  </div>
-                </div>
-              </label>
-            ))}
-          </div>
-          {errors.feePayer && <p className="text-xs text-red-500 mt-2">{errors.feePayer.message}</p>}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+        <div className="max-w-lg mx-auto">
+          <Button onClick={handleProceed} fullWidth>
+            확인하고 신청서 작성하기
+          </Button>
         </div>
+      </div>
+    </div>
+  )
+}
 
-        {/* 일치 여부 피드백 */}
-        {selectedRole && selectedFeePayer && (
-          <div className={`rounded-xl p-4 border ${
-            isMatch ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-          }`}>
-            <div className="flex items-start gap-3">
-              {isMatch
-                ? <CheckCircle className="text-green-600 mt-0.5 shrink-0" size={20} />
-                : <AlertCircle className="text-red-600 mt-0.5 shrink-0" size={20} />}
-              <div className="text-sm">
-                <p className={`font-medium mb-1 ${isMatch ? 'text-green-900' : 'text-red-900'}`}>
-                  {isMatch ? '정보가 일치합니다.' : '정보가 일치하지 않습니다.'}
-                </p>
-                {!isRoleMatch && (
-                  <p className="text-red-700">
-                    역할: {ROLE_LABEL[selectedRole]} → 상대방은 {ROLE_LABEL[expectedRole]}을 선택해야 합니다.
-                  </p>
-                )}
-                {!isFeeMatch && (
-                  <p className="text-red-700">
-                    수수료: {FEE_LABEL[selectedFeePayer]} → 신청자는 {FEE_LABEL[linkData.feePayer]}을 선택했습니다.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
-          <div className="max-w-lg mx-auto">
-            <Button type="submit" fullWidth disabled={!isValid || !isMatch}>
-              {isMatch ? '확인 완료 — 물품 등록하기' : '정보를 올바르게 선택해 주세요'}
-            </Button>
-          </div>
-        </div>
-      </form>
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-blue-700">{label}</span>
+      <span className="font-medium text-blue-900">{value}</span>
     </div>
   )
 }

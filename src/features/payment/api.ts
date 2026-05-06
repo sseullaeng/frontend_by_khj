@@ -13,8 +13,12 @@ import type { PageResponse } from '@/shared/types'
 
 export const paymentApi = {
   // 결제 시작 — 백엔드 merchantUid 발급
-  startPayment: (amount: number) =>
-    api.post<PaymentStartResponse>('/api/v1/payments/charge', { amount }),
+  // 라운드9: escrowApplicationId 옵션 (거래대행 결제 시)
+  startPayment: (amount: number, escrowApplicationId?: number) =>
+    api.post<PaymentStartResponse>('/api/v1/payments/charge', {
+      amount,
+      ...(escrowApplicationId != null ? { escrowApplicationId } : {}),
+    }),
 
   // 결제 확정 — 토스 successUrl 콜백 받은 후 검증·잔액 반영
   confirmPayment: (body: PaymentConfirmRequest) =>
