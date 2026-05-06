@@ -19,6 +19,11 @@ declare global {
         Size: new (w: number, h: number) => KakaoSize
         Point: new (x: number, y: number) => KakaoPoint
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow
+        services: {
+          Places: new () => KakaoPlaces
+          Geocoder: new () => KakaoGeocoder
+          Status: { OK: string; ZERO_RESULT: string; ERROR: string }
+        }
       }
     }
   }
@@ -43,6 +48,46 @@ export interface KakaoInfoWindow {
   close: () => void
 }
 
+// 카카오 로컬 검색 (services 라이브러리)
+export interface KakaoPlace {
+  id: string
+  place_name: string         // 장소명 또는 도로명/지번
+  address_name: string       // 지번 주소 (예: "서울 종로구 세종로 1-1")
+  road_address_name: string  // 도로명 주소 (없으면 빈 문자열)
+  category_name: string
+  phone: string
+  x: string                  // 경도(lng) — 문자열로 옴
+  y: string                  // 위도(lat)
+}
+export interface KakaoPlaces {
+  keywordSearch: (
+    query: string,
+    callback: (data: KakaoPlace[], status: string) => void,
+    options?: { size?: number },
+  ) => void
+}
+
+export interface KakaoGeocoderResult {
+  address_name: string
+  region_1depth_name: string
+  region_2depth_name: string
+  region_3depth_name: string
+  road_address?: { address_name: string }
+  x: string
+  y: string
+}
+export interface KakaoGeocoder {
+  addressSearch: (
+    query: string,
+    callback: (data: KakaoGeocoderResult[], status: string) => void,
+  ) => void
+  coord2RegionCode: (
+    lng: number,
+    lat: number,
+    callback: (data: KakaoGeocoderResult[], status: string) => void,
+  ) => void
+}
+
 /**
  * 카카오맵 SDK 동적 로드 + 초기화 (싱글톤).
  * 호출처에서 `await ensureKakaoMap()` 후 `window.kakao.maps` 사용.
@@ -50,9 +95,10 @@ export interface KakaoInfoWindow {
 export function ensureKakaoMap(): Promise<void> {
   if (loadPromise) return loadPromise
 
-  const key = import.meta.env.VITE_KAKAO_MAP_KEY
-  if (!key || key === 'your_kakao_map_api_key') {
-    return Promise.reject(new Error('VITE_KAKAO_MAP_KEY 환경변수가 비어있어요.'))
+  // 카카오 디벨로퍼스: 같은 앱의 JavaScript 키 하나로 로그인 + 지도 + 로컬 API 모두 사용
+  const key = import.meta.env.VITE_KAKAO_JS_KEY
+  if (!key) {
+    return Promise.reject(new Error('VITE_KAKAO_JS_KEY 환경변수가 비어있어요.'))
   }
 
   loadPromise = new Promise<void>((resolve, reject) => {

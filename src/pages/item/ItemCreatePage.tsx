@@ -14,7 +14,7 @@ import { itemCreateSchema, type ItemCreateRequest, type TradeType, type RentalUn
 import { useCreateItem, useUploadImages } from '@/features/item/hooks'
 import { useEmailGuard } from '@/features/auth/emailGuard'
 import CategoryPicker from '@/features/category/CategoryPicker'
-import { openAddressSearch } from '@/shared/lib/postcode'
+import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import { Button } from '@/shared/ui/Button'
 import { Input } from '@/shared/ui/Input'
 import { MapPin } from 'lucide-react'
@@ -32,6 +32,7 @@ export default function ItemCreatePage() {
   const { mutateAsync: createItemAsync, isPending: isCreating } = useCreateItem()
 
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [addressOpen, setAddressOpen] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(itemCreateSchema),
@@ -200,15 +201,12 @@ export default function ItemCreatePage() {
           )}
         </div>
 
-        {/* 거래 희망 지역 — 다음 주소검색 SDK */}
+        {/* 거래 희망 지역 — 카카오 주소 검색 */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">거래 희망 지역</label>
           <button
             type="button"
-            onClick={async () => {
-              const region = await openAddressSearch()
-              if (region) setValue('region', region, { shouldValidate: true })
-            }}
+            onClick={() => setAddressOpen(true)}
             className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
           >
             <MapPin size={14} className="text-gray-400" />
@@ -217,6 +215,15 @@ export default function ItemCreatePage() {
             </span>
           </button>
         </div>
+
+        <KakaoAddressSearch
+          open={addressOpen}
+          onClose={() => setAddressOpen(false)}
+          onSelect={(r) => {
+            setValue('region', r.region, { shouldValidate: true })
+            setAddressOpen(false)
+          }}
+        />
 
         {/* 상세 설명 */}
         <div className="flex flex-col gap-1">
