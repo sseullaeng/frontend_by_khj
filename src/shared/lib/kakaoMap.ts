@@ -95,9 +95,10 @@ export interface KakaoGeocoder {
 export function ensureKakaoMap(): Promise<void> {
   if (loadPromise) return loadPromise
 
-  const key = import.meta.env.VITE_KAKAO_MAP_KEY
-  if (!key || key === 'your_kakao_map_api_key') {
-    return Promise.reject(new Error('VITE_KAKAO_MAP_KEY 환경변수가 비어있어요.'))
+  // 카카오 디벨로퍼스: 같은 앱의 JavaScript 키 하나로 로그인 + 지도 + 로컬 API 모두 사용
+  const key = import.meta.env.VITE_KAKAO_JS_KEY
+  if (!key) {
+    return Promise.reject(new Error('VITE_KAKAO_JS_KEY 환경변수가 비어있어요.'))
   }
 
   loadPromise = new Promise<void>((resolve, reject) => {
