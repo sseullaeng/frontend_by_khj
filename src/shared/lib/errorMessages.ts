@@ -46,6 +46,17 @@ const ERROR_MESSAGES: Record<string, string> = {
   REVIEW_DUPLICATED:           '이미 작성한 리뷰가 있어요.',
   REVIEW_PERIOD_EXPIRED:       '리뷰 작성 기간(7일)이 지났어요.',
 
+  // ── 거래대행 (Escrow) ────────────────────────────────────
+  ESCROW_LINK_NOT_FOUND:        '거래대행 링크를 찾을 수 없어요.',
+  ESCROW_LINK_EXPIRED:          '링크가 만료됐어요. 새 링크를 받아 주세요.',
+  ESCROW_LINK_ALREADY_TAKEN:    '이미 다른 사용자가 진행 중인 링크예요.',
+  ESCROW_SELF_NOT_ALLOWED:      '본인이 만든 링크에는 참여할 수 없어요.',
+  ESCROW_NOT_FOUND:             '거래대행 신청을 찾을 수 없어요.',
+  ESCROW_FORBIDDEN:             '거래 참여자만 가능해요.',
+  ESCROW_INVALID_STATE:         '현재 상태에서는 가능한 동작이 아니에요.',
+  ESCROW_FORM_INVALID:          '입력값을 확인해 주세요.',
+  ESCROW_FEE_MISMATCH:          '수수료가 변경됐어요. 다시 시도해 주세요.',
+
   // ── 고객지원 (라운드7) ────────────────────────────────────
   INQUIRY_NOT_FOUND:           '문의를 찾을 수 없어요.',
   INQUIRY_FORBIDDEN:           '본인 문의에서만 가능해요.',
