@@ -1,17 +1,24 @@
-// 거래대행 결제 — 본인 share 만 결제 (feePayer="both" 분기)
+// 거래대행 결제 — Toss 결제 위젯 통합 (R1 마무리)
 //
-// 백엔드 spec:
-//   POST /api/v1/payments/charge { amount, escrowApplicationId } → tossClientKey
-//   Toss SDK 결제창 → POST /payments/charge/confirm
-//   confirm 후 application.status: 결제대기 → 결제완료 (양쪽 share 충족 시)
-import { useState } from 'react'
+// 흐름:
+//   1) startPayment(myShare, escrowApplicationId) → tossClientKey + merchantUid
+//   2) loadPaymentWidget + renderPaymentMethods/Agreement
+//   3) widget.requestPayment(successUrl=callback) → Toss 결제창
+//   4) callback → confirmPayment + 백엔드 application.status 자동 갱신
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Receipt, MapPin, Package } from 'lucide-react'
 import { toast } from 'sonner'
+import { loadPaymentWidget, type PaymentWidgetInstance } from '@tosspayments/payment-widget-sdk'
 import { Button } from '@/shared/ui/Button'
 import { paymentApi } from '@/features/payment/api'
 import { useAuthStore } from '@/features/auth/store'
+import { BusinessError } from '@/shared/types/api'
 import type { EscrowApplication } from '@/features/escrow/types'
+
+const SUCCESS_URL = `${window.location.origin}/escrow/payment/callback`
+const FAIL_URL    = `${window.location.origin}/escrow/payment/callback`
+const PENDING_KEY = 'escrow_payment_pending'
 
 export default function EscrowPaymentPage() {
   const { state } = useLocation()
@@ -21,7 +28,55 @@ export default function EscrowPaymentPage() {
   const currentUser = useAuthStore((s) => s.user)
 
   const application = (state as { application?: EscrowApplication } | null)?.application
-  const [isPaying, setIsPaying] = useState(false)
+
+  const [widget, setWidget] = useState<PaymentWidgetInstance | null>(null)
+  const [widgetLoading, setWidgetLoading] = useState(true)
+  const [paying, setPaying] = useState(false)
+  const renderedRef = useRef(false)
+
+  // 본인 share 계산
+  const myShare: number = (() => {
+    if (!application || !currentUser) return 0
+    const isBuyer  = currentUser.id === application.buyerId
+    const isSeller = currentUser.id === application.sellerId
+    if (application.feePayer === 'both') {
+      // 폼 작성자(receiver) 기준 — receiverShare. (initiator 측은 별도 결제 흐름 또는 in-app 알림으로 처리)
+      return application.receiverShare
+    }
+    if (application.feePayer === 'buyer'  && isBuyer)  return application.appliedTotalFee
+    if (application.feePayer === 'seller' && isSeller) return application.appliedTotalFee
+    return 0
+  })()
+
+  // Toss 위젯 로드 + 렌더 (mount 1회)
+  useEffect(() => {
+    if (!application || !currentUser || myShare <= 0) {
+      setWidgetLoading(false)
+      return
+    }
+    if (renderedRef.current) return
+    renderedRef.current = true
+
+    const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY
+    if (!TOSS_CLIENT_KEY) {
+      toast.error('VITE_TOSS_CLIENT_KEY 환경변수가 비어있어요.')
+      setWidgetLoading(false)
+      return
+    }
+
+    loadPaymentWidget(TOSS_CLIENT_KEY, String(currentUser.id))
+      .then((w) => {
+        w.renderPaymentMethods('#escrow-payment-method', { value: myShare, currency: 'KRW' })
+        w.renderAgreement('#escrow-agreement', { variantKey: 'AGREEMENT' })
+        setWidget(w)
+      })
+      .catch((err) => {
+        console.error(err)
+        toast.error('결제 위젯을 불러오지 못했어요.')
+      })
+      .finally(() => setWidgetLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, application?.id])
 
   if (!application) {
     return (
@@ -32,60 +87,55 @@ export default function EscrowPaymentPage() {
     )
   }
 
-  // 본인이 신청자인지 수신자인지에 따라 share 결정
-  // 신청자 = link 만든 사람 = (Mode B 에서 보통) buyer 또는 seller
-  // 본인 share 결정: feePayer 가 'both' 일 때만 백엔드가 share 분리해서 줌
-  // 'buyer' / 'seller' 단일 부담일 때는 부담자가 totalFee 전액 결제, 다른 쪽은 결제 X
-  const isBuyer = currentUser?.id === application.buyerId
-  const isSeller = currentUser?.id === application.sellerId
-
-  // 내가 부담자인지 + 얼마 내야 하는지
-  const myShare: number = (() => {
-    if (application.feePayer === 'both') {
-      // initiator vs receiver — 누가 initiator 인지는 application 만으로는 불명. 일반적으로 본인이 sellerId 면 신청자(initiator)인 경우와 같지 않음.
-      // 백엔드가 initiatorShare/receiverShare 둘 다 줘서 본인 share 만 골라야 함.
-      // 라운드9 spec: receiver(=수신자, 폼 작성자) 가 더 큰 share 부담 (예: 1851000)
-      // 본인이 sellerId 인지 buyerId 인지는 위에 isBuyer/isSeller 로 분기 가능하지만,
-      // initiator vs receiver 매칭은 application.buyerId/sellerId 와 link.initiatorRole 비교 필요.
-      // EscrowPaymentPage 진입 시점은 항상 receiver (폼 작성자) 이므로 일단 receiverShare.
-      return application.receiverShare
-    }
-    if (application.feePayer === 'buyer'  && isBuyer)  return application.appliedTotalFee
-    if (application.feePayer === 'seller' && isSeller) return application.appliedTotalFee
-    return 0  // 본인 부담 X (상대방이 전액)
-  })()
-
   const handlePay = async () => {
     if (myShare <= 0) {
       toast.info('이 거래에서는 결제할 금액이 없어요.')
-      navigate(`/escrow/join/${linkToken}/complete`, { state: { application, paid: 0 } })
-      return
-    }
-    setIsPaying(true)
-    try {
-      // 백엔드 charge → tossClientKey 받음 → 토스 SDK 결제창 띄워야 함
-      // (현재 페이지에선 Toss SDK 직접 호출 생략 — 별도 결제 흐름은 ChargePage 와 동일하게 별도 구현 가능)
-      await paymentApi.startPayment(myShare, application.id)
-
-      // TODO: Toss SDK 결제창 → confirm
-      // 임시: charge 만 호출하고 완료 페이지로
-      toast.success('결제 요청을 등록했어요.')
       navigate(`/escrow/join/${linkToken}/complete`, {
-        state: { application, paid: myShare },
+        state: { application, paid: 0 },
         replace: true,
       })
+      return
+    }
+    if (!widget || !currentUser) return
+
+    setPaying(true)
+    try {
+      // 1) 백엔드 charge → merchantUid + (선택) tossClientKey
+      const { data } = await paymentApi.startPayment(myShare, application.id)
+
+      // 2) callback 페이지에서 사용할 컨텍스트 저장
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({
+        applicationId: application.id,
+        linkToken,
+      }))
+
+      // 3) Toss 결제창 (success 시 callback 으로 redirect)
+      await widget.requestPayment({
+        orderId: data.merchantUid,
+        orderName: application.tradeMode === 'INTERNAL' ? '쓸랭 거래대행 결제' : '거래대행 (외부)',
+        customerEmail: currentUser.email,
+        customerName: currentUser.nickname,
+        successUrl: SUCCESS_URL,
+        failUrl:    FAIL_URL,
+      })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '결제 요청에 실패했어요.')
-    } finally {
-      setIsPaying(false)
+      const isCanceled = err instanceof Error && /USER_CANCEL|user_cancel|취소/.test(err.message)
+      if (!isCanceled) {
+        const msg =
+          err instanceof BusinessError ? err.message :
+          err instanceof Error ? err.message : '결제를 시작하지 못했어요.'
+        toast.error(msg)
+      }
+      sessionStorage.removeItem(PENDING_KEY)
+      setPaying(false)
     }
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 pb-10 flex flex-col gap-6">
+    <div className="max-w-lg mx-auto px-4 py-8 pb-32 flex flex-col gap-6">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-500 transition-colors text-sm"
+        className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-500 transition-colors text-sm w-fit"
       >
         <ArrowLeft size={18} />
         신청서로 돌아가기
@@ -93,7 +143,7 @@ export default function EscrowPaymentPage() {
 
       <div>
         <h1 className="text-xl font-bold text-gray-900 mb-1">결제</h1>
-        <p className="text-sm text-gray-500">청구 내역을 확인하고 결제를 진행해 주세요.</p>
+        <p className="text-sm text-gray-500">청구 내역을 확인하고 결제 수단을 선택해 주세요.</p>
       </div>
 
       {/* 영수증 */}
@@ -122,9 +172,7 @@ export default function EscrowPaymentPage() {
       {/* 본인 share */}
       <section className="bg-primary-50 rounded-xl p-5">
         <p className="text-xs text-primary-700 mb-1">내가 결제할 금액</p>
-        <p className="text-2xl font-bold text-primary-900">
-          {myShare.toLocaleString()}원
-        </p>
+        <p className="text-2xl font-bold text-primary-900">{myShare.toLocaleString()}원</p>
         {myShare === 0 && (
           <p className="text-xs text-primary-700 mt-1">상대방이 전액 부담합니다.</p>
         )}
@@ -139,13 +187,27 @@ export default function EscrowPaymentPage() {
         )}
       </section>
 
-      <Button onClick={handlePay} disabled={isPaying} isLoading={isPaying} fullWidth>
-        {myShare > 0 ? `${myShare.toLocaleString()}원 결제하기` : '확인'}
-      </Button>
+      {/* Toss 결제 위젯 */}
+      {myShare > 0 && (
+        <>
+          <div id="escrow-payment-method" className="bg-white rounded-xl border border-gray-200 p-1 min-h-[160px]" />
+          <div id="escrow-agreement" className="bg-white rounded-xl border border-gray-200 p-1 min-h-[80px]" />
+          {widgetLoading && <p className="text-xs text-gray-400 text-center">결제 위젯 로딩 중...</p>}
+        </>
+      )}
 
-      <p className="text-xs text-gray-400 text-center">
-        ※ Toss SDK 결제창 통합은 follow-up. 현재는 charge 등록 후 완료 페이지로 이동.
-      </p>
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+        <div className="max-w-lg mx-auto">
+          <Button
+            onClick={handlePay}
+            disabled={paying || (myShare > 0 && !widget)}
+            isLoading={paying}
+            fullWidth
+          >
+            {myShare > 0 ? `${myShare.toLocaleString()}원 결제하기` : '확인'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
