@@ -1,29 +1,38 @@
-// 에스크로 목록 페이지 — 백엔드 미지원 (배달대행 도메인은 /delivery 사용)
-// TODO: 백엔드 합의 후 endpoint 연동
-import { Link } from 'react-router-dom'
-import { Shield, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
-import type { EscrowApplication, EscrowStatus } from '@/features/escrow/types'
+// 신청 목록 — 본인이 요청한 배달대행 (= 거래대행) 목록
+//
+// 명칭은 "거래대행" 이지만 실제 도메인은 배달대행 (/api/v1/deliveries/me).
+// useMyDeliveries() 호출 → Delivery 응답을 신청 목록 UI 로 매핑.
+import { useNavigate } from 'react-router-dom'
+import { Shield, Clock, CheckCircle, XCircle, Truck, ArrowRight } from 'lucide-react'
+import { useMyDeliveries } from '@/features/delivery/hooks'
+import type { Delivery, DeliveryStatus } from '@/features/delivery/types'
 import { formatKst } from '@/shared/lib/date'
+import { cn } from '@/shared/lib/cn'
 
-const applications: EscrowApplication[] = []
-
-const statusConfig: Record<EscrowStatus, { label: string; color: string; icon: typeof Clock }> = {
-  pending:     { label: '신청 중',      color: 'text-yellow-600 bg-yellow-100', icon: Clock },
-  confirmed:   { label: '확인 완료',    color: 'text-blue-600 bg-blue-100',     icon: CheckCircle },
-  in_progress: { label: '대행 진행 중', color: 'text-orange-600 bg-orange-100', icon: Clock },
-  completed:   { label: '완료',         color: 'text-green-600 bg-green-100',   icon: CheckCircle },
-  cancelled:   { label: '취소',         color: 'text-red-600 bg-red-100',       icon: XCircle },
+const STATUS_CFG: Record<DeliveryStatus, { label: string; color: string; icon: typeof Clock }> = {
+  '모집중':   { label: '신청 중',     color: 'text-yellow-600 bg-yellow-100', icon: Clock },
+  '수락':     { label: '확인 완료',   color: 'text-blue-600 bg-blue-100',     icon: CheckCircle },
+  '배송중':   { label: '대행 진행 중', color: 'text-orange-600 bg-orange-100', icon: Truck },
+  '배송완료': { label: '배송 완료',   color: 'text-emerald-600 bg-emerald-100', icon: CheckCircle },
+  '정산완료': { label: '정산 완료',   color: 'text-green-600 bg-green-100',   icon: CheckCircle },
+  '취소':     { label: '취소',         color: 'text-red-600 bg-red-100',       icon: XCircle },
 }
 
 export default function EscrowListPage() {
+  const navigate = useNavigate()
+  const { data, isLoading } = useMyDeliveries({ size: 50 })
+  const items: Delivery[] = data?.content ?? []
+
   return (
     <div className="px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-900">신청 목록</h1>
-        <span className="text-sm text-gray-500">총 {applications.length}건</span>
+        <span className="text-sm text-gray-500">총 {items.length}건</span>
       </div>
 
-      {applications.length === 0 ? (
+      {isLoading ? (
+        <p className="py-12 text-center text-sm text-gray-400">불러오는 중...</p>
+      ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <Shield size={48} className="mb-4 opacity-40" />
           <p className="text-sm">신청한 대행 서비스가 없습니다.</p>
@@ -31,58 +40,48 @@ export default function EscrowListPage() {
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
-          {applications.map((application) => {
-            const cfg = statusConfig[application.status]
+          {items.map((d) => {
+            const cfg = STATUS_CFG[d.status]
             const StatusIcon = cfg.icon
             return (
-              <li key={application.id}>
-                <Link
-                  to={`/escrow/list/${application.id}`}
-                  className="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors"
+              <li key={d.id}>
+                <button
+                  onClick={() => navigate(`/delivery/${d.id}/track`)}
+                  className="w-full flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
                 >
-                  <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                    {application.itemInfo?.imageUrl ? (
-                      <img
-                        src={application.itemInfo.imageUrl}
-                        alt={application.itemInfo.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Shield size={24} className="text-gray-400 m-auto mt-7" />
-                    )}
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                    <Truck size={20} className="text-gray-400" />
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${cfg.color}`}>
+                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', cfg.color)}>
                         <StatusIcon size={11} />
                         {cfg.label}
                       </span>
-                      <span className="text-xs text-gray-400">{application.id}</span>
+                      <span className="text-xs text-gray-400">#{d.id}</span>
                     </div>
 
-                    {application.itemInfo && (
-                      <p className="font-medium text-gray-900 truncate mb-1">
-                        {application.itemInfo.title}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{application.role === 'buyer' ? '구매자' : '판매자'}</span>
-                      {application.itemInfo && (
-                        <span className="font-medium text-gray-900">
-                          {application.itemInfo.price.toLocaleString()}원
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-gray-400 mt-1">
-                      신청일: {formatKst(application.createdAt, 'yyyy.MM.dd')}
+                    <p className="font-medium text-gray-900 truncate mb-1">
+                      {d.itemDescription}
                     </p>
+
+                    <p className="text-xs text-gray-500 truncate">
+                      {d.pickupAddress} → {d.dropoffAddress}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400">
+                        신청일: {formatKst(d.requestedAt, 'yyyy.MM.dd')}
+                      </p>
+                      <span className="font-medium text-gray-900 text-sm">
+                        {d.fee.toLocaleString()}원
+                      </span>
+                    </div>
                   </div>
 
                   <ArrowRight className="text-gray-400 mt-1 shrink-0" size={18} />
-                </Link>
+                </button>
               </li>
             )
           })}
