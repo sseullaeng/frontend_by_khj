@@ -35,9 +35,9 @@ export default function EscrowHubPage() {
       {/* 메뉴 카드 목록 */}
       <div className="flex flex-col gap-4">
 
-        {/* 대행 신청 카드 */}
+        {/* 대행 신청 카드 — 배달대행 도메인으로 통합 */}
         <button
-          onClick={() => navigate('/escrow/apply')}
+          onClick={() => navigate('/delivery')}
           className="flex items-center gap-5 p-6 bg-white border-2 border-primary-500 rounded-2xl hover:bg-primary-50 transition-colors text-left group"
         >
           <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center group-hover:bg-primary-200 transition-colors shrink-0">
@@ -45,7 +45,7 @@ export default function EscrowHubPage() {
           </div>
           <div>
             <p className="text-lg font-bold text-gray-900 mb-1">대행 신청</p>
-            <p className="text-sm text-gray-500">상대방과 함께 대행 서비스를 신청합니다.</p>
+            <p className="text-sm text-gray-500">픽업·배송 정보를 입력해 대행을 요청합니다.</p>
           </div>
         </button>
 

@@ -1,6 +1,12 @@
 // 애플리케이션 라우터 설정: React Router를 사용한 페이지 경로 관리
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom'
 import { lazy } from 'react'
+
+// /escrow/list/:id → /delivery/:id/track  동적 redirect
+function EscrowListIdRedirect() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={id ? `/delivery/${id}/track` : '/delivery'} replace />
+}
 
 // 공통 레이아웃 컴포넌트
 import RootLayout from '@/shared/ui/RootLayout'
@@ -60,16 +66,10 @@ const NoticeWritePage    = lazy(() => import('@/pages/notice/NoticeWritePage')) 
 const SupportPage           = lazy(() => import('@/pages/support/SupportPage'))           // 고객 지원 페이지
 const MyInquiryDetailPage   = lazy(() => import('@/pages/support/MyInquiryDetailPage'))   // 본인 문의 상세 (라운드8)
 
-// 거래 대행(Escrow) 관련 페이지
-const EscrowHubPage         = lazy(() => import('@/pages/escrow/EscrowHubPage'))         // 에스크로 허브 페이지
-const EscrowListPage        = lazy(() => import('@/pages/escrow/EscrowListPage'))        // 에스크로 목록 페이지
-const EscrowDetailPage      = lazy(() => import('@/pages/escrow/EscrowDetailPage'))      // 에스크로 상세 페이지
-const EscrowStartPage       = lazy(() => import('@/pages/escrow/EscrowStartPage'))       // 에스크로 시작 페이지
-const EscrowLinkPage        = lazy(() => import('@/pages/escrow/EscrowLinkPage'))        // 에스크로 링크 페이지
-const EscrowInvitePage      = lazy(() => import('@/pages/escrow/EscrowInvitePage'))      // 에스크로 초대 페이지
-const EscrowApplicationPage = lazy(() => import('@/pages/escrow/EscrowApplicationPage')) // 에스크로 신청 페이지
-const EscrowPaymentPage     = lazy(() => import('@/pages/escrow/EscrowPaymentPage'))     // 에스크로 결제 페이지
-const EscrowCompletePage    = lazy(() => import('@/pages/escrow/EscrowCompletePage'))    // 에스크로 완료 페이지
+// 거래대행(= 배달대행) 페이지
+//   허브 + 신청 목록은 살리고, 나머지 mock 흐름은 /delivery 로 redirect
+const EscrowHubPage         = lazy(() => import('@/pages/escrow/EscrowHubPage'))         // 거래대행 허브
+const EscrowListPage        = lazy(() => import('@/pages/escrow/EscrowListPage'))        // 신청 목록 (= useMyDeliveries)
 
 // 관리자 페이지
 const AdminLoginPage          = lazy(() => import('@/pages/admin/AdminLoginPage'))          // 관리자 로그인 페이지
@@ -121,11 +121,11 @@ export const router = createBrowserRouter([
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
       { path: '/support',          element: <SupportPage /> },
 
-      // 거래대행 — 링크 공유 대상자도 접근 가능
-      { path: '/escrow/join/:linkId',          element: <EscrowInvitePage /> },
-      { path: '/escrow/join/:linkId/form',    element: <EscrowApplicationPage /> },
-      { path: '/escrow/join/:linkId/payment',  element: <EscrowPaymentPage /> },
-      { path: '/escrow/join/:linkId/complete', element: <EscrowCompletePage /> },
+      // 거래대행 — 옛 escrow 흐름은 모두 /delivery 로 redirect (배달 도메인 통합)
+      { path: '/escrow/join/:linkId',          element: <Navigate to="/delivery" replace /> },
+      { path: '/escrow/join/:linkId/form',     element: <Navigate to="/delivery" replace /> },
+      { path: '/escrow/join/:linkId/payment',  element: <Navigate to="/delivery" replace /> },
+      { path: '/escrow/join/:linkId/complete', element: <Navigate to="/delivery" replace /> },
     ],
   },
 
@@ -162,12 +162,12 @@ export const router = createBrowserRouter([
           { path: '/reviews',               element: <ReviewManagePage /> },
           { path: '/reviews/write',         element: <ReviewWritePage /> },
 
-          // 거래대행 — 로그인 필수
+          // 거래대행(= 배달대행) — 허브/신청 목록만 살리고 나머지는 /delivery 로 redirect
           { path: '/escrow',               element: <EscrowHubPage /> },
           { path: '/escrow/list',          element: <EscrowListPage /> },
-          { path: '/escrow/list/:id',      element: <EscrowDetailPage /> },
-          { path: '/escrow/apply',         element: <EscrowStartPage /> },
-          { path: '/escrow/apply/link',    element: <EscrowLinkPage /> },
+          { path: '/escrow/list/:id',      element: <EscrowListIdRedirect /> },
+          { path: '/escrow/apply',         element: <Navigate to="/delivery" replace /> },
+          { path: '/escrow/apply/link',    element: <Navigate to="/delivery" replace /> },
         ],
       },
     ],

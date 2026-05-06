@@ -498,7 +498,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               </div>
               {useEscrow && (
                 <Link
-                  to="/escrow/apply"
+                  to="/delivery"
                   onClick={close}
                   className="text-center text-xs text-primary-500 font-medium py-1 hover:underline"
                 >
