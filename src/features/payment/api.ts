@@ -4,6 +4,7 @@ import type {
   PaymentStartResponse,
   PaymentConfirmRequest,
   PaymentResponse,
+  PointBalanceResponse,
   PointHistory,
   PointHistoryType,
   WithdrawRequest,
@@ -23,6 +24,10 @@ export const paymentApi = {
   // 결제 확정 — 토스 successUrl 콜백 받은 후 검증·잔액 반영
   confirmPayment: (body: PaymentConfirmRequest) =>
     api.post<PaymentResponse>('/api/v1/payments/charge/confirm', body),
+
+  // 포인트 잔액 (라운드 11) — 사용 가능 / 거래 보관 / 총 잔액 3분할
+  getMyPoint: () =>
+    api.get<PointBalanceResponse>('/api/v1/users/me/point'),
 
   // 포인트 내역
   getHistory: (params: { type?: PointHistoryType; page?: number; size?: number }) =>

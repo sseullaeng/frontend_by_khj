@@ -21,10 +21,11 @@ export const transactionApi = {
   getMyList: (params?: TransactionListParams) =>
     api.get<PageResponse<Transaction>>('/api/v1/users/me/transactions', { params }),
 
-  // 상태 전이 (예약/거래완료/취소)
-  //   예약: seller 만, 채팅중 → 예약
-  //   거래완료: seller 만, 예약 → 거래완료 (정산)
-  //   취소: 양쪽, 채팅중/예약 → 취소
+  // 상태 전이 — 라운드 11 (Tx-Hold)
+  //   예약:     seller 만, 채팅중   → 예약       (buyer 포인트 hold)
+  //   인계확인: seller 만, 예약    → 인계완료
+  //   인수확인: buyer 만,  인계완료 → 거래완료   (정산: hold → seller)
+  //   취소:     양쪽,    채팅중/예약 → 취소     (인계완료 이후 차단)
   patch: (id: number, body: TransactionPatchRequest) =>
     api.patch<void>(`/api/v1/transactions/${id}`, body),
 }

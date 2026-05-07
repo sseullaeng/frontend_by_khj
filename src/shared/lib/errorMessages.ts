@@ -27,12 +27,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   ITEM_IMAGE_NOT_FOUND:         '해당 이미지를 찾을 수 없어요.',
   ITEM_IMAGE_ORDER_MISMATCH:    '이미지 순서가 기존 목록과 일치하지 않아요.',
 
-  // ── 거래(Transaction) ─────────────────────────────────────
-  TRANSACTION_NOT_FOUND:        '거래를 찾을 수 없어요.',
-  TRANSACTION_FORBIDDEN:        '거래 참여자만 가능해요.',
-  TRANSACTION_INVALID_STATE:    '현재 상태에서는 가능한 동작이 아니에요.',
-  TRANSACTION_RESERVED_BY_OTHER:'다른 거래가 먼저 예약됐어요.',
-  TRANSACTION_SELF_NOT_ALLOWED: '본인 물품은 거래할 수 없어요.',
+  // ── 거래(Transaction) — 라운드 11 (Tx-Hold) ────────────────
+  TRANSACTION_NOT_FOUND:                '거래를 찾을 수 없어요.',
+  TRANSACTION_FORBIDDEN:                '거래 참여자만 가능해요.',
+  TRANSACTION_INVALID_STATE:            '현재 상태에서는 가능한 동작이 아니에요.',
+  TRANSACTION_RESERVED_BY_OTHER:        '다른 거래가 먼저 예약됐어요.',
+  TRANSACTION_SELF_NOT_ALLOWED:         '본인 물품은 거래할 수 없어요.',
+  TRANSACTION_HANDOVER_NOT_ALLOWED:     '판매자만 인계 확인할 수 있어요.',
+  TRANSACTION_RECEIVE_NOT_ALLOWED:      '구매자만 인수 확인할 수 있어요. 판매자가 먼저 인계 확인해야 해요.',
+  TRANSACTION_HOLD_FAILED:              '포인트가 부족해서 예약할 수 없어요. 충전 후 다시 시도해 주세요.',
 
   // ── 결제 / 포인트 / 출금 ──────────────────────────────────
   INSUFFICIENT_POINT:               '포인트가 부족해요.',

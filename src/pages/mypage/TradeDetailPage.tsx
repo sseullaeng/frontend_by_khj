@@ -1,24 +1,33 @@
-// 거래 상세 페이지 — Transaction 모델 (백엔드 spec 정합)
+// 거래 상세 페이지 — 라운드 11 (Tx-Hold)
 //
-// 액션:
-//   seller: 채팅중 → 예약, 예약 → 거래완료
-//   양쪽:   채팅중/예약 → 취소
+// 권한 매트릭스
+//   채팅중   → seller [예약], 양쪽 [취소]
+//   예약     → seller [인계 확인], 양쪽 [취소]            (buyer 포인트 hold 중)
+//   인계완료 → buyer  [인수 확인]                          (취소 불가)
+//   거래완료 → 액션 없음 (정산: hold → seller)
+//   취소     → 액션 없음 (hold 환불 완료)
 
 import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ChevronLeft, Calendar, ShoppingBag, Hash } from 'lucide-react'
+import {
+  ChevronLeft, Calendar, ShoppingBag, Hash,
+  ShieldCheck, PackageCheck, Truck, AlertCircle,
+} from 'lucide-react'
 import { useTransactionDetail, usePatchTransaction } from '@/features/trade/hooks'
 import { useItemDetail } from '@/features/item/hooks'
 import { useUserProfile } from '@/features/user/hooks'
 import { useAuthStore } from '@/features/auth/store'
+import { usePointBalance } from '@/features/payment/hooks'
 import { fromNow, formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui/Button'
+import { BusinessError } from '@/shared/types'
 import type { TransactionStatus } from '@/features/trade/types'
 
 const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
   '채팅중':   { color: 'text-amber-700 bg-amber-100' },
   '예약':     { color: 'text-yellow-700 bg-yellow-100' },
+  '인계완료': { color: 'text-indigo-700 bg-indigo-100' },
   '거래완료': { color: 'text-blue-700 bg-blue-100' },
   '취소':     { color: 'text-red-600 bg-red-100' },
 }
@@ -47,8 +56,13 @@ export default function TradeDetailPage() {
 
   const { mutate: patch, isPending: isPatching } = usePatchTransaction(id)
 
+  // buyer 본인일 때만 잔액 미리 검사 (예약 단계에서 충전 유도)
+  const isBuyerSelf = !!tx && currentUser?.id === tx.buyerId
+  const { data: balanceData } = usePointBalance({ enabled: isBuyerSelf && tx?.status === '채팅중' })
+
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
+  const [chargeOpen, setChargeOpen] = useState(false)
 
   if (isLoading) {
     return <div className="py-20 text-center text-gray-500">거래 내역을 불러오는 중...</div>
@@ -58,14 +72,31 @@ export default function TradeDetailPage() {
   }
 
   const isSeller = currentUser?.id === tx.sellerId
-  const isBuyer = currentUser?.id === tx.buyerId
-  const status = STATUS_BADGE[tx.status]
+  const isBuyer  = currentUser?.id === tx.buyerId
+  const status   = STATUS_BADGE[tx.status]
   const typeColor = TYPE_COLOR[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
 
-  // 가능한 액션
+  // 라운드 11 권한 매트릭스
   const canReserve  = isSeller && tx.status === '채팅중'
-  const canComplete = isSeller && tx.status === '예약'
+  const canHandover = isSeller && tx.status === '예약'
+  const canReceive  = isBuyer  && tx.status === '인계완료'
   const canCancel   = (isSeller || isBuyer) && (tx.status === '채팅중' || tx.status === '예약')
+
+  // buyer 본인 잔액이 가격보다 적으면 충전 유도 (채팅중 단계)
+  const buyerNeedsCharge =
+    isBuyerSelf && tx.status === '채팅중' && balanceData != null && balanceData.balance < tx.price
+
+  const handleReserveClick = () => {
+    // seller 가 누름. buyer 잔액 검증은 백엔드 hold 시점에 수행.
+    // hold 실패(TRANSACTION_HOLD_FAILED) 시 충전 안내 모달.
+    patch({ action: '예약' }, {
+      onError: (err) => {
+        if (err instanceof BusinessError && err.code === 'TRANSACTION_HOLD_FAILED') {
+          setChargeOpen(true)
+        }
+      },
+    })
+  }
 
   return (
     <div className="pb-10">
@@ -81,7 +112,7 @@ export default function TradeDetailPage() {
       </div>
 
       {/* 상태 배지 */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <span className={cn('px-3 py-1 text-sm font-medium rounded-full', status.color)}>
           {tx.status}
         </span>
@@ -97,6 +128,29 @@ export default function TradeDetailPage() {
           {isBuyer ? '구매' : '판매'}
         </span>
       </div>
+
+      {/* 단계별 안내 배너 */}
+      <StatusBanner tx={tx} isSeller={isSeller} isBuyer={isBuyer} />
+
+      {/* buyer 잔액 부족 안내 (채팅중 단계) */}
+      {buyerNeedsCharge && (
+        <div className="flex items-start gap-2 px-4 py-3 mb-4 bg-red-50 border border-red-200 rounded-xl">
+          <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">
+            <p className="font-semibold text-red-700 mb-0.5">포인트가 부족해요</p>
+            <p className="text-red-600/90">
+              현재 사용 가능 {balanceData?.balance.toLocaleString()}P / 거래 금액 {tx.price.toLocaleString()}P.
+              예약 전에 충전이 필요해요.
+            </p>
+          </div>
+          <Link
+            to="/point/charge"
+            className="shrink-0 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600"
+          >
+            충전
+          </Link>
+        </div>
+      )}
 
       {/* 물품 정보 */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
@@ -134,6 +188,12 @@ export default function TradeDetailPage() {
           {tx.reservedAt && (
             <Row icon={<Calendar size={16} />} label="예약" value={fromNow(tx.reservedAt)} />
           )}
+          {tx.handoverConfirmedAt && (
+            <Row icon={<PackageCheck size={16} />} label="인계 확인" value={fromNow(tx.handoverConfirmedAt)} />
+          )}
+          {tx.receiveConfirmedAt && (
+            <Row icon={<Truck size={16} />} label="인수 확인" value={fromNow(tx.receiveConfirmedAt)} />
+          )}
           {tx.completedAt && (
             <Row icon={<Calendar size={16} />} label="완료" value={fromNow(tx.completedAt)} />
           )}
@@ -142,6 +202,13 @@ export default function TradeDetailPage() {
               icon={<Calendar size={16} />}
               label="취소"
               value={`${fromNow(tx.canceledAt)} · ${tx.cancelReason ?? '사유 없음'}`}
+            />
+          )}
+          {tx.escrowHoldAmount > 0 && (tx.status === '예약' || tx.status === '인계완료') && (
+            <Row
+              icon={<ShieldCheck size={16} />}
+              label="보관 중"
+              value={`${tx.escrowHoldAmount.toLocaleString()}P (인수 확인 시 정산)`}
             />
           )}
           {tx.tradeType === '대여' && tx.rentalStart && tx.rentalEnd && (
@@ -192,7 +259,7 @@ export default function TradeDetailPage() {
       )}
 
       {/* 액션 버튼 */}
-      {(canReserve || canComplete || canCancel) && (
+      {(canReserve || canHandover || canReceive || canCancel) && (
         <div className="flex gap-2 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 lg:static lg:border-0 lg:px-0">
           {canCancel && (
             <Button
@@ -205,21 +272,26 @@ export default function TradeDetailPage() {
             </Button>
           )}
           {canReserve && (
-            <Button
-              fullWidth
-              isLoading={isPatching}
-              onClick={() => patch({ action: '예약' })}
-            >
+            <Button fullWidth isLoading={isPatching} onClick={handleReserveClick}>
               예약하기
             </Button>
           )}
-          {canComplete && (
+          {canHandover && (
             <Button
               fullWidth
               isLoading={isPatching}
-              onClick={() => patch({ action: '거래완료' })}
+              onClick={() => patch({ action: '인계확인' })}
             >
-              거래완료
+              인계 확인
+            </Button>
+          )}
+          {canReceive && (
+            <Button
+              fullWidth
+              isLoading={isPatching}
+              onClick={() => patch({ action: '인수확인' })}
+            >
+              인수 확인
             </Button>
           )}
         </div>
@@ -230,7 +302,11 @@ export default function TradeDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
             <h3 className="font-bold text-gray-900 mb-2">거래를 취소할까요?</h3>
-            <p className="text-sm text-gray-500 mb-3">취소 사유를 입력해 주세요.</p>
+            <p className="text-sm text-gray-500 mb-3">
+              {tx.status === '예약'
+                ? '예약 시 보관된 포인트는 즉시 환불돼요.'
+                : '취소 사유를 입력해 주세요.'}
+            </p>
             <textarea
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
@@ -259,6 +335,99 @@ export default function TradeDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 충전 유도 모달 (잔액 부족 onError 백업) */}
+      {chargeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl text-center">
+            <AlertCircle size={32} className="text-red-500 mx-auto mb-2" />
+            <h3 className="font-bold text-gray-900 mb-1">포인트가 부족해요</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              충전 후 다시 시도해 주세요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setChargeOpen(false)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 font-medium"
+              >
+                닫기
+              </button>
+              <Link
+                to="/point/charge"
+                className="flex-1 py-2.5 bg-primary-500 text-white rounded-xl text-sm font-semibold text-center"
+              >
+                충전하기
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatusBanner({
+  tx, isSeller, isBuyer,
+}: {
+  tx: { status: TransactionStatus; escrowHoldAmount: number; price: number }
+  isSeller: boolean
+  isBuyer:  boolean
+}) {
+  if (tx.status === '예약') {
+    if (isSeller) {
+      return (
+        <Banner tone="indigo" icon={<PackageCheck size={18} />}
+          title="물품을 인계하셨나요?"
+          desc="구매자에게 물품을 전달한 후 [인계 확인]을 눌러 주세요. 구매자의 인수 확인까지 완료되면 정산돼요." />
+      )
+    }
+    if (isBuyer) {
+      return (
+        <Banner tone="amber" icon={<ShieldCheck size={18} />}
+          title={`${tx.escrowHoldAmount.toLocaleString()}P 보관 중`}
+          desc="판매자가 인계를 확인하면 알림으로 안내드려요. 그 다음 인수 확인을 누르시면 거래가 완료돼요." />
+      )
+    }
+  }
+  if (tx.status === '인계완료') {
+    if (isSeller) {
+      return (
+        <Banner tone="indigo" icon={<Truck size={18} />}
+          title="구매자의 인수 확인 대기 중"
+          desc="구매자가 인수를 확인하면 자동으로 정산되어 포인트가 입금돼요." />
+      )
+    }
+    if (isBuyer) {
+      return (
+        <Banner tone="emerald" icon={<PackageCheck size={18} />}
+          title="물품을 받으셨나요?"
+          desc="물품 확인 후 [인수 확인]을 눌러 주세요. 거래가 완료되고 보관된 포인트가 판매자에게 전달돼요." />
+      )
+    }
+  }
+  return null
+}
+
+function Banner({
+  tone, icon, title, desc,
+}: {
+  tone: 'amber' | 'indigo' | 'emerald'
+  icon: React.ReactNode
+  title: string
+  desc: string
+}) {
+  const palette = {
+    amber:   'bg-amber-50 border-amber-200 text-amber-700',
+    indigo:  'bg-indigo-50 border-indigo-200 text-indigo-700',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  }[tone]
+  return (
+    <div className={cn('flex items-start gap-2 px-4 py-3 mb-4 border rounded-xl', palette)}>
+      <span className="shrink-0 mt-0.5">{icon}</span>
+      <div className="flex-1 text-sm">
+        <p className="font-semibold mb-0.5">{title}</p>
+        <p className="opacity-90">{desc}</p>
+      </div>
     </div>
   )
 }

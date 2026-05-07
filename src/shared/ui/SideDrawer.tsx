@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
-import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, ShieldCheck, Star, Image as ImageIcon } from 'lucide-react'
+import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt } from 'lucide-react'
 import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
 import { compressImage } from '@/shared/lib/imageCompress'
 import { toast } from 'sonner'
@@ -10,7 +10,6 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages } from '@/features/chat/hooks'
-import { useTransactionStore } from '@/features/transaction/store'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { useBroadcastNotification } from '@/features/admin/hooks'
@@ -164,7 +163,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const { messages, sendMessage } = useChatMessages(roomId)
   // 라운드9: ChatRoom.isSeller 백엔드 응답 사용 (이전엔 useItemDetail 추가 호출)
   const isSeller = room?.isSeller ?? false
-  const { statusByRoom, useEscrowByRoom, setStatus, setUseEscrow } = useTransactionStore()
   const { hasReviewed } = useReviewStore()
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -173,13 +171,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [blockOpen, setBlockOpen] = useState(false)
-  const [escrowOpen, setEscrowOpen] = useState(false)
-  const [escrowChoice, setEscrowChoice] = useState<boolean | null>(null)
   // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
-  const txStatus = statusByRoom[roomId] ?? 'none'
-  const useEscrow = useEscrowByRoom[roomId] ?? false
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
   // 관리자는 거래예약·신고·차단 기능 없이 채팅만 가능
   const isAdmin = currentUser?.role === 'ADMIN'
@@ -250,18 +244,12 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     sendMessage(content)
   }
 
-  const handleReservation = () => setEscrowOpen(true)
-
-  const handleReservationConfirm = () => {
-    setStatus(roomId, 'reserved')
-    setUseEscrow(roomId, escrowChoice === true)
-    setEscrowOpen(false)
-    setEscrowChoice(null)
+  // 라운드11: 거래 흐름은 마이페이지 → 거래 상세에서 처리.
+  //   채팅방에선 진입 단축키만 제공 (zustand 가짜 상태바 제거)
+  const handleOpenTrades = () => {
+    close()
+    navigate('/mypage/items')
   }
-
-  const handleCancelReservation = () => setStatus(roomId, 'none')
-
-  const handleComplete = () => setStatus(roomId, 'completed')
 
   const handleReviewNav = () => {
     close()
@@ -354,61 +342,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* ── 거래 예약 — 거래대행 선택 모달 ── */}
-      {escrowOpen && (
-        <div className="absolute inset-0 z-10 bg-black/40 flex items-end">
-          <div className="bg-white rounded-t-2xl p-5 w-full shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck size={18} className="text-primary-500" />
-              <h3 className="text-base font-bold text-gray-900">거래 방식을 선택해 주세요</h3>
-            </div>
-            <div className="flex gap-3 mb-5">
-              <button
-                onClick={() => setEscrowChoice(true)}
-                className={cn(
-                  'flex-1 py-4 rounded-xl border-2 text-sm font-semibold transition-colors flex flex-col items-center gap-1',
-                  escrowChoice === true
-                    ? 'border-primary-500 bg-primary-50 text-primary-600'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                )}
-              >
-                <ShieldCheck size={20} />
-                거래대행
-                <span className="text-xs font-normal text-gray-400">쓸랭이 중간에서 도와줘요</span>
-              </button>
-              <button
-                onClick={() => setEscrowChoice(false)}
-                className={cn(
-                  'flex-1 py-4 rounded-xl border-2 text-sm font-semibold transition-colors flex flex-col items-center gap-1',
-                  escrowChoice === false
-                    ? 'border-yellow-400 bg-yellow-50 text-yellow-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                )}
-              >
-                <span className="text-lg">🤝</span>
-                직접 거래
-                <span className="text-xs font-normal text-gray-400">직접 만나서 거래해요</span>
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setEscrowOpen(false); setEscrowChoice(null) }}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleReservationConfirm}
-                disabled={escrowChoice === null}
-                className="flex-1 py-2.5 bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl text-sm font-semibold transition-colors"
-              >
-                예약 확정
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 채팅방 헤더 */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-gray-100 shrink-0">
         <button onClick={onBack} className="text-gray-400 hover:text-gray-600 transition-colors p-1 shrink-0">
@@ -469,76 +402,36 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 판매자 전용 — 거래 상태 바 (관리자는 표시하지 않음) */}
-      {!isAdmin && isSeller && txStatus !== 'completed' && (
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-2">
-          {txStatus === 'none' && (
-            <button
-              onClick={handleReservation}
-              className="w-full py-2 rounded-lg bg-yellow-400 hover:bg-yellow-500 text-white text-xs font-semibold transition-colors"
-            >
-              거래 예약
-            </button>
-          )}
-          {txStatus === 'reserved' && (
-            <>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCancelReservation}
-                  className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-100 transition-colors"
-                >
-                  거래예약취소
-                </button>
-                <button
-                  onClick={handleComplete}
-                  className="flex-1 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors"
-                >
-                  거래완료
-                </button>
-              </div>
-              {useEscrow && (
-                <Link
-                  to="/escrow/apply"
-                  onClick={close}
-                  className="text-center text-xs text-primary-500 font-medium py-1 hover:underline"
-                >
-                  거래대행 신청하기 →
-                </Link>
-              )}
-            </>
-          )}
+      {/* 거래 진입 단축 — 라운드 11: 실제 거래 상세에서 예약/인계/인수 처리 */}
+      {!isAdmin && (
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
+          <button
+            onClick={handleOpenTrades}
+            className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Receipt size={13} />
+            {isSeller ? '판매 거래 관리' : '구매 거래 관리'}
+          </button>
+          <p className="text-[11px] text-gray-400 text-center mt-1">
+            예약 · 인계 · 인수 확인은 거래 상세 페이지에서 진행해요.
+          </p>
         </div>
       )}
 
-      {/* 거래 완료 후 — 판매자 리뷰 버튼 (관리자는 표시하지 않음) */}
-      {!isAdmin && isSeller && txStatus === 'completed' && (
+      {/* 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
+      {!isAdmin && alreadyReviewed && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
-          {alreadyReviewed ? (
-            <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
-          ) : (
-            <button
-              onClick={handleReviewNav}
-              className="w-full py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Star size={13} /> 리뷰 남기기
-            </button>
-          )}
+          <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
         </div>
       )}
-
-      {/* 구매자 — 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
-      {!isAdmin && !isSeller && txStatus === 'completed' && (
-        <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
-          {alreadyReviewed ? (
-            <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
-          ) : (
-            <button
-              onClick={handleReviewNav}
-              className="w-full py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Star size={13} /> 리뷰 남기기
-            </button>
-          )}
+      {!isAdmin && !alreadyReviewed && (
+        <div className="px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
+          <button
+            onClick={handleReviewNav}
+            className="w-full py-2 rounded-lg border border-green-500 text-green-600 hover:bg-green-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Star size={13} /> 거래 후 리뷰 남기기
+          </button>
         </div>
       )}
 
