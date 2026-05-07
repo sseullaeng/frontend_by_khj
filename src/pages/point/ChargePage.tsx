@@ -50,9 +50,13 @@ export default function ChargePage() {
     renderedRef.current = true
 
     loadPaymentWidget(TOSS_CLIENT_KEY, String(user.id))
-      .then((w) => {
-        w.renderPaymentMethods('#payment-method', { value: amount, currency: 'KRW' })
-        w.renderAgreement('#agreement', { variantKey: 'AGREEMENT' })
+      .then(async (w) => {
+        // Toss SDK 의 render 들은 Promise 반환 — 둘 다 끝난 뒤에야 requestPayment 가능.
+        // 끝나기 전에 setWidget 하면 사용자가 빨리 클릭했을 때 "결제 UI 가 아직 렌더링되지 않았습니다" 발생.
+        await Promise.all([
+          w.renderPaymentMethods('#payment-method', { value: amount, currency: 'KRW' }),
+          w.renderAgreement('#agreement', { variantKey: 'AGREEMENT' }),
+        ])
         setWidget(w)
       })
       .catch((err) => {
