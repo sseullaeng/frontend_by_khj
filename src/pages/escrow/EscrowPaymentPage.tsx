@@ -65,9 +65,13 @@ export default function EscrowPaymentPage() {
     }
 
     loadPaymentWidget(TOSS_CLIENT_KEY, String(currentUser.id))
-      .then((w) => {
-        w.renderPaymentMethods('#escrow-payment-method', { value: myShare, currency: 'KRW' })
-        w.renderAgreement('#escrow-agreement', { variantKey: 'AGREEMENT' })
+      .then(async (w) => {
+        // Toss SDK 의 render 들은 Promise — 둘 다 끝나기 전에 setWidget 하면
+        // 사용자가 빨리 결제 버튼을 눌렀을 때 "결제 UI 가 아직 렌더링되지 않았습니다" 에러.
+        await Promise.all([
+          w.renderPaymentMethods('#escrow-payment-method', { value: myShare, currency: 'KRW' }),
+          w.renderAgreement('#escrow-agreement', { variantKey: 'AGREEMENT' }),
+        ])
         setWidget(w)
       })
       .catch((err) => {
