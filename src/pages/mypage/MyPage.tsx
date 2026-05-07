@@ -1,11 +1,14 @@
-// 마이페이지: 일반 유저는 프로필·포인트·메뉴.
-// 관리자는 진입 즉시 관리 대시보드로 redirect (마이페이지 메뉴 자체가 관리자에게 의미 없음).
-import { Link, Navigate } from 'react-router-dom'
+// 마이페이지: 일반 유저는 프로필·포인트·메뉴, 관리자는 통계 대시보드(lazy 로드)
+import { Suspense, lazy } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronRight, Wallet } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
 import { useLogout } from '@/features/auth/hooks'
 import { usePointBalance } from '@/features/payment/hooks'
 import { Button } from '@/shared/ui/Button'
+
+// 관리자 차트 대시보드 (recharts ~300KB) — 관리자 진입 시에만 로드
+const AdminStats = lazy(() => import('./AdminStats'))
 
 const MENU_ITEMS = [
   { label: '내 거래',     to: '/mypage/items' },
@@ -18,48 +21,53 @@ const MENU_ITEMS = [
 export default function MyPage() {
   const user = useAuthStore((s) => s.user)
   const { mutate: logout, isPending } = useLogout()
-
-  // 관리자는 마이페이지 대신 관리 대시보드로 — history 안 쌓이게 replace
-  if (user?.role === 'ADMIN') {
-    return <Navigate to="/admin/dashboard" replace />
-  }
+  const isAdmin = user?.role === 'ADMIN'
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 일반 유저 프로필 */}
-      <div className="flex items-center gap-4 py-2">
-        <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-          {user?.profileImage && (
-            <img src={user.profileImage} alt={user.nickname} className="w-full h-full object-cover" />
-          )}
-        </div>
-        <div className="flex-1">
-          <p className="font-semibold text-lg">{user?.nickname}</p>
-          <p className="text-sm text-gray-500">{user?.email}</p>
-        </div>
-        <Link to="/mypage/edit" className="text-sm text-primary-500">수정</Link>
-      </div>
 
-      {/* 신뢰 지수 */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl">
-        <span className="text-sm text-gray-600">신뢰 지수</span>
-        <span className="font-bold text-primary-500">{user?.trustScore ?? 0}점</span>
-      </div>
+      {isAdmin ? (
+        <Suspense fallback={<p className="py-12 text-center text-sm text-gray-400">대시보드 불러오는 중...</p>}>
+          <AdminStats nickname={user?.nickname ?? '관리자'} />
+        </Suspense>
+      ) : (
+        <>
+          {/* 일반 유저 프로필 */}
+          <div className="flex items-center gap-4 py-2">
+            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
+              {user?.profileImage && (
+                <img src={user.profileImage} alt={user.nickname} className="w-full h-full object-cover" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-lg">{user?.nickname}</p>
+              <p className="text-sm text-gray-500">{user?.email}</p>
+            </div>
+            <Link to="/mypage/edit" className="text-sm text-primary-500">수정</Link>
+          </div>
 
-      {/* 포인트 카드 — 3분할 + 충전/출금 */}
-      <PointCard />
+          {/* 신뢰 지수 */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl">
+            <span className="text-sm text-gray-600">신뢰 지수</span>
+            <span className="font-bold text-primary-500">{user?.trustScore ?? 0}점</span>
+          </div>
 
-      {/* 메뉴 */}
-      <ul className="divide-y divide-gray-100">
-        {MENU_ITEMS.map((item) => (
-          <li key={item.to}>
-            <Link to={item.to} className="flex items-center justify-between py-4 text-sm text-gray-700">
-              {item.label}
-              <ChevronRight size={16} className="text-gray-400" />
-            </Link>
-          </li>
-        ))}
-      </ul>
+          {/* 포인트 카드 — 3분할 + 충전/출금 */}
+          <PointCard />
+
+          {/* 메뉴 */}
+          <ul className="divide-y divide-gray-100">
+            {MENU_ITEMS.map((item) => (
+              <li key={item.to}>
+                <Link to={item.to} className="flex items-center justify-between py-4 text-sm text-gray-700">
+                  {item.label}
+                  <ChevronRight size={16} className="text-gray-400" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <Button variant="ghost" fullWidth isLoading={isPending} onClick={() => logout()}>
         로그아웃
