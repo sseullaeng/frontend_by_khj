@@ -8,6 +8,7 @@ import type {
   TransactionPatchRequest,
 } from './types'
 import { itemKeys } from '@/features/item/keys'
+import { pointKeys } from '@/features/payment/keys'
 import { BusinessError } from '@/shared/types'
 
 // 쿼리 키
@@ -58,7 +59,7 @@ export function useCreateTransaction() {
   })
 }
 
-// 상태 전이 (예약/거래완료/취소)
+// 상태 전이 (예약/인계확인/인수확인/취소) — 라운드 11 (Tx-Hold)
 export function usePatchTransaction(id: number) {
   const qc = useQueryClient()
   return useMutation({
@@ -67,19 +68,30 @@ export function usePatchTransaction(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: transactionKeys.detail(id) })
       qc.invalidateQueries({ queryKey: transactionKeys.all() })
-      qc.invalidateQueries({ queryKey: itemKeys.all() })       // Item.status 자동 연동
-      qc.invalidateQueries({ queryKey: ['auth', 'me'] })       // 거래완료 시 잔액 변동
+      qc.invalidateQueries({ queryKey: itemKeys.all() })          // Item.status 자동 연동
+      qc.invalidateQueries({ queryKey: pointKeys.all() })         // 라운드11: 잔액·내역 전체 갱신 (hold/release/refund)
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] })
     },
     onError: (err) => {
       if (err instanceof BusinessError) {
-        if (err.code === 'TRANSACTION_FORBIDDEN') toast.error('권한이 없어요.')
-        else if (err.code === 'TRANSACTION_INVALID_STATE')
-          toast.error('현재 상태에서는 불가능한 동작이에요.')
-        else if (err.code === 'TRANSACTION_RESERVED_BY_OTHER')
-          toast.error('다른 거래가 먼저 예약되었어요.')
-        else if (err.code === 'INSUFFICIENT_POINT')
-          toast.error('포인트가 부족해서 거래완료할 수 없어요.')
-        else toast.error(err.message)
+        switch (err.code) {
+          case 'TRANSACTION_FORBIDDEN':
+            toast.error('권한이 없어요.'); break
+          case 'TRANSACTION_INVALID_STATE':
+            toast.error('현재 상태에서는 불가능한 동작이에요.'); break
+          case 'TRANSACTION_RESERVED_BY_OTHER':
+            toast.error('다른 거래가 먼저 예약됐어요.'); break
+          case 'TRANSACTION_HANDOVER_NOT_ALLOWED':
+            toast.error('판매자만 인계 확인할 수 있어요.'); break
+          case 'TRANSACTION_RECEIVE_NOT_ALLOWED':
+            toast.error('구매자만 인수 확인할 수 있어요. 판매자가 먼저 인계 확인해야 해요.'); break
+          case 'TRANSACTION_HOLD_FAILED':
+            toast.error('포인트가 부족해 예약할 수 없어요. 충전 후 다시 시도해 주세요.'); break
+          case 'INSUFFICIENT_POINT':
+            toast.error('포인트가 부족해요.'); break
+          default:
+            toast.error(err.message)
+        }
       } else {
         toast.error('거래 상태를 변경하지 못했어요.')
       }

@@ -17,18 +17,19 @@ const TABS: {
   key: TabKey
   label: string
   role: TransactionRole
-  // 진행중 탭은 채팅중 + 예약 둘 다 보여주기 위해 별도 처리
+  // 진행중 탭은 채팅중 + 예약 + 인계완료 (라운드 11) 묶음
   statuses: TransactionStatus[]
 }[] = [
-  { key: 'BUYING',  label: '구매중',   role: 'buyer',  statuses: ['채팅중', '예약'] },
+  { key: 'BUYING',  label: '구매중',   role: 'buyer',  statuses: ['채팅중', '예약', '인계완료'] },
   { key: 'BOUGHT',  label: '구매완료', role: 'buyer',  statuses: ['거래완료'] },
-  { key: 'SELLING', label: '판매중',   role: 'seller', statuses: ['채팅중', '예약'] },
+  { key: 'SELLING', label: '판매중',   role: 'seller', statuses: ['채팅중', '예약', '인계완료'] },
   { key: 'SOLD',    label: '판매완료', role: 'seller', statuses: ['거래완료'] },
 ]
 
 const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
   '채팅중':   { color: 'bg-amber-100 text-amber-700' },
   '예약':     { color: 'bg-yellow-100 text-yellow-700' },
+  '인계완료': { color: 'bg-indigo-100 text-indigo-700' },
   '거래완료': { color: 'bg-blue-100 text-blue-700' },
   '취소':     { color: 'bg-red-100 text-red-600' },
 }
@@ -44,17 +45,17 @@ export default function MyItemsPage() {
   const [tabKey, setTabKey] = useState<TabKey>('BUYING')
   const tab = TABS.find((t) => t.key === tabKey)!
 
-  // 단일 status 만 backend 가 받음 → 채팅중·예약 묶음 탭은 두 번 호출 후 merge
-  const isComposite = tab.statuses.length > 1
+  // 단일 status 만 backend 가 받음 → 묶음 탭(진행중 = 채팅중·예약·인계완료) 은 N 번 호출 후 merge.
+  // 훅 규칙상 호출 수는 고정 — 최대 3개 분기 + enabled 로 비활성.
   const q1 = useMyTransactions({ role: tab.role, status: tab.statuses[0] })
-  const q2 = useMyTransactions(isComposite ? { role: tab.role, status: tab.statuses[1] } : undefined)
+  const q2 = useMyTransactions(tab.statuses[1] ? { role: tab.role, status: tab.statuses[1] } : undefined)
+  const q3 = useMyTransactions(tab.statuses[2] ? { role: tab.role, status: tab.statuses[2] } : undefined)
 
-  const isLoading = q1.isLoading || (isComposite && q2.isLoading)
-  const transactions: Transaction[] = isComposite
-    ? [...(q1.data?.content ?? []), ...(q2.data?.content ?? [])].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-    : q1.data?.content ?? []
+  const queries = [q1, ...(tab.statuses[1] ? [q2] : []), ...(tab.statuses[2] ? [q3] : [])]
+  const isLoading = queries.some((q) => q.isLoading)
+  const transactions: Transaction[] = queries
+    .flatMap((q) => q.data?.content ?? [])
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   return (
     <div className="pb-10">

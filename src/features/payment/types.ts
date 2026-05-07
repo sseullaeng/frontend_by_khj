@@ -57,7 +57,7 @@ export interface PaymentResponse {
 
 // ── 포인트 잔액 / 내역 ──────────────────────────────────────────────────────
 
-// 포인트 변동 종류 (한글 enum)
+// 포인트 변동 종류 (한글 enum) — 라운드 11 (Tx-Hold) 추가: 거래보관/거래환불
 export type PointHistoryType =
   | '충전'
   | '결제'
@@ -66,6 +66,8 @@ export type PointHistoryType =
   | '환불'
   | '배달결제'
   | '배달정산'
+  | '거래보관'    // 라운드11: 예약 시 hold (음수)
+  | '거래환불'    // 라운드11: 취소 시 hold 환불 (양수)
 
 // 변동 발생 도메인 식별자
 export type PointReferenceType =
@@ -87,8 +89,15 @@ export interface PointHistory {
   createdAt: string
 }
 
-// /me 응답에 pointBalance 포함되므로 별도 endpoint 없음.
-// 즉시 갱신은 /me 재조회.
+// 포인트 잔액 (라운드 11) — GET /api/v1/users/me/point
+//   balance      : 사용 가능 잔액 (충전 - 사용 - hold)
+//   holdAmount   : 거래 보관 중 (예약된 거래의 hold 합계)
+//   totalBalance : balance + holdAmount
+export interface PointBalanceResponse {
+  balance: number
+  holdAmount: number
+  totalBalance: number
+}
 
 // ── 출금 ────────────────────────────────────────────────────────────────────
 
