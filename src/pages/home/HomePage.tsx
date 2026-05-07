@@ -4,37 +4,27 @@ import { useQuery } from '@tanstack/react-query'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
+import { bannerApi } from '@/features/banner/api'
+import { bannerKeys } from '@/features/banner/keys'
 
 const PAGE_SIZE = 6
 const FETCH_SIZE = 24  // 한 번에 받아둘 추천 풀
 
-const sampleBanners = [
-  {
-    id: 1,
-    title: '🎉 쓸랭 오픈 기념 이벤트',
-    description: '첫 거래 시 포인트 1000원 지급!',
-    imageUrl: '/banner1.png',
-    linkUrl: '/notices/1',
-    backgroundColor: '#6366f1',
-  },
-  {
-    id: 2,
-    title: '🌱 지구살리기 나눔 챌린지',
-    description: '안 쓰는 물건 나누고 포인트 받자',
-    backgroundColor: '#10b981',
-    linkUrl: '/notices',
-  },
-  {
-    id: 3,
-    title: '📦 배달대행 서비스 오픈',
-    description: '동네 배달대행 최대 30% 할인',
-    backgroundColor: '#f59e0b',
-    linkUrl: '/notices',
-  },
-]
-
 export default function HomePage() {
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
+
+  // 배너 — 백엔드가 활성/윈도우 필터링 + sortOrder 정렬해서 반환 (§10.8)
+  const { data: bannerList } = useQuery({
+    queryKey: bannerKeys.active(),
+    queryFn: () => bannerApi.getActive().then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const banners = (bannerList ?? []).map((b) => ({
+    id: b.id,
+    title: b.title,
+    imageUrl: b.imageUrl,
+    linkUrl: b.linkUrl ?? undefined,
+  }))
 
   const { data, isLoading } = useQuery({
     queryKey: ['items', 'home-hot'],
@@ -48,9 +38,11 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section>
-        <BannerSlider banners={sampleBanners} />
-      </section>
+      {banners.length > 0 && (
+        <section>
+          <BannerSlider banners={banners} />
+        </section>
+      )}
 
       <section>
         <div className="flex items-center gap-3 mb-5">
