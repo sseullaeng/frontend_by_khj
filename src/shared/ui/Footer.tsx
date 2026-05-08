@@ -25,9 +25,6 @@ export default function Footer() {
             <p className="text-gray-600 text-xs">
               중고거래·대여·나눔·배달대행 통합 C2C 플랫폼
             </p>
-            <p className="text-gray-600 text-xs mt-1">
-              중고거래·대여·나눔·배달대행 통합 C2C 플랫폼
-            </p>
           </div>
           
           {/* 사업자 정보 섹션 */}
