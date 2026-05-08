@@ -1,6 +1,7 @@
 // 인증 상태 스토어: 사용자 인증 정보 관리 (Zustand)
 import { create } from 'zustand'  // Zustand 상태 관리 라이브러리
 import { persist } from 'zustand/middleware'  // Zustand 영속성 미들웨어
+import { toast } from 'sonner'  // 세션 만료 안내 토스트
 import type { User } from '@/shared/types'  // 사용자 타입
 
 // 인증 상태 인터페이스
@@ -38,8 +39,19 @@ export const useAuthStore = create<AuthState>()(
   )
 )
 
-// 전역 로그아웃 이벤트 리스너 (axios 인터셉터에서 dispatch)
+// 전역 로그아웃 이벤트 리스너 (axios 인터셉터에서 dispatch).
+// AT 만료 후 refresh 까지 실패하거나 USER_BLOCKED / AUTH_REFRESH_TOKEN_INVALID 시 진입.
+// 이미 /login 페이지면 toast/redirect noop (가입 직전 등 자연스러운 미로그인 상태에서 시끄러움 방지).
+let logoutInProgress = false
 window.addEventListener('auth:logout', () => {
-  useAuthStore.getState().logout()  // 스토어 로그아웃 처리
-  window.location.href = '/login'  // 로그인 페이지로 리다이렉트
+  if (logoutInProgress) return
+  logoutInProgress = true
+
+  useAuthStore.getState().logout()
+  if (window.location.pathname !== '/login') {
+    toast.error('세션이 만료되어 다시 로그인해 주세요.')
+    window.location.href = '/login'
+  }
+  // 다음 tick 에 플래그 풀어 다음 만료 이벤트도 정상 처리
+  setTimeout(() => { logoutInProgress = false }, 1000)
 })

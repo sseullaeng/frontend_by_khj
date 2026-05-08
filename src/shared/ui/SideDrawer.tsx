@@ -524,7 +524,15 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
             placeholder="메시지를 입력해 주세요"
             value={text}
             onChange={e => setText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !uploading) handleSend() }}
+            onKeyDown={(e) => {
+              // IME 가드 — 한글/일본어/중국어 등 조합 입력 중 Enter 가 발생하면 마지막
+              // 음절이 한 번 더 send 되는 버그가 있어 isComposing / keyCode 229 차단.
+              if (e.key !== 'Enter' || e.shiftKey) return
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return
+              if (uploading) return
+              e.preventDefault()
+              handleSend()
+            }}
             disabled={uploading}
           />
           <button
