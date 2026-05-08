@@ -54,9 +54,14 @@ export default function BannerSlider({
     setCurrentIndex(index)
   }
 
+  // 반응형: 너비 따라 높이 자동 (16:5 비율).
+  //   모바일 ~375px → ~117px, 태블릿 ~768px → ~240px, 데스크톱 ~1216px → ~380px
+  //   max-h 로 데스크톱 과대 방지, min-h 로 모바일 과소 방지.
+  const sizeCls = "aspect-[16/5] min-h-[140px] max-h-[280px]"
+
   if (banners.length === 0) {
     return (
-      <div className={cn("h-52 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400", className)}>
+      <div className={cn(sizeCls, "bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400", className)}>
         배너가 없습니다
       </div>
     )
@@ -72,7 +77,8 @@ export default function BannerSlider({
     //      이미지 배경과 다른 색이 둘레로 새어나오는 일 자체를 차단
     <div
       className={cn(
-        "relative h-52 rounded-2xl overflow-hidden transform-gpu",
+        "relative w-full rounded-2xl overflow-hidden transform-gpu",
+        sizeCls,
         "[clip-path:inset(1px_round_1rem)]",
         className,
       )}
