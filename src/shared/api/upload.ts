@@ -51,15 +51,9 @@ interface PresignedFileMeta {
   contentLength: number
 }
 
-// 백엔드 body 필드명은 endpoint 별로 비대칭:
-//   - 일반 (/api/v1/files/presigned-url):       items   (가이드 §8)
-//   - admin (/api/v1/admin/files/presigned-url): files  (라운드13 백엔드 회신)
-interface UserPresignedRequest {
-  purpose: UploadPurpose
-  items: PresignedFileMeta[]
-}
-
-interface AdminPresignedRequest {
+// 백엔드 body 배열 키명은 일반/admin 모두 'files' 로 통일.
+// (가이드 §8 의 'items' 표기는 옛 버전 — 실제 백엔드는 'files' 만 받음)
+interface PresignedRequest {
   purpose: UploadPurpose
   files: PresignedFileMeta[]
 }
@@ -99,13 +93,13 @@ export async function fetchPresignedUrls(
     throw new Error(`한 번에 최대 ${MAX_FILES_PER_REQUEST}건까지 업로드할 수 있어요.`)
   }
 
-  const metas: PresignedFileMeta[] = files.map((f) => ({
-    contentType: f.type,
-    contentLength: f.size,
-  }))
-  const body: UserPresignedRequest | AdminPresignedRequest = ADMIN_PURPOSES.has(purpose)
-    ? { purpose, files: metas }
-    : { purpose, items: metas }
+  const body: PresignedRequest = {
+    purpose,
+    files: files.map((f) => ({
+      contentType: f.type,
+      contentLength: f.size,
+    })),
+  }
   const res = await api.post<PresignedResponse>(presignedPath(purpose), body)
   return res.data.uploads
 }

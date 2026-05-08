@@ -68,13 +68,16 @@ export default function ItemCreatePage() {
       toast.error('이메일 인증 후 물품을 등록할 수 있어요.')
       return
     }
+    // 백엔드 정책: 이미지 1장 이상 필수
+    if (imageFiles.length === 0) {
+      toast.error('이미지를 1장 이상 등록해 주세요.')
+      return
+    }
     // 나눔이면 price=0 강제
     const price = isShare ? 0 : data.price
 
     try {
-      const imageUrls = imageFiles.length > 0
-        ? await uploadImagesAsync(imageFiles)
-        : []
+      const imageUrls = await uploadImagesAsync(imageFiles)
 
       const body: ItemCreateRequest = {
         title: data.title,
@@ -256,9 +259,13 @@ export default function ItemCreatePage() {
           type="submit"
           fullWidth
           isLoading={isUploading || isCreating}
-          disabled={!isVerified}
+          disabled={!isVerified || imageFiles.length === 0}
         >
-          {isVerified ? '등록하기' : '이메일 인증 후 등록 가능'}
+          {!isVerified
+            ? '이메일 인증 후 등록 가능'
+            : imageFiles.length === 0
+            ? '이미지 1장 이상 등록해 주세요'
+            : '등록하기'}
         </Button>
       </form>
     </div>
