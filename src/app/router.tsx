@@ -74,7 +74,9 @@ const EscrowPaymentCallbackPage  = lazy(() => import('@/pages/escrow/EscrowPayme
 
 // 관리자 페이지
 const AdminLoginPage          = lazy(() => import('@/pages/admin/AdminLoginPage'))          // 관리자 로그인 페이지
-const AdminDashboard          = lazy(() => import('@/pages/admin/AdminDashboard'))          // 관리자 대시보드
+// 라운드13: /admin/dashboard 가 차트 대시보드(AdminStats) 를 사용. 옛 카드형 AdminDashboard 는
+// 백엔드 §11.7 응답을 그대로 보여주는 페이지로 따로 보존(필요 시 별도 라우트로 노출).
+const AdminDashboard          = lazy(() => import('@/pages/mypage/AdminStats'))             // 관리자 대시보드 (차트)
 const AdminUserPage           = lazy(() => import('@/pages/admin/AdminUserPage'))           // 관리자 전체 회원 관리
 const AdminTodayUsersPage     = lazy(() => import('@/pages/admin/AdminTodayUsersPage'))     // 관리자 오늘 신규 가입자
 const AdminWithdrawnUsersPage = lazy(() => import('@/pages/admin/AdminWithdrawnUsersPage')) // 관리자 탈퇴 회원 관리

@@ -7,12 +7,16 @@
 //   TradeStatus: '진행중' | '완료' | '취소'  (백엔드에서 5단계 → 3분류 그룹핑)
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ShieldCheck } from 'lucide-react'
+import {
+  ChevronRight, ShieldCheck,
+  Users, Image as ImageIcon, Megaphone, AlertTriangle,
+  ArrowDownToLine, Truck, ShoppingBag, ShieldAlert,
+} from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { useAdminDashboardCharts } from '@/features/admin/hooks'
+import { useAdminDashboardCharts, useAdminMe } from '@/features/admin/hooks'
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
 
@@ -36,11 +40,16 @@ function defaultRange(): { start: string; end: string } {
   return { start: fmt(past), end: fmt(today) }
 }
 
-export default function AdminStats({ nickname }: { nickname: string }) {
+// nickname prop 은 옛 mypage 흐름과의 호환용 (PR #29 revert 잔재). 미지정 시
+// useAdminMe 응답의 name 을 사용. admin/me 가 분리된 라운드13부터는 prop 없이도 동작.
+export default function AdminStats({ nickname }: { nickname?: string } = {}) {
   const navigate = useNavigate()
   const init = useMemo(defaultRange, [])
   const [startDate, setStartDate] = useState(init.start)
   const [endDate,   setEndDate]   = useState(init.end)
+
+  const { data: adminMe } = useAdminMe()
+  const displayName = nickname ?? adminMe?.name ?? '관리자'
 
   const { data, isLoading, isError } = useAdminDashboardCharts(startDate, endDate)
 
@@ -67,7 +76,7 @@ export default function AdminStats({ nickname }: { nickname: string }) {
           <ShieldCheck size={22} className="text-indigo-600" />
         </div>
         <div>
-          <p className="font-semibold text-gray-900">{nickname}</p>
+          <p className="font-semibold text-gray-900">{displayName}</p>
           <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">관리자</span>
         </div>
       </div>
@@ -77,6 +86,21 @@ export default function AdminStats({ nickname }: { nickname: string }) {
           통계를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
         </p>
       )}
+
+      {/* 관리 메뉴 빠른 진입 — 8개 그리드 */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4">
+        <p className="text-xs font-semibold text-gray-500 mb-3">관리</p>
+        <div className="grid grid-cols-4 gap-2">
+          <QuickLink to="/admin/users"          icon={<Users size={18} />}           label="회원" />
+          <QuickLink to="/admin/trades"         icon={<ShoppingBag size={18} />}     label="거래" />
+          <QuickLink to="/admin/banners"        icon={<ImageIcon size={18} />}       label="배너" />
+          <QuickLink to="/admin/notices"        icon={<Megaphone size={18} />}       label="공지" />
+          <QuickLink to="/admin/reports"        icon={<AlertTriangle size={18} />}   label="신고" />
+          <QuickLink to="/admin/withdraws"      icon={<ArrowDownToLine size={18} />} label="출금" />
+          <QuickLink to="/admin/delivery"       icon={<Truck size={18} />}           label="배달" />
+          <QuickLink to="/admin/escrow-config"  icon={<ShieldAlert size={18} />}     label="에스크로" />
+        </div>
+      </div>
 
       {/* 요약 카드 2×2 */}
       <div className="grid grid-cols-2 gap-3">
@@ -233,6 +257,19 @@ export default function AdminStats({ nickname }: { nickname: string }) {
 }
 
 // ── 보조 컴포넌트/유틸 ─────────────────────────────────────────────────────
+
+function QuickLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => navigate(to)}
+      className="flex flex-col items-center gap-1 py-3 rounded-xl text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+    >
+      {icon}
+      <span className="text-[11px] font-medium">{label}</span>
+    </button>
+  )
+}
 
 function SummaryCard({
   label, value, sub, valueColor = 'text-gray-900', onClick,

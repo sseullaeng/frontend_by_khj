@@ -23,11 +23,12 @@ import api from './axios'
 //   MESSAGE — 채팅 첨부 (이메일 인증 필수)
 //   SUPPORT — 1:1 문의 첨부 (이메일 인증 필수, 라운드7)
 //   NOTICE  — 공지 이미지 (관리자 전용, 라운드9 — admin endpoint)
+//   BANNER  — 메인 배너 이미지 (관리자 전용 — admin endpoint)
 //   ESCROW  — 거래대행 신청 첨부 (이메일 인증 필수)
-export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT' | 'NOTICE' | 'ESCROW'
+export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT' | 'NOTICE' | 'BANNER' | 'ESCROW'
 
-// 라운드9: NOTICE 는 /api/v1/admin/files/presigned-url, 그 외는 /api/v1/files/presigned-url
-const ADMIN_PURPOSES = new Set<UploadPurpose>(['NOTICE'])
+// admin 전용 purpose 는 /api/v1/admin/files/presigned-url, 그 외는 /api/v1/files/presigned-url
+const ADMIN_PURPOSES = new Set<UploadPurpose>(['NOTICE', 'BANNER'])
 const presignedPath = (purpose: UploadPurpose) =>
   ADMIN_PURPOSES.has(purpose)
     ? '/api/v1/admin/files/presigned-url'
@@ -50,9 +51,17 @@ interface PresignedFileMeta {
   contentLength: number
 }
 
-interface PresignedRequest {
+// 백엔드 body 필드명은 endpoint 별로 비대칭:
+//   - 일반 (/api/v1/files/presigned-url):       items   (가이드 §8)
+//   - admin (/api/v1/admin/files/presigned-url): files  (라운드13 백엔드 회신)
+interface UserPresignedRequest {
   purpose: UploadPurpose
-  items: PresignedFileMeta[]   // ⚠️ files 가 아니라 items (가이드 §8)
+  items: PresignedFileMeta[]
+}
+
+interface AdminPresignedRequest {
+  purpose: UploadPurpose
+  files: PresignedFileMeta[]
 }
 
 interface PresignedUploadEntry {
@@ -90,13 +99,13 @@ export async function fetchPresignedUrls(
     throw new Error(`한 번에 최대 ${MAX_FILES_PER_REQUEST}건까지 업로드할 수 있어요.`)
   }
 
-  const body: PresignedRequest = {
-    purpose,
-    items: files.map((f) => ({
-      contentType: f.type,
-      contentLength: f.size,
-    })),
-  }
+  const metas: PresignedFileMeta[] = files.map((f) => ({
+    contentType: f.type,
+    contentLength: f.size,
+  }))
+  const body: UserPresignedRequest | AdminPresignedRequest = ADMIN_PURPOSES.has(purpose)
+    ? { purpose, files: metas }
+    : { purpose, items: metas }
   const res = await api.post<PresignedResponse>(presignedPath(purpose), body)
   return res.data.uploads
 }

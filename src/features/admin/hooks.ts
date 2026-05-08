@@ -19,6 +19,7 @@ import { getErrorMessage } from '@/shared/lib/errorMessages'
 
 export const adminKeys = {
   all:        ()                                 => ['admin'] as const,
+  me:         ()                                 => [...adminKeys.all(), 'me'] as const,
   dashboard:  ()                                 => [...adminKeys.all(), 'dashboard'] as const,
   dashboardCharts: (start?: string, end?: string) => [...adminKeys.all(), 'dashboard', 'charts', start ?? 'default', end ?? 'default'] as const,
   users:      (page = 0, size = 20)              => [...adminKeys.all(), 'users', page, size] as const,
@@ -34,12 +35,30 @@ export const adminKeys = {
                                                         [...adminKeys.all(), 'transactions', params ?? {}] as const,
 }
 
-// ── 로그인 ────────────────────────────────────────────────────────────────
+// ── 로그인 / Me ─────────────────────────────────────────────────────────
+//
+// 백엔드 정책: /users/me 는 ROLE_USER 만, admin 은 별도 GET /admin/me.
+// 따라서 useAuthStore.user (USER 도메인) 와 분리해서 useAdminMe 로 가드한다.
+export function useAdminMe(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: adminKeys.me(),
+    queryFn: () => adminApi.me().then((r) => r.data),
+    retry: false,
+    staleTime: 60_000,
+    enabled: options?.enabled ?? true,
+  })
+}
+
 export function useAdminLogin() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: AdminLoginRequest) => adminApi.login(body),
-    onSuccess: () => navigate('/admin/dashboard'),
+    onSuccess: async () => {
+      // 200 OK 만으로는 가드가 통과 못 함 → /admin/me 재조회로 role 확인 후 navigate.
+      await qc.refetchQueries({ queryKey: adminKeys.me() })
+      navigate('/admin/dashboard')
+    },
     onError: (err) => {
       if (err instanceof BusinessError) toast.error(getErrorMessage(err.code))
       else toast.error('로그인에 실패했어요.')
