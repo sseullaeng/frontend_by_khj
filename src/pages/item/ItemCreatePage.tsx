@@ -223,7 +223,8 @@ export default function ItemCreatePage() {
           open={addressOpen}
           onClose={() => setAddressOpen(false)}
           onSelect={(r) => {
-            setValue('region', r.region, { shouldValidate: true })
+            // 표시·저장 모두 풀 주소(도로명 우선) 로 — 시도+시군구 만 보이면 거래 위치를 알기 어려움.
+            setValue('region', r.address || r.region, { shouldValidate: true })
             setAddressOpen(false)
           }}
         />

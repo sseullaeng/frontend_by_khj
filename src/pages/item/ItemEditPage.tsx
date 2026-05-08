@@ -253,7 +253,7 @@ export default function ItemEditPage() {
           open={addressOpen}
           onClose={() => setAddressOpen(false)}
           onSelect={(r) => {
-            setValue('region', r.region, { shouldValidate: true })
+            setValue('region', r.address || r.region, { shouldValidate: true })
             setAddressOpen(false)
           }}
         />
