@@ -73,27 +73,31 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {/* 소셜 로그인 */}
-        <div className="mt-6 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+        {/* 소셜 로그인 — 원형 아이콘 버튼 가로 배치 */}
+        <div className="mt-6">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-4">
             <div className="flex-1 h-px bg-gray-200" />
             <span>SNS 계정으로 로그인</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
-          <button
-            type="button"
-            onClick={handleKakao}
-            className="h-10 w-full rounded-lg bg-[#FEE500] text-sm font-medium text-[#3C1E1E] hover:opacity-90 transition-opacity"
-          >
-            카카오로 로그인
-          </button>
-          <button
-            type="button"
-            onClick={handleGoogle}
-            className="h-10 w-full rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            구글로 로그인
-          </button>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={handleKakao}
+              aria-label="카카오로 로그인"
+              className="w-12 h-12 rounded-full bg-[#FEE500] text-[#3C1E1E] hover:opacity-90 transition-opacity flex items-center justify-center"
+            >
+              <KakaoIcon />
+            </button>
+            <button
+              type="button"
+              onClick={handleGoogle}
+              aria-label="구글로 로그인"
+              className="w-12 h-12 rounded-full border border-gray-300 bg-white hover:bg-gray-50 transition-colors flex items-center justify-center"
+            >
+              <GoogleIcon />
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 text-center text-sm text-gray-500">
@@ -104,5 +108,26 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// 카카오톡 풍선 아이콘 (브랜드 컬러 #3C1E1E 위에 currentColor)
+function KakaoIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 3C6.48 3 2 6.62 2 10.79c0 2.63 1.74 4.95 4.4 6.32-.16.59-.7 2.6-.83 3.07-.15.59.21.58.45.42.18-.12 2.85-1.94 4.05-2.76.6.07 1.21.11 1.83.11 5.52 0 10-3.61 10-7.16S17.52 3 12 3z" />
+    </svg>
+  )
+}
+
+// 구글 G 4색 로고 (공식 컬러)
+function GoogleIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.7 19 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.5 39.7 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.6l6.2 5.2c-.4.4 6.6-4.8 6.6-14.8 0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
   )
 }

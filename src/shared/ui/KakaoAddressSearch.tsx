@@ -153,7 +153,14 @@ export default function KakaoAddressSearch({ open, onClose, onSelect }: Props) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+              // 부모 페이지가 form 안에서 모달을 띄울 경우 Enter 가 form submit 으로
+              // 전파되어 모달이 닫혀버림. preventDefault 로 차단.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  runSearch()
+                }
+              }}
               placeholder="주소, 건물명, 장소명 입력 후 Enter"
               className="w-full pl-9 pr-20 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
               autoFocus
