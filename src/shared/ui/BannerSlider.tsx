@@ -84,16 +84,20 @@ export default function BannerSlider({
       )}
     >
       {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
-         - 컨테이너 높이는 h-52 (208px) 고정.
          - 이미지가 16:5 가 아니어도 비율 보존(object-contain) → 잘림 방지.
-         - 비는 영역은 backgroundColor 로 채움. */}
+         - 이미지 모드: 빈 영역 배경색 없이 transparent (페이지 배경 그대로).
+         - 단색 fallback 모드(이미지 없음)만 backgroundColor 적용 (텍스트 가독성). */}
       <div
         onClick={() => currentBanner.linkUrl && navigate(currentBanner.linkUrl)}
         className={cn(
           'absolute inset-0',
           currentBanner.linkUrl && 'cursor-pointer'
         )}
-        style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
+        style={
+          currentBanner.imageUrl
+            ? undefined
+            : { backgroundColor: currentBanner.backgroundColor || '#6366f1' }
+        }
       >
         {currentBanner.imageUrl ? (
           // 이미지 모드 — 이미지 자체로 디자인 완결. 텍스트/어둠 오버레이 없음.
