@@ -66,32 +66,37 @@ export default function BannerSlider({
 
   return (
     <div className={cn("relative h-52 rounded-2xl overflow-hidden", className)}>
-      {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동) */}
+      {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
+         - 컨테이너 높이는 h-52 (208px) 고정.
+         - 이미지가 16:5 가 아니어도 비율 보존(object-contain) → 잘림 방지.
+         - 비는 영역은 backgroundColor 로 채움. */}
       <div
         onClick={() => currentBanner.linkUrl && navigate(currentBanner.linkUrl)}
         className={cn(
-          'absolute inset-0 flex items-center justify-center text-white',
+          'absolute inset-0',
           currentBanner.linkUrl && 'cursor-pointer'
         )}
-        style={{
-          backgroundColor: currentBanner.backgroundColor || '#6366f1',
-          backgroundImage: currentBanner.imageUrl ? `url(${currentBanner.imageUrl})` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
       >
-        {/* 이미지 배너 어두운 오버레이 */}
-        {currentBanner.imageUrl && (
-          <div className="absolute inset-0 bg-black/30" />
+        {currentBanner.imageUrl ? (
+          // 이미지 모드 — 이미지 자체로 디자인 완결. 텍스트/어둠 오버레이 없음.
+          // title 은 alt 로 접근성/검색에만 사용.
+          <img
+            src={currentBanner.imageUrl}
+            alt={currentBanner.title}
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          // 단색 fallback 모드 — 이미지가 없을 때만 텍스트 표시
+          <div className="w-full h-full flex items-center justify-center text-white">
+            <div className="text-center px-6">
+              <h3 className="text-lg font-bold mb-1">{currentBanner.title}</h3>
+              {currentBanner.description && (
+                <p className="text-sm opacity-90">{currentBanner.description}</p>
+              )}
+            </div>
+          </div>
         )}
-
-        {/* 텍스트 컨텐츠 */}
-        <div className="relative z-10 text-center px-6">
-          <h3 className="text-lg font-bold mb-1">{currentBanner.title}</h3>
-          {currentBanner.description && (
-            <p className="text-sm opacity-90">{currentBanner.description}</p>
-          )}
-        </div>
       </div>
 
       {/* 네비게이션 버튼 */}
