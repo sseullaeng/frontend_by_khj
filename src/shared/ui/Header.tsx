@@ -1,15 +1,18 @@
 // 헤더 컴포넌트: 애플리케이션 상단 네비게이션 바 - 로고, 메뉴, 사용자 메뉴 포함
 import { Link } from 'react-router-dom'  // React Router의 링크 컴포넌트
-import { Bell, User, Search, Package, Truck, Megaphone, LogOut, Headphones } from 'lucide-react'  // Lucide 아이콘 라이브러리
-import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
-import { useLogout } from '@/features/auth/hooks'   // 로그아웃 훅
-import { useDrawerStore } from '@/shared/store/drawerStore'  // 드로워 상태 관리 스토어
+import { Bell, User, Search, Package, Truck, Megaphone, LogOut, Headphones, ShieldCheck } from 'lucide-react'
+import { useAuthStore } from '@/features/auth/store'  // 일반 사용자 인증
+import { useLogout } from '@/features/auth/hooks'    // 로그아웃 훅
+import { useAdminMe } from '@/features/admin/hooks'   // 관리자 인증 (admin AT 전용)
+import { useDrawerStore } from '@/shared/store/drawerStore'
 
-// 헤더 컴포넌트: 로그인 상태에 따라 다른 UI를 표시
 export default function Header() {
-  const user = useAuthStore((s) => s.user)           // 현재 로그인된 사용자 정보
-  const { mutate: logout, isPending: isLogoutPending } = useLogout()  // 로그아웃
-  const { toggleOpen, activeTab } = useDrawerStore()    // 드로워 토글 함수 및 활성 탭
+  const user = useAuthStore((s) => s.user)
+  const { mutate: logout, isPending: isLogoutPending } = useLogout()
+  const { toggleOpen, activeTab } = useDrawerStore()
+
+  // 일반 user 정보가 없을 때만 admin 가능성을 검사 — /admin/me 를 매 페이지 호출하지 않게 enabled 분기
+  const { data: admin } = useAdminMe({ enabled: !user })
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -46,50 +49,76 @@ export default function Header() {
 
           {/* 우측 메뉴 */}
           <div className="flex items-center gap-3">
-            {user && (
-              <button
-                onClick={() => toggleOpen()}
-                className={`relative flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
-                  activeTab
-                    ? 'bg-primary-50 text-primary-600'
-                    : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
-                }`}
-              >
-                <span className="relative">
-                  <Bell size={20} />
-                  <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
-                </span>
-                <span className="text-sm font-medium hidden md:block">채팅/알림</span>
-              </button>
-            )}
+            {/* 관리자 분기 — 일반 사용자 메뉴 대신 관리 진입 + 로그아웃만 표시 */}
+            {admin ? (
+              <>
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors"
+                >
+                  <ShieldCheck size={16} />
+                  <span className="hidden sm:block">관리자</span>
+                  <span className="hidden md:block text-xs font-normal opacity-70">{admin.name}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  disabled={isLogoutPending}
+                  title="로그아웃"
+                  className="flex items-center gap-1 text-gray-500 hover:text-primary-600 transition-colors text-sm disabled:opacity-50"
+                >
+                  <LogOut size={18} />
+                  <span className="hidden sm:block">로그아웃</span>
+                </button>
+              </>
+            ) : (
+              <>
+                {user && (
+                  <button
+                    onClick={() => toggleOpen()}
+                    className={`relative flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
+                      activeTab
+                        ? 'bg-primary-50 text-primary-600'
+                        : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="relative">
+                      <Bell size={20} />
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                    </span>
+                    <span className="text-sm font-medium hidden md:block">채팅/알림</span>
+                  </button>
+                )}
 
-            <Link
-              to="/mypage"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
-            >
-              <User size={20} />
-              <span className="text-sm hidden sm:block">{user ? user.nickname : '마이페이지'}</span>
-            </Link>
+                <Link
+                  to="/mypage"
+                  className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+                >
+                  <User size={20} />
+                  <span className="text-sm hidden sm:block">{user ? user.nickname : '마이페이지'}</span>
+                </Link>
 
-            {!user && (
-              <Link
-                to="/login"
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
-              >
-                로그인
-              </Link>
-            )}
-            {user && (
-              <button
-                type="button"
-                onClick={() => logout()}
-                disabled={isLogoutPending}
-                title="로그아웃"
-                className="flex items-center gap-1 text-gray-500 hover:text-primary-600 transition-colors text-sm disabled:opacity-50"
-              >
-                <LogOut size={18} />
-                <span className="hidden sm:block">로그아웃</span>
-              </button>
+                {!user && (
+                  <Link
+                    to="/login"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+                  >
+                    로그인
+                  </Link>
+                )}
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    disabled={isLogoutPending}
+                    title="로그아웃"
+                    className="flex items-center gap-1 text-gray-500 hover:text-primary-600 transition-colors text-sm disabled:opacity-50"
+                  >
+                    <LogOut size={18} />
+                    <span className="hidden sm:block">로그아웃</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -39,12 +39,13 @@ export const adminKeys = {
 //
 // 백엔드 정책: /users/me 는 ROLE_USER 만, admin 은 별도 GET /admin/me.
 // 따라서 useAuthStore.user (USER 도메인) 와 분리해서 useAdminMe 로 가드한다.
-export function useAdminMe() {
+export function useAdminMe(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: adminKeys.me(),
     queryFn: () => adminApi.me().then((r) => r.data),
     retry: false,
     staleTime: 60_000,
+    enabled: options?.enabled ?? true,
   })
 }
 
