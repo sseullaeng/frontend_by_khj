@@ -125,15 +125,15 @@ export default function BannerSlider({
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white hover:bg-white/30 transition-colors"
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-700 hover:text-primary-600 transition-colors [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.4))]"
             aria-label="이전 배너"
           >
             <ChevronLeft size={20} />
           </button>
-          
+
           <button
             onClick={goToNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white hover:bg-white/30 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-700 hover:text-primary-600 transition-colors [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.4))]"
             aria-label="다음 배너"
           >
             <ChevronRight size={20} />
