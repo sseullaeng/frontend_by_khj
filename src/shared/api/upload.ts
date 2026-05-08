@@ -23,11 +23,12 @@ import api from './axios'
 //   MESSAGE — 채팅 첨부 (이메일 인증 필수)
 //   SUPPORT — 1:1 문의 첨부 (이메일 인증 필수, 라운드7)
 //   NOTICE  — 공지 이미지 (관리자 전용, 라운드9 — admin endpoint)
+//   BANNER  — 메인 배너 이미지 (관리자 전용 — admin endpoint)
 //   ESCROW  — 거래대행 신청 첨부 (이메일 인증 필수)
-export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT' | 'NOTICE' | 'ESCROW'
+export type UploadPurpose = 'PROFILE' | 'ITEM' | 'MESSAGE' | 'SUPPORT' | 'NOTICE' | 'BANNER' | 'ESCROW'
 
-// 라운드9: NOTICE 는 /api/v1/admin/files/presigned-url, 그 외는 /api/v1/files/presigned-url
-const ADMIN_PURPOSES = new Set<UploadPurpose>(['NOTICE'])
+// admin 전용 purpose 는 /api/v1/admin/files/presigned-url, 그 외는 /api/v1/files/presigned-url
+const ADMIN_PURPOSES = new Set<UploadPurpose>(['NOTICE', 'BANNER'])
 const presignedPath = (purpose: UploadPurpose) =>
   ADMIN_PURPOSES.has(purpose)
     ? '/api/v1/admin/files/presigned-url'

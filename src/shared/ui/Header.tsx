@@ -1,6 +1,6 @@
 // 헤더 컴포넌트: 애플리케이션 상단 네비게이션 바 - 로고, 메뉴, 사용자 메뉴 포함
 import { Link } from 'react-router-dom'  // React Router의 링크 컴포넌트
-import { Bell, User, Search, Package, Truck, Megaphone, LogOut } from 'lucide-react'  // Lucide 아이콘 라이브러리
+import { Bell, User, Search, Package, Truck, Megaphone, LogOut, Headphones } from 'lucide-react'  // Lucide 아이콘 라이브러리
 import { useAuthStore } from '@/features/auth/store'  // 인증 상태 관리 스토어
 import { useLogout } from '@/features/auth/hooks'   // 로그아웃 훅
 import { useDrawerStore } from '@/shared/store/drawerStore'  // 드로워 상태 관리 스토어
@@ -37,6 +37,10 @@ export default function Header() {
             <Link to="/notices" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
               <Megaphone size={18} />
               <span className="text-sm font-medium hidden md:block">새소식/이벤트</span>
+            </Link>
+            <Link to="/support" className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors">
+              <Headphones size={18} />
+              <span className="text-sm font-medium hidden md:block">고객센터</span>
             </Link>
           </nav>
 
