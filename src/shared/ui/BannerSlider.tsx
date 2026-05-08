@@ -65,7 +65,18 @@ export default function BannerSlider({
   const currentBanner = banners[currentIndex]
 
   return (
-    <div className={cn("relative h-52 rounded-2xl overflow-hidden", className)}>
+    // Safari border-radius + overflow:hidden 1px 새어나옴 회피:
+    //   1) transform-gpu — GPU 합성 layer
+    //   2) clip-path: inset(1px round 1rem) — 1px 안쪽으로 강제 클리핑
+    //   3) 외곽 컨테이너 자체는 transparent — 배경색은 이미지 컨테이너에만 적용해
+    //      이미지 배경과 다른 색이 둘레로 새어나오는 일 자체를 차단
+    <div
+      className={cn(
+        "relative h-52 rounded-2xl overflow-hidden transform-gpu",
+        "[clip-path:inset(1px_round_1rem)]",
+        className,
+      )}
+    >
       {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
          - 컨테이너 높이는 h-52 (208px) 고정.
          - 이미지가 16:5 가 아니어도 비율 보존(object-contain) → 잘림 방지.
