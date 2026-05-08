@@ -304,7 +304,7 @@ export default function ItemDetailPage() {
             ) : (
               <>
                 <button
-                  onClick={() => toggleWish()}
+                  onClick={() => toggleWish({ current: item.isWishlisted })}
                   className={cn(
                     'p-3 border rounded-xl transition-colors flex-shrink-0',
                     item.isWishlisted
@@ -354,7 +354,7 @@ export default function ItemDetailPage() {
         ) : (
           <>
             <button
-              onClick={() => toggleWish()}
+              onClick={() => toggleWish({ current: item.isWishlisted })}
               className={cn(
                 'p-3 border rounded-xl transition-colors flex-shrink-0',
                 item.isWishlisted

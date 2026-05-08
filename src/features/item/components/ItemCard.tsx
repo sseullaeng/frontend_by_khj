@@ -62,7 +62,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           <button
             onClick={(e) => {
               e.preventDefault()
-              toggleWish()
+              toggleWish({ current: item.isWishlisted })
             }}
             className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
             aria-label={item.isWishlisted ? '찜 해제' : '찜 추가'}
