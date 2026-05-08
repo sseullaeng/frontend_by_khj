@@ -138,3 +138,30 @@ export interface AdminDashboard {
     settledFeeTotal: number
   }
 }
+
+// ── Dashboard Charts (라운드 12) ──────────────────────────────────────────
+//   GET /api/v1/admin/stats/dashboard/charts?startDate=&endDate=
+//   기간 미지정 시 최근 14일 (today-13 ~ today, inclusive). 빈 일자는 0 채움.
+//
+//   매핑:
+//     TradeType   = '판매' | '대여' | '나눔'   (ESCROW 미포함)
+//     TradeStatus = '진행중' | '완료' | '취소'  (백엔드에서 5단계 → 3분류 그룹핑)
+export type AdminChartTradeType = '판매' | '대여' | '나눔'
+export type AdminChartTradeStatus = '진행중' | '완료' | '취소'
+
+export interface AdminDashboardCharts {
+  summary: {
+    users:          { total: number; monthDelta: number }
+    todaySignups:   { count: number; yesterdayDelta: number }
+    monthTrades:    { count: number; prevMonthRate: number | null }  // 전월 0이면 null
+    pendingReports: number
+  }
+  signupTrend:   { date: string; count: number }[]            // YYYY-MM-DD
+  tradeByType:   { type: AdminChartTradeType; count: number }[]
+  tradeByStatus: { status: AdminChartTradeStatus; count: number }[]
+}
+
+export interface AdminDashboardChartsParams {
+  startDate?: string  // YYYY-MM-DD, 미지정 시 백엔드 default = today-13
+  endDate?:   string  // YYYY-MM-DD, 미지정 시 백엔드 default = today
+}

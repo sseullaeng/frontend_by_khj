@@ -2,6 +2,8 @@
 import api from '@/shared/api/axios'
 import type {
   AdminDashboard,
+  AdminDashboardCharts,
+  AdminDashboardChartsParams,
   AdminLoginRequest,
   AdminReport,
   AdminReportPatchRequest,
@@ -112,6 +114,9 @@ export const adminApi = {
   // 11.7 대시보드 통계
   stats: {
     dashboard: () => api.get<AdminDashboard>('/api/v1/admin/stats/dashboard'),
+    // 라운드12 — 차트 전용 (요약 카드 + 가입 추이 + 거래 종류/상태 분포)
+    dashboardCharts: (params?: AdminDashboardChartsParams) =>
+      api.get<AdminDashboardCharts>('/api/v1/admin/stats/dashboard/charts', { params }),
   },
 
   // 라운드8 — 거래 검색
