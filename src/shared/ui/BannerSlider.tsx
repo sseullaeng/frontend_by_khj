@@ -22,7 +22,7 @@ interface BannerSliderProps {
 export default function BannerSlider({
   banners,
   autoPlay = true,
-  interval = 3000,
+  interval = 5000,
   className
 }: BannerSliderProps) {
   const navigate = useNavigate()
@@ -65,7 +65,9 @@ export default function BannerSlider({
   const currentBanner = banners[currentIndex]
 
   return (
-    <div className={cn("relative h-52 rounded-2xl overflow-hidden", className)}>
+    // transform-gpu — Safari/iOS 의 'border-radius + overflow:hidden + absolute 자식'
+    // 조합에서 자식 모서리가 1px 새어나오는 렌더링 버그 회피 (GPU layer 강제로 클리핑 보장).
+    <div className={cn("relative h-52 rounded-2xl overflow-hidden transform-gpu", className)}>
       {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
          - 컨테이너 높이는 h-52 (208px) 고정.
          - 이미지가 16:5 가 아니어도 비율 보존(object-contain) → 잘림 방지.
