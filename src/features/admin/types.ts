@@ -50,9 +50,9 @@ export interface AdminUser {
 }
 
 // ── Banner (§10.8 + §11.3) ────────────────────────────────────────────────
+//   라운드13 — 일반/관리자 응답에서 adminId 제거 (운영자 식별 정보 노출 차단).
 export interface Banner {
   id: number
-  adminId: number
   title: string
   imageUrl: string
   linkUrl: string | null
