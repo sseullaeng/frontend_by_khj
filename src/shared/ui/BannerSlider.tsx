@@ -65,9 +65,18 @@ export default function BannerSlider({
   const currentBanner = banners[currentIndex]
 
   return (
-    // transform-gpu — Safari/iOS 의 'border-radius + overflow:hidden + absolute 자식'
-    // 조합에서 자식 모서리가 1px 새어나오는 렌더링 버그 회피 (GPU layer 강제로 클리핑 보장).
-    <div className={cn("relative h-52 rounded-2xl overflow-hidden transform-gpu", className)}>
+    // Safari 의 'border-radius + overflow:hidden + absolute 자식' 모서리 1px 새어나옴 회피:
+    //   1) transform-gpu — GPU 합성 layer 로 강제
+    //   2) clip-path: inset(0 round 1rem) — Safari 가 border-radius 보다 clip-path 를 더 정확히 클리핑
+    //   3) 외곽에도 같은 backgroundColor — 그래도 1px 새어나오면 같은 색이라 인지 X
+    <div
+      className={cn(
+        "relative h-52 rounded-2xl overflow-hidden transform-gpu",
+        "[clip-path:inset(0_round_1rem)]",
+        className,
+      )}
+      style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
+    >
       {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
          - 컨테이너 높이는 h-52 (208px) 고정.
          - 이미지가 16:5 가 아니어도 비율 보존(object-contain) → 잘림 방지.
@@ -78,7 +87,6 @@ export default function BannerSlider({
           'absolute inset-0',
           currentBanner.linkUrl && 'cursor-pointer'
         )}
-        style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
       >
         {currentBanner.imageUrl ? (
           // 이미지 모드 — 이미지 자체로 디자인 완결. 텍스트/어둠 오버레이 없음.
