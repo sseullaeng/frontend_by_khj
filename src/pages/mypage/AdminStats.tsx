@@ -12,7 +12,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { useAdminDashboardCharts } from '@/features/admin/hooks'
+import { useAdminDashboardCharts, useAdminMe } from '@/features/admin/hooks'
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
 
@@ -36,11 +36,16 @@ function defaultRange(): { start: string; end: string } {
   return { start: fmt(past), end: fmt(today) }
 }
 
-export default function AdminStats({ nickname }: { nickname: string }) {
+// nickname prop 은 옛 mypage 흐름과의 호환용 (PR #29 revert 잔재). 미지정 시
+// useAdminMe 응답의 name 을 사용. admin/me 가 분리된 라운드13부터는 prop 없이도 동작.
+export default function AdminStats({ nickname }: { nickname?: string } = {}) {
   const navigate = useNavigate()
   const init = useMemo(defaultRange, [])
   const [startDate, setStartDate] = useState(init.start)
   const [endDate,   setEndDate]   = useState(init.end)
+
+  const { data: adminMe } = useAdminMe()
+  const displayName = nickname ?? adminMe?.name ?? '관리자'
 
   const { data, isLoading, isError } = useAdminDashboardCharts(startDate, endDate)
 
@@ -67,7 +72,7 @@ export default function AdminStats({ nickname }: { nickname: string }) {
           <ShieldCheck size={22} className="text-indigo-600" />
         </div>
         <div>
-          <p className="font-semibold text-gray-900">{nickname}</p>
+          <p className="font-semibold text-gray-900">{displayName}</p>
           <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">관리자</span>
         </div>
       </div>
