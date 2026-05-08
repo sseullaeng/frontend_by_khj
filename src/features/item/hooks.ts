@@ -97,30 +97,34 @@ export function useMyItems(params?: { status?: MyItemStatus; page?: number; size
 /**
  * 찜 토글 — 추가/해제 분리 endpoint 사용
  *
+ * 호출부가 현재 isWishlisted 를 인자로 전달해야 정확한 분기 가능.
+ *   useToggleWish(id).mutate({ current: item.isWishlisted })
+ *
+ * (이전엔 detail 캐시에서만 읽어 목록 화면에서 detail 미캐시 시 항상 add 가 호출됐음)
+ *
  * 응답이 { wishlisted, wishlistCount } 를 직접 반환하므로 detail 재조회 불필요.
  * optimistic update + 응답으로 동기화.
  */
 export function useToggleWish(id: number) {
   const qc = useQueryClient()
-  return useMutation<WishlistToggleResponse, Error, void, { prevDetail?: ItemDetail }>({
-    mutationFn: async () => {
-      const detail = qc.getQueryData<ItemDetail>(itemKeys.detail(id))
-      const isWished = detail?.isWishlisted ?? false
-      const res = isWished
+  return useMutation<WishlistToggleResponse, Error, { current: boolean }, { prevDetail?: ItemDetail }>({
+    mutationFn: async ({ current }) => {
+      const res = current
         ? await itemApi.removeWishlist(id)
         : await itemApi.addWishlist(id)
       return res.data
     },
-    onMutate: async () => {
+    onMutate: async ({ current }) => {
       await qc.cancelQueries({ queryKey: itemKeys.detail(id) })
       const prevDetail = qc.getQueryData<ItemDetail>(itemKeys.detail(id))
+      const next = !current
 
       // detail 캐시 즉시 갱신
       if (prevDetail) {
         qc.setQueryData<ItemDetail>(itemKeys.detail(id), {
           ...prevDetail,
-          isWishlisted: !prevDetail.isWishlisted,
-          wishlistCount: prevDetail.wishlistCount + (prevDetail.isWishlisted ? -1 : 1),
+          isWishlisted: next,
+          wishlistCount: prevDetail.wishlistCount + (current ? -1 : 1),
         })
       }
 
@@ -133,8 +137,8 @@ export function useToggleWish(id: number) {
                 it.id === id
                   ? {
                       ...it,
-                      isWishlisted: !it.isWishlisted,
-                      wishlistCount: it.wishlistCount + (it.isWishlisted ? -1 : 1),
+                      isWishlisted: next,
+                      wishlistCount: it.wishlistCount + (current ? -1 : 1),
                     }
                   : it,
               ),

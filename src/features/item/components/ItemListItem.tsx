@@ -80,7 +80,7 @@ export default function ItemListItem({ item, className }: ItemListItemProps) {
                 <button
                   onClick={(e) => {
                     e.preventDefault()
-                    toggleWish()
+                    toggleWish({ current: item.isWishlisted })
                   }}
                   className="flex items-center gap-1 text-gray-500 hover:text-red-500 transition-colors"
                   aria-label={item.isWishlisted ? '찜 해제' : '찜 추가'}
