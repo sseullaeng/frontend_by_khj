@@ -20,6 +20,7 @@ import { getErrorMessage } from '@/shared/lib/errorMessages'
 export const adminKeys = {
   all:        ()                                 => ['admin'] as const,
   dashboard:  ()                                 => [...adminKeys.all(), 'dashboard'] as const,
+  dashboardCharts: (start?: string, end?: string) => [...adminKeys.all(), 'dashboard', 'charts', start ?? 'default', end ?? 'default'] as const,
   users:      (page = 0, size = 20)              => [...adminKeys.all(), 'users', page, size] as const,
   user:       (id: number)                       => [...adminKeys.all(), 'user', id] as const,
   banners:    (page = 0, size = 20)              => [...adminKeys.all(), 'banners', page, size] as const,
@@ -51,6 +52,16 @@ export function useAdminDashboard() {
   return useQuery({
     queryKey: adminKeys.dashboard(),
     queryFn: () => adminApi.stats.dashboard().then((r) => r.data),
+  })
+}
+
+// 라운드12 — 차트 대시보드 (마이페이지 AdminStats 가 사용)
+//   기간 미지정 시 백엔드 default = 최근 14일
+export function useAdminDashboardCharts(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: adminKeys.dashboardCharts(startDate, endDate),
+    queryFn: () => adminApi.stats.dashboardCharts({ startDate, endDate }).then((r) => r.data),
+    staleTime: 60_000,
   })
 }
 
