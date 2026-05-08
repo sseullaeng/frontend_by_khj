@@ -1,9 +1,9 @@
 // 마이페이지: 일반 유저는 프로필·포인트·메뉴, 관리자는 통계 대시보드(lazy 로드)
 import { Suspense, lazy } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Wallet } from 'lucide-react'
+import { ChevronRight, Wallet, MailCheck, MailWarning } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
-import { useLogout } from '@/features/auth/hooks'
+import { useLogout, useResendVerification } from '@/features/auth/hooks'
 import { usePointBalance } from '@/features/payment/hooks'
 import { Button } from '@/shared/ui/Button'
 
@@ -46,6 +46,9 @@ export default function MyPage() {
             <Link to="/mypage/edit" className="text-sm text-primary-500">수정</Link>
           </div>
 
+          {/* 이메일 인증 상태 */}
+          <EmailVerificationCard />
+
           {/* 신뢰 지수 */}
           <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl">
             <span className="text-sm text-gray-600">신뢰 지수</span>
@@ -72,6 +75,39 @@ export default function MyPage() {
       <Button variant="ghost" fullWidth isLoading={isPending} onClick={() => logout()}>
         로그아웃
       </Button>
+    </div>
+  )
+}
+
+function EmailVerificationCard() {
+  const user = useAuthStore((s) => s.user)
+  const { mutate: resend, isPending } = useResendVerification()
+  if (!user) return null
+
+  return user.emailVerified ? (
+    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 rounded-xl">
+      <MailCheck size={18} className="text-emerald-600 shrink-0" />
+      <div className="flex-1 text-sm">
+        <p className="text-emerald-700 font-medium">이메일 인증 완료</p>
+        <p className="text-xs text-emerald-600/80 truncate">{user.email}</p>
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+      <MailWarning size={18} className="text-amber-600 shrink-0 mt-0.5" />
+      <div className="flex-1 text-sm">
+        <p className="text-amber-700 font-semibold">이메일 인증이 필요해요</p>
+        <p className="text-xs text-amber-600/90 mt-0.5">
+          가입 시 받은 메일의 인증 링크를 클릭해 주세요. 메일을 못 받으셨다면 재전송 가능합니다.
+        </p>
+      </div>
+      <button
+        onClick={() => resend()}
+        disabled={isPending}
+        className="shrink-0 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50"
+      >
+        {isPending ? '전송 중' : '재전송'}
+      </button>
     </div>
   )
 }

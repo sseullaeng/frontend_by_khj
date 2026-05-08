@@ -121,6 +121,19 @@ export function useUpdateProfile() {
   })
 }
 
+// 이메일 인증 메일 재전송 — POST /api/v1/auth/resend-verification
+//   429 AUTH_VERIFICATION_RESEND_TOO_SOON 시 사용자에게 안내
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: () => authApi.resendVerification(),
+    onSuccess: () => toast.success('인증 메일을 다시 보냈어요. 메일함을 확인해 주세요.'),
+    onError: (err) => {
+      if (err instanceof BusinessError) toast.error(getErrorMessage(err.code))
+      else toast.error('인증 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.')
+    },
+  })
+}
+
 export function useMe() {
   const setUser = useAuthStore((s) => s.setUser)
 
