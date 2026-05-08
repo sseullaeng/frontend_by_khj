@@ -5,6 +5,7 @@ import type {
   AdminDashboardCharts,
   AdminDashboardChartsParams,
   AdminLoginRequest,
+  AdminMe,
   AdminReport,
   AdminReportPatchRequest,
   AdminReportStatus,
@@ -48,6 +49,10 @@ export const adminApi = {
   // 11.1 로그인 — 별도 admin AT/RT 발급
   login: (body: AdminLoginRequest) =>
     api.post<void>('/api/v1/auth/admin/login', body),
+
+  // 관리자 본인 정보 — admin AT 전용 (일반 /users/me 는 ROLE_USER 만)
+  me: () =>
+    api.get<AdminMe>('/api/v1/admin/me'),
 
   // 11.2 회원 (라운드9 — keyword/status/createdAfter/createdBefore 추가)
   users: {

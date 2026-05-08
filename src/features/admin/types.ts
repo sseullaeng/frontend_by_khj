@@ -13,6 +13,15 @@ export interface AdminLoginRequest {
   password: string
 }
 
+// 관리자 본인 정보 — GET /api/v1/admin/me (admin AT 전용)
+//   백엔드 정책: /users/me 는 ROLE_USER 만, admin 은 별도 endpoint 사용
+export interface AdminMe {
+  id: number
+  username: string
+  name: string
+  role: 'ADMIN'
+}
+
 // ── User 관리 (§11.2) ─────────────────────────────────────────────────────
 // 라운드9 — 백엔드 응답 enriched
 export type AdminUserStatusBE = 'ACTIVE' | 'DORMANT' | 'SUSPENDED' | 'WITHDRAWN'
