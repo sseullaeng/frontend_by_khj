@@ -22,7 +22,7 @@ interface BannerSliderProps {
 export default function BannerSlider({
   banners,
   autoPlay = true,
-  interval = 5000,
+  interval = 3000,
   className
 }: BannerSliderProps) {
   const navigate = useNavigate()
