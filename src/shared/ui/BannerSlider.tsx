@@ -65,17 +65,17 @@ export default function BannerSlider({
   const currentBanner = banners[currentIndex]
 
   return (
-    // Safari 의 'border-radius + overflow:hidden + absolute 자식' 모서리 1px 새어나옴 회피:
-    //   1) transform-gpu — GPU 합성 layer 로 강제
-    //   2) clip-path: inset(0 round 1rem) — Safari 가 border-radius 보다 clip-path 를 더 정확히 클리핑
-    //   3) 외곽에도 같은 backgroundColor — 그래도 1px 새어나오면 같은 색이라 인지 X
+    // Safari border-radius + overflow:hidden 1px 새어나옴 회피:
+    //   1) transform-gpu — GPU 합성 layer
+    //   2) clip-path: inset(1px round 1rem) — 1px 안쪽으로 강제 클리핑
+    //   3) 외곽 컨테이너 자체는 transparent — 배경색은 이미지 컨테이너에만 적용해
+    //      이미지 배경과 다른 색이 둘레로 새어나오는 일 자체를 차단
     <div
       className={cn(
         "relative h-52 rounded-2xl overflow-hidden transform-gpu",
-        "[clip-path:inset(0_round_1rem)]",
+        "[clip-path:inset(1px_round_1rem)]",
         className,
       )}
-      style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
     >
       {/* 배너 컨텐츠 (linkUrl 있으면 클릭 시 이동)
          - 컨테이너 높이는 h-52 (208px) 고정.
@@ -87,6 +87,7 @@ export default function BannerSlider({
           'absolute inset-0',
           currentBanner.linkUrl && 'cursor-pointer'
         )}
+        style={{ backgroundColor: currentBanner.backgroundColor || '#6366f1' }}
       >
         {currentBanner.imageUrl ? (
           // 이미지 모드 — 이미지 자체로 디자인 완결. 텍스트/어둠 오버레이 없음.
