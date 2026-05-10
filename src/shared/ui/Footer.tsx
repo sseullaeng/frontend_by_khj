@@ -55,9 +55,17 @@ export default function Footer() {
           </div>
         </div>
         
-        {/* 저작권 정보 섹션 */}
-        <div className="mt-6 pt-6 border-t border-gray-200 text-center text-xs text-gray-500">
-          © 2024 쓸랭 주식회사. All rights reserved.
+        {/* 저작권 + 정책 링크 */}
+        <div className="mt-6 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+          <p>© 2024 쓸랭 주식회사. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link to="/terms?tab=service" className="hover:text-primary-600 transition-colors">
+              이용약관
+            </Link>
+            <Link to="/terms?tab=privacy" className="hover:text-primary-600 transition-colors font-medium">
+              개인정보 처리방침
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

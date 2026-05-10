@@ -413,6 +413,15 @@ export default function SupportPage() {
 
   const handleInquirySubmit = async () => {
     if (!inquiryTitle.trim() || !inquiryContent.trim() || !inquiryCategory || !inquiryEmail.trim()) return
+    // 정책: 사진 1장 이상 + 내용 20자 이상
+    if (inquiryFiles.length === 0) {
+      toast.error('첨부 사진을 1장 이상 등록해 주세요.')
+      return
+    }
+    if (inquiryContent.trim().length < 20) {
+      toast.error('문의 내용은 20자 이상 입력해 주세요.')
+      return
+    }
     try {
       const imageUrls = inquiryFiles.length > 0
         ? (await uploadImages('SUPPORT', inquiryFiles)).map((u) => u.getUrl)
@@ -875,7 +884,12 @@ function UserInquiryForm(props: UserInquiryFormProps) {
     onCategory, onTitle, onContent, onEmail, onFiles, onRemoveFile, onSubmit, onAgain,
   } = props
 
-  const canSubmit = title.trim() && content.trim() && category && email.trim() && !pending
+  // 문의 정책: 사진 1장 이상 + 내용 20자 이상
+  const MIN_CONTENT = 20
+  const contentTrimLen = content.trim().length
+  const canSubmit =
+    title.trim() && contentTrimLen >= MIN_CONTENT && category && email.trim()
+    && files.length > 0 && !pending
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -920,20 +934,29 @@ function UserInquiryForm(props: UserInquiryFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">내용</label>
+              <span className={`text-xs ${contentTrimLen >= MIN_CONTENT ? 'text-gray-400' : 'text-amber-600'}`}>
+                {contentTrimLen}/{MIN_CONTENT}자 이상
+              </span>
+            </div>
             <textarea
               rows={6}
               value={content}
               onChange={(e) => onContent(e.target.value)}
-              placeholder="문의 내용을 상세하게 작성해주세요"
+              placeholder={`문의 내용을 ${MIN_CONTENT}자 이상 상세하게 작성해주세요`}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">이미지 첨부</label>
-              <span className="text-xs text-gray-400">{files.length}/{MAX_INQUIRY_IMAGES}</span>
+              <label className="text-sm font-medium text-gray-700">
+                이미지 첨부 <span className="text-red-500">*</span>
+              </label>
+              <span className={`text-xs ${files.length > 0 ? 'text-gray-400' : 'text-amber-600'}`}>
+                {files.length}/{MAX_INQUIRY_IMAGES} (1장 이상)
+              </span>
             </div>
             {files.length > 0 && (
               <div className="grid grid-cols-4 gap-2 mb-2">

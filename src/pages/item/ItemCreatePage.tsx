@@ -36,6 +36,10 @@ export default function ItemCreatePage() {
   const [addressOpen, setAddressOpen] = useState(false)
   const [locating, setLocating] = useState(false)
 
+  // 보증금 단위 토글 — 원 or %. % 모드 시 deposit = price * percent / 100 으로 변환해서 백엔드 전송
+  const [depositMode, setDepositMode] = useState<'amount' | 'percent'>('amount')
+  const [depositInput, setDepositInput] = useState<string>('')
+
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(itemCreateSchema),
     defaultValues: {
@@ -188,14 +192,28 @@ export default function ItemCreatePage() {
                 ))}
               </select>
             </div>
-            <Input
-              label="보증금 (원)"
-              type="number"
-              min={0}
-              inputMode="numeric"
-              placeholder="0"
-              onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
-              {...register('deposit', { valueAsNumber: true, min: 0 })}
+            <DepositField
+              mode={depositMode}
+              value={depositInput}
+              price={watch('price') || 0}
+              onModeChange={(m) => {
+                setDepositMode(m)
+                setDepositInput('')
+                setValue('deposit', undefined)
+              }}
+              onValueChange={(raw) => {
+                setDepositInput(raw)
+                const n = Number(raw)
+                if (!Number.isFinite(n) || n <= 0) {
+                  setValue('deposit', undefined)
+                  return
+                }
+                const price = Number(watch('price')) || 0
+                const amount = depositMode === 'percent'
+                  ? Math.round(price * Math.min(n, 100) / 100)
+                  : Math.round(n)
+                setValue('deposit', amount, { shouldValidate: true })
+              }}
             />
           </>
         )}
@@ -300,6 +318,78 @@ export default function ItemCreatePage() {
             : '등록하기'}
         </Button>
       </form>
+    </div>
+  )
+}
+
+// 보증금 입력 — 원/% 토글. % 모드는 가격 대비 비율을 받아 절대 금액(원)으로 변환해 폼에 저장.
+function DepositField({
+  mode, value, price, onModeChange, onValueChange,
+}: {
+  mode: 'amount' | 'percent'
+  value: string
+  price: number
+  onModeChange: (m: 'amount' | 'percent') => void
+  onValueChange: (raw: string) => void
+}) {
+  const computed = (() => {
+    const n = Number(value)
+    if (!Number.isFinite(n) || n <= 0) return null
+    if (mode === 'percent') {
+      return Math.round(price * Math.min(n, 100) / 100)
+    }
+    return Math.round(n)
+  })()
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-gray-700">보증금</label>
+        {/* 단위 토글 */}
+        <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+          <button
+            type="button"
+            onClick={() => onModeChange('amount')}
+            className={mode === 'amount'
+              ? 'px-3 py-1 bg-primary-500 text-white'
+              : 'px-3 py-1 text-gray-600 hover:bg-gray-50'}
+          >
+            원
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange('percent')}
+            className={mode === 'percent'
+              ? 'px-3 py-1 bg-primary-500 text-white'
+              : 'px-3 py-1 text-gray-600 hover:bg-gray-50'}
+          >
+            %
+          </button>
+        </div>
+      </div>
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          max={mode === 'percent' ? 100 : undefined}
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
+          placeholder={mode === 'percent' ? '예: 10 (대여가의 10%)' : '0'}
+          className="w-full h-10 rounded-lg border border-gray-300 px-3 pr-10 text-sm outline-none focus:border-primary-500"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+          {mode === 'percent' ? '%' : '원'}
+        </span>
+      </div>
+      {mode === 'percent' && (
+        <p className="text-[11px] text-gray-400">
+          {computed != null
+            ? `대여가 ${price.toLocaleString()}원 × ${value}% = ${computed.toLocaleString()}원`
+            : '대여가에 곱해서 보증금이 자동 계산돼요.'}
+        </p>
+      )}
     </div>
   )
 }
