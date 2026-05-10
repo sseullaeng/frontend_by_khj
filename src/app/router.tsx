@@ -91,6 +91,9 @@ const AdminDepositPage        = lazy(() => import('@/pages/admin/AdminDepositPag
 const AdminEscrowConfigPage   = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))   // 관리자 에스크로 설정
 const AdminInquiryDetailPage  = lazy(() => import('@/pages/admin/AdminInquiryDetailPage'))  // 관리자 문의 상세 페이지
 
+// 약관·개인정보처리방침
+const TermsPage          = lazy(() => import('@/pages/legal/TermsPage'))
+
 // 404 페이지
 const NotFoundPage       = lazy(() => import('@/pages/NotFoundPage')) // 페이지를 찾을 수 없을 때 표시
 
@@ -123,6 +126,7 @@ export const router = createBrowserRouter([
       { path: '/notices/:id/edit', element: <NoticeWritePage /> },
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
       { path: '/support',          element: <SupportPage /> },
+      { path: '/terms',            element: <TermsPage /> },
 
       // 거래대행 — 링크 공유 대상자도 접근 가능
       { path: '/escrow/join/:linkId',          element: <EscrowInvitePage /> },
