@@ -18,6 +18,15 @@ const tradeTypeColor: Record<TradeType, string> = {
   '나눔': 'bg-purple-100 text-purple-800',
 }
 
+// 거래유형별 가격 라벨 (대여 단가 단위는 detail 응답에만 있어 카드에선 일단 '대여 단가' 까지)
+function priceLabel(tradeType: TradeType): string {
+  switch (tradeType) {
+    case '판매': return '판매가'
+    case '대여': return '대여 단가'
+    case '나눔': return ''
+  }
+}
+
 // 상태 배지 (판매중은 미표시)
 const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>> = {
   '예약':     { label: '예약중',  color: 'bg-yellow-100 text-yellow-800' },
@@ -83,20 +92,24 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           )}
         </div>
 
-        {/* 정보 */}
+        {/* 정보 — 카드 크기 통일을 위해 영역별 고정 높이 */}
         <div className="p-3">
-          <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 group-hover:text-primary-600 transition-colors">
+          <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 min-h-[2.5rem] group-hover:text-primary-600 transition-colors">
             {item.title}
           </h3>
 
-          <p
-            className={cn(
-              'font-semibold text-sm mb-2',
-              item.price === 0 ? 'text-green-600' : 'text-gray-900',
-            )}
-          >
-            {item.price === 0 ? '무료' : `${item.price.toLocaleString()}원`}
-          </p>
+          {/* 가격 영역 — 거래유형 라벨 + 금액. 두 줄 고정 높이 */}
+          <div className="mb-2 min-h-[2.25rem]">
+            <p className="text-[11px] text-gray-400 leading-tight">{priceLabel(item.tradeType)}</p>
+            <p
+              className={cn(
+                'font-semibold text-sm leading-tight',
+                item.tradeType === '나눔' ? 'text-emerald-600' : 'text-gray-900',
+              )}
+            >
+              {item.tradeType === '나눔' ? '무료 나눔' : `${item.price.toLocaleString()}원`}
+            </p>
+          </div>
 
           <div className="flex items-center justify-between text-xs text-gray-500">
             <div className="flex items-center gap-1 min-w-0">

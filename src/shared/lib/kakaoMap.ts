@@ -76,6 +76,10 @@ export interface KakaoGeocoderResult {
   x: string
   y: string
 }
+export interface KakaoCoord2AddressResult {
+  address: { address_name: string } | null
+  road_address: { address_name: string } | null
+}
 export interface KakaoGeocoder {
   addressSearch: (
     query: string,
@@ -86,6 +90,52 @@ export interface KakaoGeocoder {
     lat: number,
     callback: (data: KakaoGeocoderResult[], status: string) => void,
   ) => void
+  coord2Address: (
+    lng: number,
+    lat: number,
+    callback: (data: KakaoCoord2AddressResult[], status: string) => void,
+  ) => void
+}
+
+/**
+ * 현재 위치 → 도로명 주소 우선, 없으면 지번 주소.
+ * navigator.geolocation + 카카오 reverse geocode 통합 헬퍼.
+ */
+export async function reverseGeocodeCurrentPosition(): Promise<string> {
+  if (!navigator.geolocation) {
+    throw new Error('이 브라우저는 위치 정보를 지원하지 않아요.')
+  }
+  const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10_000,
+    })
+  })
+  await ensureKakaoMap()
+  const { kakao } = window
+  if (!kakao?.maps.services) throw new Error('카카오 SDK 가 로드되지 않았어요.')
+
+  const geocoder = new kakao.maps.services.Geocoder()
+  return new Promise<string>((resolve, reject) => {
+    geocoder.coord2Address(
+      pos.coords.longitude,
+      pos.coords.latitude,
+      (data, status) => {
+        const Status = window.kakao!.maps.services.Status
+        if (status !== Status.OK || data.length === 0) {
+          reject(new Error('현재 위치의 주소를 알 수 없어요.'))
+          return
+        }
+        const first = data[0]
+        const text = first.road_address?.address_name ?? first.address?.address_name
+        if (!text) {
+          reject(new Error('현재 위치의 주소를 알 수 없어요.'))
+          return
+        }
+        resolve(text)
+      },
+    )
+  })
 }
 
 /**
