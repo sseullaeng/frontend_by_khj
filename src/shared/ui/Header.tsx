@@ -68,6 +68,23 @@ export default function Header() {
             {/* 관리자 — 데스크톱 풀 */}
             {admin ? (
               <>
+                {/* 채팅·알림 단축 — admin 도 동일하게 노출 (NotificationPanel 안 broadcast 폼 진입) */}
+                <button
+                  onClick={() => toggleOpen()}
+                  aria-label="채팅·알림"
+                  className={cn(
+                    'relative flex items-center gap-2 px-2 py-2 rounded-lg transition-colors',
+                    activeTab
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100',
+                  )}
+                >
+                  <span className="relative">
+                    <Bell size={20} />
+                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                  </span>
+                  <span className="text-sm font-medium hidden md:block">채팅/알림</span>
+                </button>
                 <Link
                   to="/admin/dashboard"
                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors"
