@@ -6,6 +6,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { useLogout, useResendVerification } from '@/features/auth/hooks'
 import { usePointBalance } from '@/features/payment/hooks'
 import { Button } from '@/shared/ui/Button'
+import { cn } from '@/shared/lib/cn'
 
 // 관리자 차트 대시보드 (recharts ~300KB) — 관리자 진입 시에만 로드
 const AdminStats = lazy(() => import('./AdminStats'))
@@ -24,7 +25,7 @@ export default function MyPage() {
   const isAdmin = user?.role === 'ADMIN'
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn('flex flex-col gap-4', !isAdmin && 'max-w-md mx-auto w-full')}>
 
       {isAdmin ? (
         <Suspense fallback={<p className="py-12 text-center text-sm text-gray-400">대시보드 불러오는 중...</p>}>
@@ -93,18 +94,20 @@ function EmailVerificationCard() {
       </div>
     </div>
   ) : (
-    <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-      <MailWarning size={18} className="text-amber-600 shrink-0 mt-0.5" />
-      <div className="flex-1 text-sm">
-        <p className="text-amber-700 font-semibold">이메일 인증이 필요해요</p>
-        <p className="text-xs text-amber-600/90 mt-0.5">
-          가입 시 받은 메일의 인증 링크를 클릭해 주세요. 메일을 못 받으셨다면 재전송 가능합니다.
-        </p>
+    <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+      <div className="flex items-start gap-2 flex-1 min-w-0">
+        <MailWarning size={18} className="text-amber-600 shrink-0 mt-0.5" />
+        <div className="flex-1 text-sm min-w-0">
+          <p className="text-amber-700 font-semibold">이메일 인증이 필요해요</p>
+          <p className="text-xs text-amber-600/90 mt-0.5">
+            가입 시 받은 메일의 인증 링크를 클릭해 주세요. 메일을 못 받으셨다면 재전송 가능합니다.
+          </p>
+        </div>
       </div>
       <button
         onClick={() => resend()}
         disabled={isPending}
-        className="shrink-0 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50"
+        className="shrink-0 self-stretch sm:self-start px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 disabled:opacity-50"
       >
         {isPending ? '전송 중' : '재전송'}
       </button>
@@ -130,19 +133,19 @@ function PointCard() {
         </Link>
       </div>
 
-      <p className="text-2xl font-bold mb-3">
+      <p className="text-2xl font-bold mb-3 truncate">
         {totalBalance.toLocaleString()}
         <span className="text-sm font-medium opacity-80 ml-1">P</span>
       </p>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-white/15 rounded-lg py-2 px-3">
+        <div className="bg-white/15 rounded-lg py-2 px-3 min-w-0">
           <p className="text-[11px] opacity-80 mb-0.5">사용 가능</p>
-          <p className="text-sm font-semibold">{balance.toLocaleString()}P</p>
+          <p className="text-sm font-semibold truncate">{balance.toLocaleString()}P</p>
         </div>
-        <div className="bg-white/15 rounded-lg py-2 px-3">
+        <div className="bg-white/15 rounded-lg py-2 px-3 min-w-0">
           <p className="text-[11px] opacity-80 mb-0.5">거래 보관 중</p>
-          <p className="text-sm font-semibold">{holdAmount.toLocaleString()}P</p>
+          <p className="text-sm font-semibold truncate">{holdAmount.toLocaleString()}P</p>
         </div>
       </div>
 

@@ -134,12 +134,12 @@ export default function ChargePage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-24">
+    <div className="flex flex-col gap-6 pb-24 max-w-md mx-auto w-full">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">포인트 충전</h1>
         <button
           onClick={() => navigate(-1)}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1.5"
         >
           취소
         </button>

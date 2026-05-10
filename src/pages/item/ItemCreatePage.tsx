@@ -102,7 +102,7 @@ export default function ItemCreatePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-24">
+    <div className="flex flex-col gap-4 pb-24 max-w-2xl mx-auto w-full">
       <h1 className="text-xl font-bold">상품 등록</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -111,7 +111,7 @@ export default function ItemCreatePage() {
           <label className="text-sm font-medium text-gray-700">
             사진 ({imageFiles.length}/{MAX_IMAGES})
           </label>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {imageFiles.map((file, index) => (
               <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
