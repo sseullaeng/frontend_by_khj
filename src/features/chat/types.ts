@@ -30,6 +30,10 @@ export interface ChatRoom {
   user1Unread: number
   user2Unread: number
 
+  // 라운드12 — 채팅방 나가기 상태
+  iLeft: boolean        // 본인이 leave 했는지 (백엔드 listMine 에서 자동 필터되긴 함)
+  opponentLeft: boolean // 상대방이 leave 했는지 — UI 가 입력창/액션 disable + 시스템 메시지
+
   createdAt: string
   updatedAt: string
 }

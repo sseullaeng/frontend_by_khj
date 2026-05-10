@@ -30,8 +30,20 @@ export interface Transaction {
   updatedAt: string
 }
 
+// 라운드12 — 거래 시작은 채팅방 안에서만, 판매자만 호출.
+//   transactionType 영문 enum (TradeType 한국어와 별도). 매핑: 판매→SALE / 대여→RENTAL / 나눔→FREE
+export type TransactionTypeBE = 'SALE' | 'RENTAL' | 'FREE'
+
+export const TRADE_TO_TRANSACTION_TYPE: Record<TradeType, TransactionTypeBE> = {
+  '판매': 'SALE',
+  '대여': 'RENTAL',
+  '나눔': 'FREE',
+}
+
 export interface TransactionCreateRequest {
   itemId: number
+  chatRoomId: number               // 라운드12: 필수
+  transactionType: TransactionTypeBE
   rentalStart?: string
   rentalEnd?: string
 }

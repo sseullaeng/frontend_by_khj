@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useItemDetail, useToggleWish, useDeleteItem } from '@/features/item/hooks'
 import { useUserProfile } from '@/features/user/hooks'
-import { useCreateTransaction } from '@/features/trade/hooks'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { useEmailGuard } from '@/features/auth/emailGuard'
@@ -44,7 +43,6 @@ export default function ItemDetailPage() {
   const { data: seller } = useUserProfile(item?.sellerId)
   const { mutate: toggleWish } = useToggleWish(Number(id))
   const { mutate: deleteItem } = useDeleteItem()
-  const { mutateAsync: createTransactionAsync, isPending: isCreatingTx } = useCreateTransaction()
   const { open, openChatRoom, setPendingFirstMessage } = useDrawerStore()
   const currentUser = useAuthStore((s) => s.user)
   const { requireVerified } = useEmailGuard()
@@ -52,9 +50,6 @@ export default function ItemDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [profileFloatOpen, setProfileFloatOpen] = useState(false)
-  const [rentalOpen, setRentalOpen] = useState(false)
-  const [rentalStart, setRentalStart] = useState('')
-  const [rentalEnd, setRentalEnd] = useState('')
 
   // 로딩/에러 가드
   if (isLoading) {
@@ -95,41 +90,7 @@ export default function ItemDetailPage() {
       }
     })
 
-  // 거래 시작 — 판매/나눔: itemId만 / 대여: 시작·종료일 모달
-  const handleStartTransaction = () =>
-    requireVerified(async () => {
-      if (item.tradeType === '대여') {
-        setRentalOpen(true)
-        return
-      }
-      try {
-        const { id: txId } = await createTransactionAsync({ itemId: item.id })
-        navigate(`/trades/${txId}`)
-      } catch {
-        // 토스트는 hook 에서
-      }
-    })
-
-  // datetime-local: "2026-05-03T10:00" → 백엔드 LocalDateTime: "2026-05-03T10:00:00"
-  const toBackendDateTime = (v: string) => (v.length === 16 ? `${v}:00` : v)
-
-  const submitRentalTransaction = async () => {
-    if (!rentalStart || !rentalEnd || rentalEnd <= rentalStart) {
-      toast.error('시작·종료 일시를 올바르게 입력해 주세요.')
-      return
-    }
-    try {
-      const { id: txId } = await createTransactionAsync({
-        itemId: item.id,
-        rentalStart: toBackendDateTime(rentalStart),
-        rentalEnd: toBackendDateTime(rentalEnd),
-      })
-      setRentalOpen(false)
-      navigate(`/trades/${txId}`)
-    } catch {
-      // 토스트는 hook 에서
-    }
-  }
+  // 라운드12 — 거래 시작은 채팅방 안 [거래 시작] 버튼이 처리. 물품 상세에는 [채팅하기] 만.
 
   // 가격 표시
   const priceLabel =
@@ -315,18 +276,13 @@ export default function ItemDetailPage() {
                 >
                   <Heart size={20} fill={item.isWishlisted ? 'currentColor' : 'none'} />
                 </button>
+                {/* 라운드12 — [거래 시작] 은 채팅방 안에서만. 물품 상세에는 [채팅하기] 만. */}
                 <button
                   onClick={handleChat}
-                  className="flex-1 py-3 border border-primary-500 text-primary-600 hover:bg-primary-50 rounded-xl text-sm font-semibold"
-                >
-                  채팅하기
-                </button>
-                <button
-                  onClick={handleStartTransaction}
-                  disabled={isCreatingTx || item.status !== '판매중'}
+                  disabled={item.status !== '판매중'}
                   className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
                 >
-                  {item.status === '판매중' ? '거래 시작' : '거래 불가'}
+                  {item.status === '판매중' ? '채팅하기' : '거래 불가'}
                 </button>
               </>
             )}
@@ -367,72 +323,15 @@ export default function ItemDetailPage() {
             </button>
             <button
               onClick={handleChat}
-              className="flex-1 py-3 border border-primary-500 text-primary-600 rounded-xl text-sm font-semibold"
-            >
-              채팅
-            </button>
-            <button
-              onClick={handleStartTransaction}
-              disabled={isCreatingTx || item.status !== '판매중'}
+              disabled={item.status !== '판매중'}
               className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
             >
-              {item.status === '판매중' ? '거래 시작' : '거래 불가'}
+              {item.status === '판매중' ? '채팅하기' : '거래 불가'}
             </button>
           </>
         )}
       </div>
 
-      {/* 대여 날짜 선택 모달 */}
-      {rentalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="font-bold text-gray-900 mb-2">대여 기간 선택</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              {item.tradeType === '대여' && item.rentalUnit
-                ? `단가: ${item.price.toLocaleString()}원/${item.rentalUnit}`
-                : ''}
-            </p>
-
-            <div className="flex flex-col gap-3 mb-4">
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">시작 일시</label>
-                <input
-                  type="datetime-local"
-                  value={rentalStart}
-                  onChange={(e) => setRentalStart(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-primary-500"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">종료 일시</label>
-                <input
-                  type="datetime-local"
-                  value={rentalEnd}
-                  min={rentalStart}
-                  onChange={(e) => setRentalEnd(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-primary-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setRentalOpen(false)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={submitRentalTransaction}
-                disabled={isCreatingTx || !rentalStart || !rentalEnd}
-                className="flex-1 py-2.5 bg-primary-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
-              >
-                거래 시작
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 신고 모달 */}
       {reportOpen && (

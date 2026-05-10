@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
-import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt } from 'lucide-react'
+import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt, LogOut } from 'lucide-react'
 import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
 import { compressImage } from '@/shared/lib/imageCompress'
 import { toast } from 'sonner'
@@ -9,7 +9,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
-import { useChatMessages } from '@/features/chat/hooks'
+import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
+import { useCreateTransaction } from '@/features/trade/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { useBroadcastNotification } from '@/features/admin/hooks'
@@ -171,12 +172,23 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [blockOpen, setBlockOpen] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+  const [rentalOpen, setRentalOpen] = useState(false)
+  const [rentalStart, setRentalStart] = useState('')
+  const [rentalEnd, setRentalEnd] = useState('')
   // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
   const alreadyReviewed = currentUser ? hasReviewed(roomId, currentUser.id) : false
   // 관리자는 거래예약·신고·차단 기능 없이 채팅만 가능
   const isAdmin = currentUser?.role === 'ADMIN'
+
+  // 라운드12 — 채팅방 leave 상태 + 거래 시작 mutation
+  const opponentLeft = room?.opponentLeft ?? false
+  const iLeft = room?.iLeft ?? false
+  const chatBlocked = opponentLeft || iLeft   // 입력 / 액션 버튼 모두 disable
+  const { mutateAsync: leaveAsync, isPending: isLeaving } = useLeaveChatRoom()
+  const { mutateAsync: createTxAsync, isPending: isCreatingTx } = useCreateTransaction()
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -223,6 +235,10 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const handleSend = async () => {
     const content = text.trim()
     if (!content && !pendingImage) return
+    if (chatBlocked) {
+      toast.error(opponentLeft ? '상대방이 채팅방을 나갔어요.' : '나간 채팅방에는 메시지를 보낼 수 없어요.')
+      return
+    }
 
     // 이미지 첨부 있으면 업로드 후 imageUrls 와 함께 전송
     if (pendingImage) {
@@ -342,6 +358,124 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
+      {/* ── 채팅방 나가기 확인 모달 ── */}
+      {leaveConfirmOpen && (
+        <div className="absolute inset-0 z-10 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full shadow-xl">
+            <div className="flex items-center gap-2 mb-1">
+              <LogOut size={18} className="text-red-500" />
+              <h3 className="text-base font-bold text-gray-900">채팅방을 나갈까요?</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-5">
+              나가면 채팅 목록에서 제거되고, 상대방에게는 "나갔습니다" 안내가 표시돼요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLeaveConfirmOpen(false)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await leaveAsync(roomId)
+                    setLeaveConfirmOpen(false)
+                    onBack()  // 채팅방 목록으로 복귀
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : '나가지 못했어요.')
+                  }
+                }}
+                disabled={isLeaving}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                나가기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 거래 시작 모달 (판매자만) ── */}
+      {rentalOpen && room && (
+        <div className="absolute inset-0 z-10 bg-black/40 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-5 w-full sm:max-w-sm shadow-xl">
+            <div className="flex items-center gap-2 mb-3">
+              <Receipt size={18} className="text-primary-500" />
+              <h3 className="text-base font-bold text-gray-900">거래 시작</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              대여 거래라면 시작·종료 일시를 입력해 주세요. 판매·나눔 거래는 비워두고 [시작] 누르세요.
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              <div>
+                <label className="text-[11px] text-gray-500 mb-1 block">대여 시작 (선택)</label>
+                <input
+                  type="datetime-local"
+                  value={rentalStart}
+                  onChange={(e) => setRentalStart(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-300 px-3 text-xs outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-500 mb-1 block">대여 종료 (선택)</label>
+                <input
+                  type="datetime-local"
+                  value={rentalEnd}
+                  min={rentalStart}
+                  onChange={(e) => setRentalEnd(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-300 px-3 text-xs outline-none focus:border-primary-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setRentalOpen(false); setRentalStart(''); setRentalEnd('') }}
+                className="flex-1 py-2 border border-gray-200 rounded-xl text-xs text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  if (!room) return
+                  // 대여 시 둘 다 입력 + 종료 > 시작 검증
+                  if (rentalStart && rentalEnd) {
+                    if (rentalEnd <= rentalStart) {
+                      toast.error('종료 일시는 시작 일시 이후여야 해요.')
+                      return
+                    }
+                  }
+                  // tradeType 영문 매핑 — ChatRoom 응답에 한국어 tradeType 이 없어서
+                  // 대여 일시가 있으면 RENTAL, 그 외엔 SALE 로 추정. (정확한 분기는 백엔드가 검증)
+                  const transactionType = (rentalStart && rentalEnd) ? 'RENTAL' : 'SALE'
+                  try {
+                    const toBackendDateTime = (v: string) => v.length === 16 ? `${v}:00` : v
+                    const { id: txId } = await createTxAsync({
+                      itemId: room.itemId,
+                      chatRoomId: room.id,
+                      transactionType,
+                      ...(rentalStart && rentalEnd ? {
+                        rentalStart: toBackendDateTime(rentalStart),
+                        rentalEnd:   toBackendDateTime(rentalEnd),
+                      } : {}),
+                    } as Parameters<typeof createTxAsync>[0])
+                    setRentalOpen(false)
+                    close()
+                    navigate(`/trades/${txId}`)
+                  } catch {
+                    // hook onError 토스트
+                  }
+                }}
+                disabled={isCreatingTx}
+                className="flex-1 py-2 bg-primary-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
+              >
+                {isCreatingTx ? '생성 중' : '시작'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 채팅방 헤더 */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-gray-100 shrink-0">
         <button onClick={onBack} className="text-gray-400 hover:text-gray-600 transition-colors p-1 shrink-0">
@@ -402,18 +536,51 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 거래 진입 단축 — 라운드 11: 실제 거래 상세에서 예약/인계/인수 처리 */}
-      {!isAdmin && (
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
+      {/* 거래 진입 — 판매자만 [거래 시작] (라운드12), 구매자는 거래 관리 진입만 */}
+      {!isAdmin && !chatBlocked && (
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
+          {isSeller ? (
+            <button
+              onClick={() => {
+                if (!room) return
+                // 대여는 시작/종료일 모달, 그 외는 즉시 생성
+                if (room.itemId && (room.itemTitle?.length ?? 0) >= 0) {
+                  // tradeType 정보가 ChatRoom 응답에 없어 안전하게 RENTAL 모달부터 띄울 수 없음.
+                  // → 대여 모달은 일단 항상 열고 사용자가 시작·종료 비워두면 즉시 생성으로 전환.
+                  setRentalOpen(true)
+                }
+              }}
+              disabled={isCreatingTx}
+              className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              <Receipt size={13} />
+              거래 시작
+            </button>
+          ) : (
+            <button
+              onClick={handleOpenTrades}
+              className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Receipt size={13} />
+              구매 거래 관리
+            </button>
+          )}
           <button
-            onClick={handleOpenTrades}
-            className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+            onClick={() => setLeaveConfirmOpen(true)}
+            disabled={isLeaving}
+            className="w-full py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-red-500 hover:bg-white transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
           >
-            <Receipt size={13} />
-            {isSeller ? '판매 거래 관리' : '구매 거래 관리'}
+            <LogOut size={11} />
+            채팅방 나가기
           </button>
-          <p className="text-[11px] text-gray-400 text-center mt-1">
-            예약 · 인계 · 인수 확인은 거래 상세 페이지에서 진행해요.
+        </div>
+      )}
+
+      {/* 상대 / 본인 leave 안내 — 입력 자체가 disable 됨 */}
+      {!isAdmin && chatBlocked && (
+        <div className="px-4 py-3 bg-gray-100 border-b border-gray-200 text-center">
+          <p className="text-xs text-gray-600 font-medium">
+            {iLeft ? '나간 채팅방이에요. 메시지를 보낼 수 없어요.' : '상대방이 채팅방을 나갔어요. 메시지를 보낼 수 없어요.'}
           </p>
         </div>
       )}
@@ -513,15 +680,15 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || !!pendingImage}
+            disabled={uploading || !!pendingImage || chatBlocked}
             className="w-10 h-10 rounded-full text-gray-500 hover:bg-gray-100 flex items-center justify-center disabled:opacity-50"
             aria-label="이미지 첨부"
           >
             <ImageIcon size={20} />
           </button>
           <input
-            className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-sm outline-none focus:border-primary-500"
-            placeholder="메시지를 입력해 주세요"
+            className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-sm outline-none focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-400"
+            placeholder={chatBlocked ? '메시지를 보낼 수 없는 채팅방이에요' : '메시지를 입력해 주세요'}
             value={text}
             onChange={e => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -529,15 +696,15 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               // 음절이 한 번 더 send 되는 버그가 있어 isComposing / keyCode 229 차단.
               if (e.key !== 'Enter' || e.shiftKey) return
               if (e.nativeEvent.isComposing || e.keyCode === 229) return
-              if (uploading) return
+              if (uploading || chatBlocked) return
               e.preventDefault()
               handleSend()
             }}
-            disabled={uploading}
+            disabled={uploading || chatBlocked}
           />
           <button
             onClick={handleSend}
-            disabled={uploading || (!text.trim() && !pendingImage)}
+            disabled={uploading || chatBlocked || (!text.trim() && !pendingImage)}
             className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center disabled:bg-gray-300 transition-colors"
             aria-label="전송"
           >
