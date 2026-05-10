@@ -20,7 +20,8 @@ import CategoryPicker from '@/features/category/CategoryPicker'
 import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import { Button } from '@/shared/ui/Button'
 import { Input } from '@/shared/ui/Input'
-import { MapPin } from 'lucide-react'
+import { MapPin, LocateFixed } from 'lucide-react'
+import { reverseGeocodeCurrentPosition } from '@/shared/lib/kakaoMap'
 import type { ItemUpdateRequest, RentalUnit } from '@/features/item/types'
 
 const RENTAL_UNITS: RentalUnit[] = ['시간', '일', '주', '월']
@@ -52,6 +53,7 @@ export default function ItemEditPage() {
   // 기존 이미지 URL 유지/삭제 결정 — 사용자가 ✕ 누르면 제외
   const [keepImageUrls, setKeepImageUrls] = useState<string[]>([])
   const [addressOpen, setAddressOpen] = useState(false)
+  const [locating, setLocating] = useState(false)
   const [imagesEdited, setImagesEdited] = useState(false)  // 한 번이라도 수정했나
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>()
@@ -199,6 +201,9 @@ export default function ItemEditPage() {
           <Input
             label={isRental ? '대여 단가' : '판매 가격'}
             type="number"
+            min={0}
+            inputMode="numeric"
+            onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
             error={errors.price?.message}
             {...register('price', { valueAsNumber: true, min: 0, required: true })}
           />
@@ -222,6 +227,9 @@ export default function ItemEditPage() {
             <Input
               label="보증금 (원)"
               type="number"
+              min={0}
+              inputMode="numeric"
+              onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
               {...register('deposit', { valueAsNumber: true, min: 0 })}
             />
           </>
@@ -237,16 +245,39 @@ export default function ItemEditPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">거래 희망 지역</label>
-          <button
-            type="button"
-            onClick={() => setAddressOpen(true)}
-            className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
-          >
-            <MapPin size={14} className="text-gray-400" />
-            <span className={watch('region') ? 'text-gray-700' : 'text-gray-400'}>
-              {watch('region') || '주소 검색'}
-            </span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setAddressOpen(true)}
+              className="flex-1 h-10 rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
+            >
+              <MapPin size={14} className="text-gray-400" />
+              <span className={watch('region') ? 'text-gray-700 truncate' : 'text-gray-400'}>
+                {watch('region') || '주소 검색'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setLocating(true)
+                try {
+                  const addr = await reverseGeocodeCurrentPosition()
+                  setValue('region', addr, { shouldValidate: true })
+                  toast.success('현재 위치를 입력했어요.')
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : '현재 위치를 가져오지 못했어요.')
+                } finally {
+                  setLocating(false)
+                }
+              }}
+              disabled={locating}
+              className="shrink-0 h-10 px-3 rounded-lg border border-gray-300 text-sm text-gray-600 hover:border-primary-400 disabled:opacity-50 inline-flex items-center gap-1.5"
+              aria-label="현재 위치"
+            >
+              <LocateFixed size={14} />
+              <span className="hidden sm:inline">{locating ? '위치 확인 중' : '현재 위치'}</span>
+            </button>
+          </div>
         </div>
 
         <KakaoAddressSearch
