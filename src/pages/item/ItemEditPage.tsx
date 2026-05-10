@@ -138,7 +138,7 @@ export default function ItemEditPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-24">
+    <div className="flex flex-col gap-4 pb-24 max-w-2xl mx-auto w-full">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600">
           <ChevronLeft size={22} />
@@ -153,7 +153,7 @@ export default function ItemEditPage() {
           <label className="text-sm font-medium text-gray-700">
             사진 ({totalImageCount}/{MAX_IMAGES})
           </label>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {keepImageUrls.map((url) => (
               <div key={url} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
                 <img src={url} alt="" className="w-full h-full object-cover" />
