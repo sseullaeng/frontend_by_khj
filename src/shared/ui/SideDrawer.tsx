@@ -672,10 +672,8 @@ function NotificationPanel() {
               {!n.read && (
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 inline-block mb-0.5" />
               )}
-              <span className="text-sm font-medium text-gray-900">
-                {n.type === 'SYSTEM' && (
-                  <span className="mr-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">시스템</span>
-                )}
+              <span className="text-sm font-medium text-gray-900 flex items-center flex-wrap gap-1.5">
+                <NotificationBadge type={n.type} linkType={n.linkType} />
                 {n.title}
               </span>
               <span className="text-xs text-gray-500 line-clamp-2">{n.content}</span>
@@ -686,4 +684,38 @@ function NotificationPanel() {
       </ul>
     </div>
   )
+}
+
+// 알림 종류별 배지 — 시스템/문의/신고/거래/기타 분기
+function NotificationBadge({
+  type, linkType,
+}: { type: string; linkType: string | null }) {
+  // INQUIRY linkType 은 백엔드 type 이 SYSTEM 등 다양한데, 사용자 시각상 '문의' 가 더 의미 있음 → 우선
+  if (linkType === 'INQUIRY') {
+    return <span className="text-[11px] font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">문의</span>
+  }
+  if (type === 'SYSTEM') {
+    return <span className="text-[11px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">시스템</span>
+  }
+  // 신고 알림은 백엔드에 type 이 없음 — title 에 '[신고]' 같은 prefix 가 들어오면 추정.
+  // 정식 type 추가되면 확장.
+  if (type === 'NOTICE') {
+    return <span className="text-[11px] font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">공지</span>
+  }
+  if (type === 'TRANSACTION') {
+    return <span className="text-[11px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">거래</span>
+  }
+  if (type === 'DELIVERY') {
+    return <span className="text-[11px] font-medium bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">배달</span>
+  }
+  if (type === 'POINT') {
+    return <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">포인트</span>
+  }
+  if (type === 'REVIEW') {
+    return <span className="text-[11px] font-medium bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">리뷰</span>
+  }
+  if (type === 'CHAT' || type === 'MESSAGE') {
+    return <span className="text-[11px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">채팅</span>
+  }
+  return null
 }
