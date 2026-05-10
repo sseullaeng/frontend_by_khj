@@ -57,8 +57,9 @@ const ReviewWritePage    = lazy(() => import('@/pages/review/ReviewWritePage')) 
 const NoticePage         = lazy(() => import('@/pages/notice/NoticePage'))         // 공지사항 페이지
 const NoticeDetailPage   = lazy(() => import('@/pages/notice/NoticeDetailPage'))   // 공지 상세 페이지
 const NoticeWritePage    = lazy(() => import('@/pages/notice/NoticeWritePage'))    // 공지 글쓰기·수정 페이지 (관리자)
-const SupportPage           = lazy(() => import('@/pages/support/SupportPage'))           // 고객 지원 페이지
-const MyInquiryDetailPage   = lazy(() => import('@/pages/support/MyInquiryDetailPage'))   // 본인 문의 상세 (라운드8)
+const SupportPage              = lazy(() => import('@/pages/support/SupportPage'))           // 고객 지원 페이지
+const MyInquiryDetailPage      = lazy(() => import('@/pages/support/MyInquiryDetailPage'))   // 본인 문의 상세 (라운드8)
+const AdminSupportPostFormPage = lazy(() => import('@/pages/support/AdminSupportPostFormPage')) // 관리자 FAQ/QnA 작성·수정
 
 // 거래 대행(Escrow) 관련 페이지
 const EscrowHubPage         = lazy(() => import('@/pages/escrow/EscrowHubPage'))         // 에스크로 허브 페이지
@@ -125,8 +126,10 @@ export const router = createBrowserRouter([
       { path: '/notices/write',    element: <NoticeWritePage /> },
       { path: '/notices/:id/edit', element: <NoticeWritePage /> },
       { path: '/notices/:id',      element: <NoticeDetailPage /> },
-      { path: '/support',          element: <SupportPage /> },
-      { path: '/terms',            element: <TermsPage /> },
+      { path: '/support',                  element: <SupportPage /> },
+      { path: '/support/posts/new',        element: <AdminSupportPostFormPage /> },
+      { path: '/support/posts/:id/edit',   element: <AdminSupportPostFormPage /> },
+      { path: '/terms',                    element: <TermsPage /> },
 
       // 거래대행 — 링크 공유 대상자도 접근 가능
       { path: '/escrow/join/:linkId',          element: <EscrowInvitePage /> },
