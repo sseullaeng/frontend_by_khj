@@ -68,9 +68,9 @@ function BannerRow({ banner, onEdit }: { banner: Banner; onEdit: () => void }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   return (
-    <li className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4">
-      {/* 이미지 미리보기 */}
-      <div className="w-32 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+    <li className="bg-white border border-gray-200 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+      {/* 이미지 미리보기 — 모바일 풀폭 / 태블릿+ 좌측 고정 */}
+      <div className="w-full h-32 sm:w-32 sm:h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
         {banner.imageUrl ? (
           <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
         ) : (
@@ -93,15 +93,15 @@ function BannerRow({ banner, onEdit }: { banner: Banner; onEdit: () => void }) {
               href={banner.linkUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-primary-500 hover:underline"
+              className="inline-flex items-center gap-1 text-[11px] text-primary-500 hover:underline truncate max-w-[200px]"
             >
-              {banner.linkUrl}
-              <ExternalLink size={11} />
+              <span className="truncate">{banner.linkUrl}</span>
+              <ExternalLink size={11} className="shrink-0" />
             </a>
           )}
         </div>
         <p className="font-semibold text-gray-900 truncate">{banner.title}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
+        <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2 sm:line-clamp-1">
           {banner.startsAt ? fmtDateTime(banner.startsAt) : '시작 미지정'}
           {' ~ '}
           {banner.endsAt ? fmtDateTime(banner.endsAt) : '종료 미지정'}
@@ -109,8 +109,8 @@ function BannerRow({ banner, onEdit }: { banner: Banner; onEdit: () => void }) {
         </p>
       </div>
 
-      {/* 액션 */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* 액션 — 모바일에선 행 끝 우측, sm+ 에선 인라인 */}
+      <div className="flex items-center justify-end gap-1.5 shrink-0 sm:self-center">
         <button
           onClick={() => setActive.mutate({ id: banner.id, active: !banner.active })}
           disabled={setActive.isPending}
