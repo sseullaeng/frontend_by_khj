@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
-import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt, LogOut } from 'lucide-react'
+import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt, LogOut, Truck } from 'lucide-react'
 import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
 import { compressImage } from '@/shared/lib/imageCompress'
 import { toast } from 'sonner'
@@ -536,26 +536,35 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 거래 진입 — 판매자만 [거래 시작] (라운드12), 구매자는 거래 관리 진입만 */}
+      {/* 거래 진입 — 판매자만 [거래 시작] / [거래대행 신청] (라운드12), 구매자는 거래 관리 진입만 */}
       {!isAdmin && !chatBlocked && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
           {isSeller ? (
-            <button
-              onClick={() => {
-                if (!room) return
-                // 대여는 시작/종료일 모달, 그 외는 즉시 생성
-                if (room.itemId && (room.itemTitle?.length ?? 0) >= 0) {
-                  // tradeType 정보가 ChatRoom 응답에 없어 안전하게 RENTAL 모달부터 띄울 수 없음.
-                  // → 대여 모달은 일단 항상 열고 사용자가 시작·종료 비워두면 즉시 생성으로 전환.
+            <>
+              <button
+                onClick={() => {
+                  if (!room) return
+                  // 대여는 시작/종료일 모달, 그 외는 즉시 생성. 사용자가 비워두면 SALE 로 추정.
                   setRentalOpen(true)
-                }
-              }}
-              disabled={isCreatingTx}
-              className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              <Receipt size={13} />
-              거래 시작
-            </button>
+                }}
+                disabled={isCreatingTx}
+                className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <Receipt size={13} />
+                거래 시작
+              </button>
+              <button
+                onClick={() => {
+                  if (!room) return
+                  close()
+                  navigate(`/escrow/internal/new?chatRoomId=${room.id}&itemId=${room.itemId}`)
+                }}
+                className="w-full py-2 rounded-lg bg-white border border-primary-300 text-primary-600 hover:bg-primary-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Truck size={13} />
+                거래대행 신청
+              </button>
+            </>
           ) : (
             <button
               onClick={handleOpenTrades}
