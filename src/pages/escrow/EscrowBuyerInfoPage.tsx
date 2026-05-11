@@ -83,18 +83,18 @@ export default function EscrowBuyerInfoPage() {
       </div>
     )
   }
-  // 이미 입력 완료 상태면 진입 X
+  // 이미 입력 완료 상태면 진입 X — 결제대기면 결제로, 그 외엔 상세로
   if (app.status !== '정보입력대기' || app.buyerInfoFilled) {
+    const next = app.status === '결제대기'
+      ? `/escrow/${applicationId}/pay`
+      : `/escrow/list/${applicationId}`
     return (
       <div className="py-20 text-center">
         <p className="text-sm text-gray-400 mb-3">
-          이미 수령지가 입력됐어요. 결제 단계로 진행하세요.
+          이미 수령지가 입력됐어요. 다음 단계로 진행하세요.
         </p>
-        <button
-          onClick={() => navigate(`/escrow/${applicationId}`)}
-          className="text-primary-500 text-sm"
-        >
-          신청 상세로
+        <button onClick={() => navigate(next)} className="text-primary-500 text-sm">
+          {app.status === '결제대기' ? '결제하러 가기' : '신청 상세로'}
         </button>
       </div>
     )
@@ -118,8 +118,12 @@ export default function EscrowBuyerInfoPage() {
         deliveryLng,
         receiverPhone,
       })
-      // 양쪽 filled → 결제대기로 자동 전환됨. 다음 화면(상세) 으로.
-      navigate(`/escrow/${applicationId}`, { state: { justFilled: next.status === '결제대기' } })
+      // 양쪽 filled → 결제대기 자동 전환. 결제대기면 결제로 직행.
+      if (next.status === '결제대기') {
+        navigate(`/escrow/${applicationId}/pay`)
+      } else {
+        navigate(`/escrow/list/${applicationId}`)
+      }
     } catch (err) {
       if (err instanceof BusinessError) toast.error(err.message)
       else if (err instanceof Error)    toast.error(err.message)

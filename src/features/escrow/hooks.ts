@@ -20,6 +20,7 @@ export const escrowKeys = {
   link:               (linkToken: string)                                  => [...escrowKeys.all(), 'link', linkToken] as const,
   myApplications:     (status?: EscrowApplicationStatus, page = 0)         => [...escrowKeys.all(), 'my', status ?? 'ALL', page] as const,
   applicationDetail:  (id: number)                                         => [...escrowKeys.all(), 'application', id] as const,
+  paymentPreview:     (id: number)                                         => [...escrowKeys.all(), 'application', id, 'payment-preview'] as const,
   adminApplications:  (status?: EscrowApplicationStatus, page = 0)         => [...escrowKeys.all(), 'admin', 'applications', status ?? 'ALL', page] as const,
   feeSettings:        ()                                                   => [...escrowKeys.all(), 'admin', 'feeSettings'] as const,
 }
@@ -120,6 +121,17 @@ export function usePatchEscrowBuyerInfo(id: number) {
   })
 }
 
+// 라운드13 PR #119 — 결제 미리보기. EscrowPayPage 진입 시 사용.
+//   잔액/필요액/부족액/결제 가능 여부를 한 번에 받음.
+export function useEscrowPaymentPreview(id: number | undefined) {
+  return useQuery({
+    queryKey: escrowKeys.paymentPreview(id ?? 0),
+    queryFn: () => escrowApi.applications.paymentPreview(id!).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 5_000,   // 짧게 — 충전 후 재조회 빠르게 반영
+  })
+}
+
 // 라운드12 PR-B-5 — 본인 share 결제 (포인트 차감, 양쪽 결제 완료 시 자동 라이더 매칭)
 export function usePayEscrowApplication(id: number) {
   const qc = useQueryClient()
@@ -128,6 +140,7 @@ export function usePayEscrowApplication(id: number) {
       escrowApi.applications.pay(id).then((r) => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: escrowKeys.applicationDetail(id) })
+      qc.invalidateQueries({ queryKey: escrowKeys.paymentPreview(id) })
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
       qc.invalidateQueries({ queryKey: ['point'] })  // 포인트 잔액 갱신
       if (data.status === '결제완료' || data.status === '진행중') {

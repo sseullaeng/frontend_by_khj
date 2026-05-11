@@ -71,9 +71,8 @@ const EscrowInvitePage      = lazy(() => import('@/pages/escrow/EscrowInvitePage
 const EscrowApplicationPage = lazy(() => import('@/pages/escrow/EscrowApplicationPage')) // 에스크로 신청 페이지 (외부 link)
 const EscrowInternalApplicationPage = lazy(() => import('@/pages/escrow/EscrowInternalApplicationPage')) // 채팅방 내부 신청 (라운드12)
 const EscrowBuyerInfoPage           = lazy(() => import('@/pages/escrow/EscrowBuyerInfoPage'))           // 구매자 수령지 입력 (PR-B-4)
-const EscrowPaymentPage     = lazy(() => import('@/pages/escrow/EscrowPaymentPage'))     // 에스크로 결제 페이지
+const EscrowPayPage                 = lazy(() => import('@/pages/escrow/EscrowPayPage'))                 // 거래대행 포인트 결제 (PR-B-5)
 const EscrowCompletePage         = lazy(() => import('@/pages/escrow/EscrowCompletePage'))         // 에스크로 완료 페이지
-const EscrowPaymentCallbackPage  = lazy(() => import('@/pages/escrow/EscrowPaymentCallbackPage'))  // 거래대행 결제 콜백 (Toss)
 
 // 관리자 페이지
 const AdminLoginPage          = lazy(() => import('@/pages/admin/AdminLoginPage'))          // 관리자 로그인 페이지
@@ -138,10 +137,8 @@ export const router = createBrowserRouter([
       { path: '/escrow/join/:linkId/form',    element: <EscrowApplicationPage /> },
       { path: '/escrow/internal/new',          element: <EscrowInternalApplicationPage /> },
       { path: '/escrow/:id/buyer-info',        element: <EscrowBuyerInfoPage /> },
-      { path: '/escrow/join/:linkId/payment',  element: <EscrowPaymentPage /> },
+      { path: '/escrow/:id/pay',               element: <EscrowPayPage /> },
       { path: '/escrow/join/:linkId/complete', element: <EscrowCompletePage /> },
-      // Toss success/fail redirect — public 진입 가능 (Toss 가 외부에서 redirect)
-      { path: '/escrow/payment/callback',      element: <EscrowPaymentCallbackPage /> },
     ],
   },
 
