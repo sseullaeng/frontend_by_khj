@@ -29,7 +29,7 @@ export default function NoticeDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto w-full space-y-6">
       <Link
         to="/notices"
         className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-500 transition-colors"

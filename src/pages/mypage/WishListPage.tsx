@@ -37,7 +37,7 @@ export default function WishListPage() {
   const items = (data?.content ?? []).filter((item) => item.sellerId !== currentUser?.id)
 
   return (
-    <div className="pb-10">
+    <div className="max-w-5xl mx-auto w-full pb-10">
       {/* 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 transition-colors">

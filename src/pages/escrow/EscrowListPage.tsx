@@ -20,7 +20,7 @@ export default function EscrowListPage() {
   const items: EscrowApplication[] = data?.content ?? []
 
   return (
-    <div className="px-4 py-8">
+    <div className="max-w-3xl mx-auto w-full px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-900">신청 목록</h1>
         <span className="text-sm text-gray-500">총 {items.length}건</span>
