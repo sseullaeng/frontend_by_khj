@@ -37,7 +37,7 @@ export default function ReviewManagePage() {
   const receivedItems = receivedQ.data?.content ?? []
 
   return (
-    <div className="pb-10">
+    <div className="max-w-2xl mx-auto w-full pb-10">
       <h1 className="text-lg font-bold text-gray-900 mb-4">리뷰 관리</h1>
 
       <div className="flex border-b border-gray-200 mb-4">

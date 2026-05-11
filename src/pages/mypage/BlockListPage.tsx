@@ -78,7 +78,7 @@ export default function BlockListPage() {
   }
 
   return (
-    <div className="pb-10">
+    <div className="max-w-md mx-auto w-full pb-10">
       {/* 상단 헤더 */}
       <div className="flex items-center gap-3 mb-6">
         <button
