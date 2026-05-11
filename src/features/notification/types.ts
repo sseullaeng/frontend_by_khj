@@ -26,9 +26,17 @@ export type NotificationLinkType =
   | 'PAYMENT'
   | 'INQUIRY'        // 라운드8: 고객지원 답변 알림
 
+// 라운드13 PR #116 — 카테고리별 탭/필터용 high-level 그룹
+//   SYSTEM  : 시스템·공지·결제
+//   REPORT  : 신고 처리 결과
+//   INQUIRY : 1:1 문의 답변
+//   USER    : 거래/리뷰/메시지/배달 등 사용자 액션 관련
+export type NotificationCategory = 'SYSTEM' | 'REPORT' | 'INQUIRY' | 'USER'
+
 export interface Notification {
   id: string                              // ⚠️ MongoDB ObjectId hex
   type: NotificationType
+  category: NotificationCategory          // 라운드13 PR #116 — 탭/필터용
   title: string
   content: string                         // (이전 body → content)
   linkType: NotificationLinkType | null   // 클라 라우팅 분기 키

@@ -1,6 +1,6 @@
 // 물품 카드 컴포넌트 — ItemSummaryResponse 기반 (PR #66 정합)
 import { Link } from 'react-router-dom'
-import { Heart, MapPin } from 'lucide-react'
+import { Heart, MapPin, Eye } from 'lucide-react'
 import type { Item, TradeType, ItemStatus } from '../types'
 import { cn } from '@/shared/lib/cn'
 import { fromNow } from '@/shared/lib/date'
@@ -117,8 +117,13 @@ export default function ItemCard({ item, className }: ItemCardProps) {
               <span className="truncate">{item.region ?? '지역 미설정'}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <span className="inline-flex items-center gap-0.5">
+                <Eye size={11} />
+                {item.viewCount.toLocaleString()}
+              </span>
+              <span>·</span>
               <span>관심 {item.wishlistCount}</span>
-              <span>•</span>
+              <span>·</span>
               <span>{fromNow(item.createdAt)}</span>
             </div>
           </div>
