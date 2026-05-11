@@ -5,18 +5,22 @@
 //   - 본인(buyer/seller) 권한 + 상태=결제대기 일 때만 진입 가능
 //   - 본인 share 만큼 포인트 차감 (POST /api/v1/escrow/applications/{id}/pay)
 //   - INSUFFICIENT_POINT → 충전 페이지 이동 확인 모달
-import { useMemo, useState } from 'react'
+//
+// 라운드13 PR #119 — payment-preview endpoint 통합. myShare/myBalance/deficit/canPay
+//   를 서버에서 한 번에 받아 표시. 자체 계산 + usePointBalance 조합 제거.
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, MapPin, Package, Receipt, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useEscrowApplicationDetail,
+  useEscrowPaymentPreview,
   usePayEscrowApplication,
 } from '@/features/escrow/hooks'
-import { usePointBalance } from '@/features/payment/hooks'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/Button'
 import { BusinessError } from '@/shared/types/api'
+import { formatKst } from '@/shared/lib/date'
 
 export default function EscrowPayPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,7 +29,7 @@ export default function EscrowPayPage() {
   const currentUser = useAuthStore((s) => s.user)
 
   const { data: app, isLoading } = useEscrowApplicationDetail(applicationId)
-  const { data: balanceData } = usePointBalance()
+  const { data: preview, isLoading: previewLoading } = useEscrowPaymentPreview(applicationId)
   const pay = usePayEscrowApplication(applicationId)
 
   const [shortfallModal, setShortfallModal] = useState<{
@@ -36,21 +40,7 @@ export default function EscrowPayPage() {
   const isBuyer  = !!app && !!currentUser && currentUser.id === app.buyerId
   const isSeller = !!app && !!currentUser && currentUser.id === app.sellerId
 
-  // 본인 share 계산 — 백엔드 규칙과 동일하게 best-effort 표기. 실제 차감은 서버 권한.
-  //   buyer  : feePayer 가 buyer/both 면 수수료 분담 + 항상 itemPrice
-  //   seller : feePayer 가 seller/both 면 수수료 분담
-  const myShare = useMemo(() => {
-    if (!app) return 0
-    const totalFee = app.appliedTotalFee
-    let feeShare = 0
-    if (app.feePayer === 'buyer'  && isBuyer)  feeShare = totalFee
-    if (app.feePayer === 'seller' && isSeller) feeShare = totalFee
-    if (app.feePayer === 'both')               feeShare = Math.round(totalFee / 2)
-    const itemPart = isBuyer ? app.itemPrice : 0
-    return feeShare + itemPart
-  }, [app, isBuyer, isSeller])
-
-  if (isLoading) {
+  if (isLoading || previewLoading) {
     return <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>
   }
   if (!app) {
@@ -85,17 +75,32 @@ export default function EscrowPayPage() {
     )
   }
 
-  const balance = balanceData?.balance ?? 0
-  const insufficient = myShare > balance
+  // 라운드13 PR #119 — 서버 preview 가 진실. 미수신 시 기본값 0/false.
+  const myShare      = preview?.myShare      ?? 0
+  const balance      = preview?.myBalance    ?? 0
+  const deficit      = preview?.deficit      ?? 0
+  const canPay       = preview?.canPay       ?? false
+  const alreadyPaid  = preview?.alreadyPaid  ?? false
+  const insufficient = deficit > 0
+
+  if (alreadyPaid) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-gray-400 mb-3">이미 결제하셨어요. 상대방의 결제를 기다리고 있어요.</p>
+        <button onClick={() => navigate(`/escrow/list/${applicationId}`)} className="text-primary-500 text-sm">
+          신청 상세로
+        </button>
+      </div>
+    )
+  }
 
   const handlePay = async () => {
     if (myShare <= 0) {
-      // 상대방이 전액 부담 — 결제할 게 없음
       toast.info('이 거래에서는 결제할 금액이 없어요.')
       navigate(`/escrow/list/${applicationId}`)
       return
     }
-    if (insufficient) {
+    if (!canPay) {
       setShortfallModal({ required: myShare, balance })
       return
     }
@@ -105,7 +110,6 @@ export default function EscrowPayPage() {
     } catch (err) {
       if (err instanceof BusinessError) {
         if (err.code === 'INSUFFICIENT_POINT') {
-          // 서버가 다시 산정한 부족액. 잔액은 latest 로 갱신됨.
           setShortfallModal({ required: myShare, balance })
           return
         }
@@ -165,7 +169,12 @@ export default function EscrowPayPage() {
           </div>
           {insufficient && myShare > 0 && (
             <p className="text-[11px] text-red-600 mt-1">
-              {(myShare - balance).toLocaleString()}원이 부족해요.
+              {deficit.toLocaleString()}원이 부족해요.
+            </p>
+          )}
+          {preview?.paymentDueAt && (
+            <p className="text-[11px] text-primary-700/70 mt-1">
+              결제 마감 — {formatKst(preview.paymentDueAt, 'yyyy.MM.dd HH:mm')}
             </p>
           )}
         </section>

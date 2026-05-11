@@ -114,6 +114,11 @@ export interface EscrowApplication {
   buyerInfoFilled?: boolean
   receiverPhone?: string | null      // PATCH /buyer-info 에서 채워짐
 
+  // 라운드13 PR #121 — 매칭된 배달 id. 단건 조회 응답에만 채워짐.
+  //   미매칭/미생성 시 null. /me 페이징 응답은 N+1 회피로 항상 null.
+  //   sub-status 필요 시 GET /deliveries/{deliveryId} 호출.
+  deliveryId?: number | null
+
   createdAt: string
   updatedAt: string
 }
@@ -198,6 +203,20 @@ export interface EscrowBuyerInfoPatch {
   deliveryLat:     number
   deliveryLng:     number
   receiverPhone:   string   // 010-1234-5678 / +82-... 형식 자유, max 20
+}
+
+// 라운드13 PR #119 — 본인 share 결제 미리보기 (GET /payment-preview)
+//   /pay 호출 직전에 호출. deficit > 0 이면 충전 UI 유도.
+export interface EscrowPaymentPreview {
+  applicationId: number
+  myShare:       number    // 내가 결제해야 할 총 금액 (item + fee 본인 부담)
+  myBalance:     number    // 현재 잔액
+  deficit:       number    // max(0, myShare - myBalance)
+  canPay:        boolean   // myBalance >= myShare && !alreadyPaid
+  alreadyPaid:   boolean
+  // 백엔드 LocalDateTime — offset 없음 ("2026-05-12T18:00:00"). KST 기준.
+  //   파싱 시 +09:00 명시 필요 (브라우저 로컬 TZ 와 다를 수 있음).
+  paymentDueAt:  string | null
 }
 
 // ── 채팅방 내부 신청 (POST /escrow/applications/internal) — 한 번에 입력 (deprecated 권장) ──

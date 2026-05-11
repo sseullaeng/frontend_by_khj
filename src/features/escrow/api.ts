@@ -13,6 +13,7 @@ import type {
   EscrowFeeSettingsRequest,
   EscrowInternalApplicationRequest,
   EscrowLink,
+  EscrowPaymentPreview,
   EscrowPreviewRequest,
   EscrowPreviewResponse,
   EscrowSellerInfoPatch,
@@ -56,6 +57,11 @@ export const escrowApi = {
     // 라운드12 PR-B-5 #110 — 본인 share 포인트 결제. 양쪽 결제 완료 시 자동 라이더 매칭.
     pay: (id: number) =>
       api.post<{ status: EscrowApplicationStatus }>(`/api/v1/escrow/applications/${id}/pay`),
+
+    // 라운드13 PR #119 — 본인 share 결제 미리보기. /pay 호출 직전 사용.
+    //   응답으로 myShare/myBalance/deficit/canPay/alreadyPaid 한 번에 조회.
+    paymentPreview: (id: number) =>
+      api.get<EscrowPaymentPreview>(`/api/v1/escrow/applications/${id}/payment-preview`),
 
     listMine: (params?: { status?: EscrowApplicationStatus; page?: number; size?: number }) =>
       api.get<PageResponse<EscrowApplication>>('/api/v1/escrow/applications/me', { params }),
