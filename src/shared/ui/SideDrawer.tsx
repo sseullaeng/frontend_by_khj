@@ -160,7 +160,7 @@ const REPORT_REASONS = [
 function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoom; onBack: () => void }) {
   const navigate = useNavigate()
   const currentUser = useAuthStore(s => s.user)
-  const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
+  const { close } = useDrawerStore()
   const { messages, sendMessage } = useChatMessages(roomId)
   // 라운드9: ChatRoom.isSeller 백엔드 응답 사용 (이전엔 useItemDetail 추가 호출)
   const isSeller = room?.isSeller ?? false
@@ -217,16 +217,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     setPendingImage(null)
     setPendingPreview(null)
   }
-
-  // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
-  useEffect(() => {
-    if (!pendingFirstMessage) return
-    const content = pendingFirstMessage
-    setPendingFirstMessage(null)  // 중복 전송 방지를 위해 즉시 초기화
-    sendMessage(content)
-  // pendingFirstMessage가 바뀔 때만 실행 (roomId 변경 시 재실행 방지)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingFirstMessage])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -613,6 +603,35 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
       {/* 메시지 목록 */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-2 p-4">
+        {/* 라운드13 PR-C #6 — 시스템 카드 (첫 메시지 send 시 백엔드 생성, 메시지 위에 노출) */}
+        {room?.card && (
+          <Link
+            to={`/items/${room.card.itemId}`}
+            onClick={close}
+            className="block bg-white border border-primary-200 rounded-2xl p-3 mb-1 hover:bg-primary-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                {room.card.itemThumbnailUrl && (
+                  <img src={room.card.itemThumbnailUrl} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-primary-100 text-primary-700">
+                    {room.card.tradeMode}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-900 truncate">{room.card.itemTitle}</p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  {room.card.tradeMode === '나눔'
+                    ? '무료 나눔'
+                    : `${room.card.price.toLocaleString()}원`}
+                </p>
+              </div>
+            </div>
+          </Link>
+        )}
         {messages.map((msg) => {
           const isMine = msg.senderId === currentUser?.id
           return (
