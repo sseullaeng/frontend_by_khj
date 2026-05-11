@@ -1,7 +1,6 @@
 // 에스크로 허브 페이지 컴포넌트: 에스크로 서비스 메뉴 중앙 집중 (관리자: 수수료 설정 카드 포함)
 import { useNavigate } from 'react-router-dom'  // React Router 네비게이션 훅
-import { ClipboardList, FilePlus, Settings } from 'lucide-react'  // Lucide 아이콘들
-import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
+import { ClipboardList, FilePlus } from 'lucide-react'  // Lucide 아이콘들
 
 /**
  * 에스크로 허브 페이지 컴포넌트
@@ -18,9 +17,7 @@ import { useAuthStore } from '@/features/auth/store'  // 인증 상태 스토어
  * - 각 카드: 아이콘, 제목, 설명 포함
  */
 export default function EscrowHubPage() {
-  const navigate   = useNavigate()                          // 페이지 네비게이션 함수
-  const currentUser = useAuthStore((s) => s.user)           // 현재 로그인 유저
-  const isAdmin    = currentUser?.role === 'ADMIN'          // 관리자 여부
+  const navigate = useNavigate()
 
   return (
     <div className="max-w-lg mx-auto px-4 py-12">
@@ -62,22 +59,6 @@ export default function EscrowHubPage() {
             <p className="text-sm text-gray-500">신청하거나 진행 중인 대행 서비스를 확인합니다.</p>
           </div>
         </button>
-
-        {/* 관리자 전용: 수수료 설정 카드 */}
-        {isAdmin && (
-          <button
-            onClick={() => navigate('/admin/escrow-config')}
-            className="flex items-center gap-5 p-6 bg-amber-50 border-2 border-amber-300 rounded-2xl hover:bg-amber-100 transition-colors text-left group"
-          >
-            <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors shrink-0">
-              <Settings size={28} className="text-amber-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-gray-900 mb-1">수수료 설정</p>
-              <p className="text-sm text-gray-500">유류비·기본 배달료·플랫폼 수수료를 설정합니다.</p>
-            </div>
-          </button>
-        )}
 
       </div>
     </div>
