@@ -66,10 +66,25 @@ export function useUpdateItem(id: number) {
   })
 }
 
+// 본인 물품 삭제 (DELETE /api/v1/items/{id})
 export function useDeleteItem() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => itemApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.lists() })
+      toast.success('상품이 삭제됐어요.')
+    },
+    onError: () => toast.error('상품 삭제에 실패했어요.'),
+  })
+}
+
+// 라운드12 PR #109 — admin 권한 삭제 (DELETE /api/v1/admin/items/{id})
+//   본인 아닌 물품 삭제 시 사용 (ItemDetailPage 의 admin 분기)
+export function useAdminDeleteItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => itemApi.deleteByAdmin(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: itemKeys.lists() })
       toast.success('상품이 삭제됐어요.')
