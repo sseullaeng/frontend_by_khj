@@ -5,6 +5,7 @@
 //   - 필드는 chatRoomId (NOT roomId)
 //   - imageUrls 는 배열 (NOT single imageUrl)
 //   - createdAt 은 Instant (UTC offset 포함, "...Z" 형식)
+import type { TradeType } from '@/features/item/types'
 
 export interface ChatRoom {
   id: number
@@ -33,6 +34,10 @@ export interface ChatRoom {
   // 라운드12 — 채팅방 나가기 상태
   iLeft: boolean        // 본인이 leave 했는지 (백엔드 listMine 에서 자동 필터되긴 함)
   opponentLeft: boolean // 상대방이 leave 했는지 — UI 가 입력창/액션 disable + 시스템 메시지
+
+  // 라운드13 (PR #111) — 채팅방의 거래 모드. 같은 (item, buyer, seller) 라도 mode 다르면 별도 채팅방.
+  //   생성 시 null 보내면 백엔드가 item.tradeType 자동 사용 → 응답엔 항상 채워져 옴.
+  tradeMode: TradeType
 
   createdAt: string
   updatedAt: string

@@ -4,6 +4,7 @@
 // ⚠️ 메시지 목록은 PageResponse 가 아니라 List<MessageResponse> + before 커서.
 import api from '@/shared/api/axios'
 import type { ChatRoom, ChatMessage, SendMessageRequest } from './types'
+import type { TradeType } from '@/features/item/types'
 import type { PageResponse } from '@/shared/types'
 
 export const chatApi = {
@@ -16,8 +17,10 @@ export const chatApi = {
     api.get<ChatRoom>(`/api/v1/chat-rooms/${id}`),
 
   // 채팅방 생성 (멱등) — 본인 물품 거부, 이메일 인증 필수
-  createRoom: (itemId: number) =>
-    api.post<ChatRoom>('/api/v1/chat-rooms', { itemId }),
+  //   라운드13 (PR #111): tradeMode 신규 필드. null/생략 시 백엔드가 item.tradeType auto.
+  //   같은 (item, buyer, seller, tradeMode) 멱등 / mode 다르면 별도 채팅방.
+  createRoom: (itemId: number, tradeMode?: TradeType | null) =>
+    api.post<ChatRoom>('/api/v1/chat-rooms', { itemId, tradeMode: tradeMode ?? null }),
 
   // 메시지 목록 — 커서 페이징 (before = MongoDB ObjectId hex string)
   // 응답: List<MessageResponse> (PageResponse 아님)
