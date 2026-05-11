@@ -413,13 +413,13 @@ export default function SupportPage() {
 
   const handleInquirySubmit = async () => {
     if (!inquiryTitle.trim() || !inquiryContent.trim() || !inquiryCategory || !inquiryEmail.trim()) return
-    // 정책: 사진 1장 이상 + 내용 20자 이상
+    // 정책: 사진 1장 이상 + 내용 10자 이상 (백엔드 spec)
     if (inquiryFiles.length === 0) {
       toast.error('첨부 사진을 1장 이상 등록해 주세요.')
       return
     }
-    if (inquiryContent.trim().length < 20) {
-      toast.error('문의 내용은 20자 이상 입력해 주세요.')
+    if (inquiryContent.trim().length < 10) {
+      toast.error('문의 내용은 10자 이상 입력해 주세요.')
       return
     }
     try {
@@ -884,8 +884,8 @@ function UserInquiryForm(props: UserInquiryFormProps) {
     onCategory, onTitle, onContent, onEmail, onFiles, onRemoveFile, onSubmit, onAgain,
   } = props
 
-  // 문의 정책: 사진 1장 이상 + 내용 20자 이상
-  const MIN_CONTENT = 20
+  // 문의 정책: 사진 1장 이상 + 내용 10자 이상 (백엔드 spec)
+  const MIN_CONTENT = 10
   const contentTrimLen = content.trim().length
   const canSubmit =
     title.trim() && contentTrimLen >= MIN_CONTENT && category && email.trim()
