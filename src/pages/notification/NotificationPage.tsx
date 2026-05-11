@@ -1,10 +1,21 @@
 // 알림 페이지 — 가이드 §10.10
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCheck, ChevronLeft, Bell } from 'lucide-react'
 import { useNotifications, useMarkAllRead, useMarkRead } from '@/features/notification/hooks'
-import type { Notification, NotificationLinkType } from '@/features/notification/types'
+import type { Notification, NotificationCategory, NotificationLinkType } from '@/features/notification/types'
 import { fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
+
+// 라운드13 PR #116 — 카테고리 탭
+type TabKey = 'ALL' | NotificationCategory
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'ALL',     label: '전체' },
+  { key: 'SYSTEM',  label: '시스템' },
+  { key: 'REPORT',  label: '신고' },
+  { key: 'INQUIRY', label: '문의' },
+  { key: 'USER',    label: '활동' },
+]
 
 function notificationToHref(noti: Notification): string {
   if (!noti.linkType || noti.linkId == null) return '/notifications'
@@ -26,7 +37,12 @@ export default function NotificationPage() {
   const { mutate: markAllRead } = useMarkAllRead()
   const { mutate: markRead } = useMarkRead()
 
-  const items: Notification[] = data?.pages.flatMap((p) => p.content) ?? []
+  const [tab, setTab] = useState<TabKey>('ALL')
+
+  const all: Notification[] = data?.pages.flatMap((p) => p.content) ?? []
+  const items = tab === 'ALL' ? all : all.filter((n) => n.category === tab)
+  const unreadCountByTab = (key: TabKey) =>
+    (key === 'ALL' ? all : all.filter((n) => n.category === key)).filter((n) => !n.read).length
 
   const handleClick = (noti: Notification) => {
     if (!noti.read) markRead(noti.id)
@@ -50,6 +66,33 @@ export default function NotificationPage() {
         >
           <CheckCheck size={13} /> 모두 읽음
         </button>
+      </div>
+
+      {/* 카테고리 탭 */}
+      <div className="flex gap-1 overflow-x-auto mb-3 -mx-2 px-2 pb-1">
+        {TABS.map((t) => {
+          const unread = unreadCountByTab(t.key)
+          const active = tab === t.key
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                active
+                  ? 'bg-primary-500 text-white border-primary-500'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300',
+              )}
+            >
+              {t.label}
+              {unread > 0 && (
+                <span className={cn('ml-1 text-[10px]', active ? 'text-white/90' : 'text-primary-500')}>
+                  {unread}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {isLoading ? (
