@@ -69,6 +69,11 @@ export default function EscrowDetailPage() {
   const canConfirm = app.tradeMode === 'INTERNAL' && isBuyer && app.status === '진행중'
   // PR-B-4: buyer 가 정보입력대기 상태에서 본인 수령지 미입력이면 진입 유도
   const needsBuyerInfo = isBuyer && app.status === '정보입력대기' && !app.buyerInfoFilled
+  // PR-B-5: 결제대기 상태에서 본인이 결제 부담이 있으면 결제 진입
+  const needsPay = app.status === '결제대기' && (
+    (isBuyer  && (app.feePayer === 'buyer'  || app.feePayer === 'both' || app.tradeMode === 'INTERNAL')) ||
+    (!isBuyer && (app.feePayer === 'seller' || app.feePayer === 'both'))
+  )
 
   const handleCancel = async () => {
     if (!applicationId) return
@@ -215,6 +220,19 @@ export default function EscrowDetailPage() {
           </p>
           <Button fullWidth onClick={() => navigate(`/escrow/${app.id}/buyer-info`)}>
             수령지 입력하기
+          </Button>
+        </div>
+      )}
+
+      {/* PR-B-5: 결제대기 상태 — 본인 결제 진입 */}
+      {needsPay && (
+        <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
+          <p className="font-semibold text-primary-700 mb-1 text-sm">결제할 차례에요</p>
+          <p className="text-xs text-primary-700/90 mb-3">
+            본인 부담분을 포인트로 결제하면, 상대방 결제 완료 시 라이더 매칭이 자동 시작돼요.
+          </p>
+          <Button fullWidth onClick={() => navigate(`/escrow/${app.id}/pay`)}>
+            결제하기
           </Button>
         </div>
       )}

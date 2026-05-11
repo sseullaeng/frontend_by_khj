@@ -211,8 +211,8 @@ export default function EscrowApplicationPage() {
 
       const application: EscrowApplication = await create.mutateAsync(body)
 
-      // 3) 결제 페이지로 이동 — 본인 share 만 결제
-      navigate(`/escrow/join/${linkToken}/payment`, { state: { application } })
+      // 3) 결제 페이지로 이동 — application id 기반 포인트 결제 (PR-B-5)
+      navigate(`/escrow/${application.id}/pay`)
     } catch (err) {
       const msg = err instanceof BusinessError ? err.message
                 : err instanceof Error ? err.message
