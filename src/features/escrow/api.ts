@@ -5,7 +5,9 @@ import type {
   EscrowApplication,
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
+  EscrowBuyerInfoPatch,
   EscrowCancelRequest,
+  EscrowDraftRequest,
   EscrowFeeSettings,
   EscrowFeeSettingsPatchResponse,
   EscrowFeeSettingsRequest,
@@ -13,6 +15,7 @@ import type {
   EscrowLink,
   EscrowPreviewRequest,
   EscrowPreviewResponse,
+  EscrowSellerInfoPatch,
   EscrowStartRequest,
 } from './types'
 
@@ -34,9 +37,25 @@ export const escrowApi = {
     preview: (body: EscrowPreviewRequest) =>
       api.post<EscrowPreviewResponse>('/api/v1/escrow/applications/preview', body),
 
-    // 라운드12 PR #105 — 채팅방 내부 신청 (판매자만, link 흐름과 분리)
+    // 라운드12 PR #105 — 채팅방 내부 신청 (한 번에 입력, deprecated 권장)
     createInternal: (body: EscrowInternalApplicationRequest) =>
       api.post<EscrowApplication>('/api/v1/escrow/applications/internal', body),
+
+    // 라운드12 PR-B-4 #108 — 판매자 draft 생성 (판매자 영역만)
+    createDraft: (body: EscrowDraftRequest) =>
+      api.post<EscrowApplication>('/api/v1/escrow/applications/internal/draft', body),
+
+    // 라운드12 PR-B-4 — 판매자 영역 수정 (정보입력대기 상태만)
+    patchSellerInfo: (id: number, body: EscrowSellerInfoPatch) =>
+      api.patch<EscrowApplication>(`/api/v1/escrow/applications/${id}/seller-info`, body),
+
+    // 라운드12 PR-B-4 — 구매자 영역 입력 (양쪽 filled 시 자동 결제대기 전환)
+    patchBuyerInfo: (id: number, body: EscrowBuyerInfoPatch) =>
+      api.patch<EscrowApplication>(`/api/v1/escrow/applications/${id}/buyer-info`, body),
+
+    // 라운드12 PR-B-5 #110 — 본인 share 포인트 결제. 양쪽 결제 완료 시 자동 라이더 매칭.
+    pay: (id: number) =>
+      api.post<{ status: EscrowApplicationStatus }>(`/api/v1/escrow/applications/${id}/pay`),
 
     listMine: (params?: { status?: EscrowApplicationStatus; page?: number; size?: number }) =>
       api.get<PageResponse<EscrowApplication>>('/api/v1/escrow/applications/me', { params }),

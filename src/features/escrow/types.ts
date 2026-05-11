@@ -19,6 +19,7 @@ export type TradeMode = 'INTERNAL' | 'EXTERNAL'
 // 백엔드 status 한글 enum
 export type EscrowLinkStatus = '대기' | '확정' | '만료'
 export type EscrowApplicationStatus =
+  | '정보입력대기'   // 라운드12 PR-B-4 — draft 단계 (양쪽 입력 전)
   | '결제대기'
   | '결제완료'
   | '진행중'
@@ -104,6 +105,14 @@ export interface EscrowApplication {
   deliveryNotes: string | null
   imageUrls: string[]
   status: EscrowApplicationStatus
+
+  // 라운드12 PR-B-2/B-4 — 신규 필드
+  entryType?: EscrowEntryType        // INTERNAL = 채팅방 흐름 / EXTERNAL = 외부 link
+  chatRoomId?: number | null         // INTERNAL 흐름만 값. EXTERNAL=null
+  sellerInfoFilled?: boolean
+  buyerInfoFilled?: boolean
+  receiverPhone?: string | null      // PATCH /buyer-info 에서 채워짐
+
   createdAt: string
   updatedAt: string
 }
@@ -112,11 +121,15 @@ export interface EscrowCancelRequest {
   reason?: string
 }
 
-// ── 라운드12 PR #102 / #105 — 채팅방 내부 거래대행 흐름 ────────────────
-// 기존 WeightKey 와는 별도 enum 형식 (R prefix, 대문자) — 백엔드 회신 정합
-export type EscrowWeightCode    = 'R1TO3' | 'R3TO5' | 'R5TO10' | 'R10PLUS'
+// ── 라운드12 PR-B — 채팅방 내부 거래대행 흐름 (preview / draft / buyer-info / pay) ───
+// 백엔드 spec PR #102 ~ #110 정합
+export type EscrowWeightCode    = 'LT1' | 'R1TO3' | 'R3TO5' | 'R5TO10' | 'GT10'
 export type EscrowVolumeCode    = 'S' | 'M' | 'L'
-export type EscrowFragilityCode = 'F1' | 'F2' | 'F3'
+export type EscrowFragilityCode = 'F1' | 'F2' | 'F3' | 'F4' | 'F5'
+
+// EscrowApplicationResponse — 라운드 12 신규 필드 (entryType / chatRoomId / *Filled / receiverPhone)
+//   기존 EscrowApplication 인터페이스에 옵셔널로 추가 — 외부 link 흐름은 chatRoomId=null
+export type EscrowEntryType = 'INTERNAL' | 'EXTERNAL'
 
 // 수수료/배달비 미리보기 (POST /escrow/applications/preview)
 export interface EscrowPreviewRequest {
@@ -142,7 +155,51 @@ export interface EscrowPreviewResponse {
   commissionRate: number
 }
 
-// 채팅방 내부 신청 (POST /escrow/applications/internal) — 판매자만
+// ── PR-B-4: 입력 분리 흐름 ─────────────────────────────────────────────
+
+// 판매자 draft 생성 (POST /escrow/applications/internal/draft) — 판매자만
+//   기존 internal 과 다른 점: delivery 좌표 없음 (구매자가 buyer-info 에서 입력)
+export interface EscrowDraftRequest {
+  chatRoomId:      number
+  itemId:          number
+  tradeMode:       TradeMode
+  feePayer:        FeePayer
+  itemPrice:       number
+  itemDescription: string
+
+  pickupAddress: string
+  pickupLat:     number
+  pickupLng:     number
+
+  weight:    EscrowWeightCode
+  volume:    EscrowVolumeCode
+  fragility: EscrowFragilityCode
+  deliveryNotes?: string
+  imageUrls?: string[]
+}
+
+// 판매자 영역 수정 (PATCH /seller-info) — 정보입력대기 상태에서만
+export interface EscrowSellerInfoPatch {
+  pickupAddress:   string
+  pickupLat:       number
+  pickupLng:       number
+  weight:          EscrowWeightCode
+  volume:          EscrowVolumeCode
+  fragility:       EscrowFragilityCode
+  itemPrice:       number
+  itemDescription: string
+  deliveryNotes?:  string
+}
+
+// 구매자 영역 입력 (PATCH /buyer-info) — 양쪽 filled 시 자동 결제대기 전환
+export interface EscrowBuyerInfoPatch {
+  deliveryAddress: string
+  deliveryLat:     number
+  deliveryLng:     number
+  receiverPhone:   string   // 010-1234-5678 / +82-... 형식 자유, max 20
+}
+
+// ── 채팅방 내부 신청 (POST /escrow/applications/internal) — 한 번에 입력 (deprecated 권장) ──
 export interface EscrowInternalApplicationRequest {
   chatRoomId: number
   itemId:     number

@@ -7,11 +7,12 @@ import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
 const STATUS_CFG: Record<EscrowApplicationStatus, { label: string; color: string; icon: typeof Clock }> = {
-  '결제대기': { label: '결제 대기', color: 'text-yellow-600 bg-yellow-100',   icon: Clock },
-  '결제완료': { label: '결제 완료', color: 'text-blue-600 bg-blue-100',       icon: CheckCircle },
-  '진행중':   { label: '진행 중',   color: 'text-orange-600 bg-orange-100',   icon: Truck },
-  '완료':     { label: '완료',      color: 'text-emerald-600 bg-emerald-100', icon: CheckCircle },
-  '취소':     { label: '취소',      color: 'text-red-600 bg-red-100',         icon: XCircle },
+  '정보입력대기': { label: '정보 입력 대기', color: 'text-gray-600 bg-gray-100',       icon: Clock },
+  '결제대기':     { label: '결제 대기',      color: 'text-yellow-600 bg-yellow-100',   icon: Clock },
+  '결제완료':     { label: '결제 완료',      color: 'text-blue-600 bg-blue-100',       icon: CheckCircle },
+  '진행중':       { label: '진행 중',        color: 'text-orange-600 bg-orange-100',   icon: Truck },
+  '완료':         { label: '완료',           color: 'text-emerald-600 bg-emerald-100', icon: CheckCircle },
+  '취소':         { label: '취소',           color: 'text-red-600 bg-red-100',         icon: XCircle },
 }
 
 export default function EscrowListPage() {
