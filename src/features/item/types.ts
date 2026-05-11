@@ -40,6 +40,7 @@ export interface Item {
   thumbnailUrl: string | null
   wishlistCount: number
   isWishlisted: boolean   // 비로그인은 항상 false
+  viewCount: number       // 라운드13 PR #115 — Summary 응답에 추가
   createdAt: string
 }
 
@@ -56,7 +57,6 @@ export interface ItemDetail extends Item {
   description: string
   deposit: number | null         // 대여 거래만, 그 외 null
   rentalUnit: RentalUnit | null  // 대여 거래만, 그 외 null
-  viewCount: number
   images: ItemImage[]
   hashtags: string[]
   updatedAt: string
