@@ -96,7 +96,7 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
           <QuickLink to="/admin/banners"        icon={<ImageIcon size={18} />}       label="배너" />
           <QuickLink to="/admin/notices"        icon={<Megaphone size={18} />}       label="알림" />
           <QuickLink to="/admin/reports"        icon={<AlertTriangle size={18} />}   label="신고" />
-          <QuickLink to="/admin/withdraws"      icon={<ArrowDownToLine size={18} />} label="출금 관리" />
+          <QuickLink to="/admin/withdraws"      icon={<ArrowDownToLine size={18} />} label="유저 출금신청 관리" />
           <QuickLink to="/admin/delivery"       icon={<Truck size={18} />}           label="배달" />
           <QuickLink to="/admin/escrow-config"  icon={<ShieldAlert size={18} />}     label="에스크로" />
         </div>
