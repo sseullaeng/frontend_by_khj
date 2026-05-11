@@ -41,3 +41,18 @@ export function useCategoryLookup() {
 
   return { tree: data, lookup, getLabel, ...rest }
 }
+
+/**
+ * 라운드13 PR #114 — 카테고리 자동완성. 활성 카테고리만 매칭.
+ *   사용 예: const { data } = useCategorySearch(keyword)
+ *   호출부에서 keyword 를 미리 debounce 하는 것을 권장 (200-300ms).
+ */
+export function useCategorySearch(keyword: string) {
+  const q = keyword.trim()
+  return useQuery({
+    queryKey: ['categories', 'search', q],
+    queryFn: () => categoryApi.search(q).then((r) => r.data),
+    enabled: q.length > 0,
+    staleTime: STALE_TIME,
+  })
+}

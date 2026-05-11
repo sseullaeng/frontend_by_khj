@@ -90,7 +90,7 @@ export default function ItemDetailPage() {
   const handleChat = () =>
     requireVerified(async () => {
       try {
-        const room = await chatApi.createRoom(item.id)
+        const room = await chatApi.createRoom(item.id, item.tradeType)
         const message = `${item.title} 관련 문의드립니다.`
         setPendingFirstMessage(message)
         openChatRoom(room.data.id)
