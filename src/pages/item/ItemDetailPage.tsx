@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Heart, MapPin, Eye, Clock, ChevronLeft, Flag,
-  Pencil, Trash2,
+  Pencil, Trash2, MessageCircle,
 } from 'lucide-react'
 import { useItemDetail, useToggleWish, useDeleteItem } from '@/features/item/hooks'
 import { useUserProfile } from '@/features/user/hooks'
@@ -67,6 +67,9 @@ export default function ItemDetailPage() {
   }
 
   const isOwner = !!currentUser && item.sellerId === currentUser.id
+  const isAdmin = currentUser?.role === 'ADMIN'
+  // admin 은 본인 아닌 물품도 삭제 가능 (백엔드 가드 별도). 수정은 본인만.
+  const showAdminActions = isAdmin && !isOwner
   const status = STATUS_BADGE[item.status]
   const typeBadge = TRADE_TYPE_BADGE[item.tradeType]
   const mainImage = item.images.find((img) => img.thumbnail)?.imageUrl ?? item.images[0]?.imageUrl
@@ -262,6 +265,22 @@ export default function ItemDetailPage() {
                   <Trash2 size={16} /> 삭제
                 </button>
               </>
+            ) : showAdminActions ? (
+              <>
+                {/* admin 은 구매/대여 선택 없이 바로 채팅방 오픈 + 삭제 권한 */}
+                <button
+                  onClick={handleChat}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-primary-300 text-primary-600 hover:bg-primary-50 rounded-xl text-sm font-semibold flex-1"
+                >
+                  <MessageCircle size={16} /> 채팅하기
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-3 border border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm font-semibold flex-1"
+                >
+                  <Trash2 size={16} /> 삭제
+                </button>
+              </>
             ) : (
               <>
                 <button
@@ -299,6 +318,21 @@ export default function ItemDetailPage() {
               className="flex-1 flex items-center justify-center gap-1.5 py-3 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold"
             >
               <Pencil size={16} /> 수정
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold"
+            >
+              <Trash2 size={16} /> 삭제
+            </button>
+          </>
+        ) : showAdminActions ? (
+          <>
+            <button
+              onClick={handleChat}
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 border border-primary-300 text-primary-600 rounded-xl text-sm font-semibold"
+            >
+              <MessageCircle size={16} /> 채팅하기
             </button>
             <button
               onClick={() => setDeleteConfirm(true)}
