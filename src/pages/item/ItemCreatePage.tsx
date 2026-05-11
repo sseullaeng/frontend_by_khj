@@ -1,16 +1,23 @@
-// 물품 등록 페이지 — PR #66 정합 단순화 폼
+// 물품 등록 페이지 — 라운드13 PR #118 + PR-G 정합
 //
-// ⚠️ 카테고리·지역은 mock/텍스트 입력으로 임시 처리. 향후:
-//   - 카테고리: GET /api/v1/categories 트리 dropdown
-//   - 지역: 카카오 주소검색 SDK 결과를 region 텍스트로 저장
+// 라운드13 변경:
+//   - tradeType (단일) → tradeTypes (다중) — 칩 다중 토글
+//   - 판매·대여 동시 등록 가능. 모드별 가격 입력 섹션 노출.
+//   - 보증금 단위 토글 (AMOUNT / PERCENT). PERCENT 면 환산 미리보기.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, MapPin, LocateFixed } from 'lucide-react'
 import { toast } from 'sonner'
-import { itemCreateSchema, type ItemCreateRequest, type TradeType, type RentalUnit } from '@/features/item/types'
+import {
+  itemCreateSchema,
+  type ItemCreateRequest,
+  type TradeType,
+  type RentalUnit,
+  type DepositType,
+} from '@/features/item/types'
 import { useCreateItem, useUploadImages } from '@/features/item/hooks'
 import { useEmailGuard } from '@/features/auth/emailGuard'
 import CategoryPicker from '@/features/category/CategoryPicker'
@@ -18,7 +25,7 @@ import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import { reverseGeocodeCurrentPosition } from '@/shared/lib/kakaoMap'
 import { Button } from '@/shared/ui/Button'
 import { Input } from '@/shared/ui/Input'
-import { MapPin, LocateFixed } from 'lucide-react'
+import { cn } from '@/shared/lib/cn'
 
 const TRADE_TYPES: TradeType[] = ['판매', '대여', '나눔']
 const RENTAL_UNITS: RentalUnit[] = ['시간', '일', '주', '월']
@@ -36,24 +43,45 @@ export default function ItemCreatePage() {
   const [addressOpen, setAddressOpen] = useState(false)
   const [locating, setLocating] = useState(false)
 
-  // 보증금 단위 토글 — 원 or %. % 모드 시 deposit = price * percent / 100 으로 변환해서 백엔드 전송
-  const [depositMode, setDepositMode] = useState<'amount' | 'percent'>('amount')
-  const [depositInput, setDepositInput] = useState<string>('')
-
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(itemCreateSchema),
     defaultValues: {
       title: '',
       description: '',
-      price: 0,
-      tradeType: '판매',
+      tradeTypes: ['판매'],
+      depositType: 'AMOUNT',
+      rentalUnit: '일',
       hashtags: [],
     },
   })
 
-  const tradeType = watch('tradeType')
-  const isRental = tradeType === '대여'
-  const isShare = tradeType === '나눔'
+  const tradeTypes = watch('tradeTypes')
+  const hasSale  = tradeTypes.includes('판매')
+  const hasRent  = tradeTypes.includes('대여')
+  const hasShare = tradeTypes.includes('나눔')
+  const rentalPrice = Number(watch('rentalPrice')) || 0
+  const depositType = watch('depositType') ?? 'AMOUNT'
+
+  const toggleTradeType = (t: TradeType) => {
+    let next: TradeType[]
+    if (t === '나눔') {
+      // 나눔은 단독. 켜면 다른 모드 해제, 끄면 빈 배열.
+      next = tradeTypes.includes('나눔') ? [] : ['나눔']
+    } else {
+      // 판매/대여 토글. 나눔이 있으면 자동 해제.
+      const withoutShare = tradeTypes.filter((x) => x !== '나눔')
+      next = withoutShare.includes(t)
+        ? withoutShare.filter((x) => x !== t)
+        : [...withoutShare, t]
+    }
+    setValue('tradeTypes', next, { shouldValidate: true })
+    // 모드 해제 시 관련 필드 초기화
+    if (!next.includes('판매')) setValue('salePrice', undefined)
+    if (!next.includes('대여')) {
+      setValue('rentalPrice', undefined)
+      setValue('deposit', undefined)
+    }
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -74,13 +102,10 @@ export default function ItemCreatePage() {
       toast.error('이메일 인증 후 물품을 등록할 수 있어요.')
       return
     }
-    // 백엔드 정책: 이미지 1장 이상 필수
     if (imageFiles.length === 0) {
       toast.error('이미지를 1장 이상 등록해 주세요.')
       return
     }
-    // 나눔이면 price=0 강제
-    const price = isShare ? 0 : data.price
 
     try {
       const imageUrls = await uploadImagesAsync(imageFiles)
@@ -88,14 +113,17 @@ export default function ItemCreatePage() {
       const body: ItemCreateRequest = {
         title: data.title,
         description: data.description,
-        price,
-        tradeType: data.tradeType,
+        tradeTypes: data.tradeTypes,
+        categoryId: data.categoryId,
         region: data.region || undefined,
         hashtags: data.hashtags,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-        // 대여만
-        ...(isRental && data.deposit != null ? { deposit: data.deposit } : {}),
-        ...(isRental && data.rentalUnit ? { rentalUnit: data.rentalUnit } : {}),
+        // 모드별 — 백엔드가 모드 미포함 시 무시
+        salePrice:   data.tradeTypes.includes('판매') ? data.salePrice   : undefined,
+        rentalPrice: data.tradeTypes.includes('대여') ? data.rentalPrice : undefined,
+        rentalUnit:  data.tradeTypes.includes('대여') ? data.rentalUnit  : undefined,
+        deposit:     data.tradeTypes.includes('대여') ? data.deposit     : undefined,
+        depositType: data.tradeTypes.includes('대여') ? data.depositType : undefined,
       }
 
       await createItemAsync(body)
@@ -146,79 +174,94 @@ export default function ItemCreatePage() {
         {/* 제목 */}
         <Input label="제목" error={errors.title?.message} {...register('title')} />
 
-        {/* 거래 유형 */}
+        {/* 거래 방식 — 다중 토글 칩 */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">거래 유형</label>
+          <label className="text-sm font-medium text-gray-700">
+            거래 방식 {hasShare && <span className="text-xs text-gray-400">(나눔은 단독 선택)</span>}
+          </label>
           <div className="flex gap-2">
-            {TRADE_TYPES.map((t) => (
-              <label key={t} className="flex-1">
-                <input type="radio" value={t} {...register('tradeType')} className="sr-only peer" />
-                <div className="text-center py-2 border border-gray-300 rounded-lg text-sm cursor-pointer peer-checked:bg-primary-500 peer-checked:text-white peer-checked:border-primary-500 transition-colors">
+            {TRADE_TYPES.map((t) => {
+              const active = tradeTypes.includes(t)
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleTradeType(t)}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-colors',
+                    active
+                      ? 'bg-primary-500 text-white border-primary-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-primary-300',
+                  )}
+                >
                   {t}
-                </div>
-              </label>
-            ))}
+                </button>
+              )
+            })}
           </div>
+          {errors.tradeTypes && (
+            <p className="text-xs text-red-500">{errors.tradeTypes.message as string}</p>
+          )}
         </div>
 
-        {/* 가격 (나눔이 아닐 때만) — 음수/지수 입력 차단 */}
-        {!isShare && (
+        {/* 판매 가격 */}
+        {hasSale && (
           <Input
-            label={isRental ? '대여 단가' : '판매 가격'}
+            label="판매 가격"
             type="number"
             min={0}
             inputMode="numeric"
             placeholder="0"
             onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
-            error={errors.price?.message}
-            {...register('price', { valueAsNumber: true, min: 0 })}
+            error={errors.salePrice?.message}
+            {...register('salePrice', { valueAsNumber: true, min: 0 })}
           />
         )}
 
-        {/* 대여 옵션 */}
-        {isRental && (
-          <>
-            <div className="flex flex-col gap-2">
+        {/* 대여 옵션 — 단가/단위/보증금 */}
+        {hasRent && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 flex flex-col gap-3">
+            <p className="text-xs font-semibold text-blue-700">대여 옵션</p>
+            <Input
+              label="대여 단가"
+              type="number"
+              min={0}
+              inputMode="numeric"
+              placeholder="0"
+              onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
+              error={errors.rentalPrice?.message}
+              {...register('rentalPrice', { valueAsNumber: true, min: 0 })}
+            />
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">대여 단위</label>
               <select
                 {...register('rentalUnit')}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                defaultValue="일"
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
               >
                 {RENTAL_UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
+                  <option key={u} value={u}>{u}</option>
                 ))}
               </select>
+              {errors.rentalUnit && (
+                <p className="text-xs text-red-500">{errors.rentalUnit.message as string}</p>
+              )}
             </div>
+
             <DepositField
-              mode={depositMode}
-              value={depositInput}
-              price={watch('price') || 0}
-              onModeChange={(m) => {
-                setDepositMode(m)
-                setDepositInput('')
+              type={depositType}
+              value={watch('deposit')}
+              rentalPrice={rentalPrice}
+              error={errors.deposit?.message}
+              onTypeChange={(t) => {
+                setValue('depositType', t, { shouldValidate: true })
                 setValue('deposit', undefined)
               }}
-              onValueChange={(raw) => {
-                setDepositInput(raw)
-                const n = Number(raw)
-                if (!Number.isFinite(n) || n <= 0) {
-                  setValue('deposit', undefined)
-                  return
-                }
-                const price = Number(watch('price')) || 0
-                const amount = depositMode === 'percent'
-                  ? Math.round(price * Math.min(n, 100) / 100)
-                  : Math.round(n)
-                setValue('deposit', amount, { shouldValidate: true })
-              }}
+              onValueChange={(n) => setValue('deposit', n, { shouldValidate: true })}
             />
-          </>
+          </div>
         )}
 
-        {/* 카테고리 — GET /api/v1/categories 트리 dropdown */}
+        {/* 카테고리 */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">카테고리</label>
           <CategoryPicker
@@ -230,7 +273,7 @@ export default function ItemCreatePage() {
           )}
         </div>
 
-        {/* 거래 희망 지역 — 카카오 주소 검색 + 현재 위치 */}
+        {/* 거래 희망 지역 */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">거래 희망 지역</label>
           <div className="flex gap-2">
@@ -272,7 +315,6 @@ export default function ItemCreatePage() {
           open={addressOpen}
           onClose={() => setAddressOpen(false)}
           onSelect={(r) => {
-            // 표시·저장 모두 풀 주소(도로명 우선) 로 — 시도+시군구 만 보이면 거래 위치를 알기 어려움.
             setValue('region', r.address || r.region, { shouldValidate: true })
             setAddressOpen(false)
           }}
@@ -291,7 +333,7 @@ export default function ItemCreatePage() {
           )}
         </div>
 
-        {/* 해시태그 — 콤마 구분 입력 → 배열 변환 */}
+        {/* 해시태그 */}
         <Input
           label="해시태그 (콤마로 구분, 최대 5개)"
           placeholder="아이폰, 미개봉"
@@ -322,46 +364,44 @@ export default function ItemCreatePage() {
   )
 }
 
-// 보증금 입력 — 원/% 토글. % 모드는 가격 대비 비율을 받아 절대 금액(원)으로 변환해 폼에 저장.
+// 보증금 입력 — 원/% 토글. 백엔드로 raw 값 + depositType 그대로 전송.
+//   PERCENT 면 환산 미리보기: Math.ceil(rentalPrice × pct / 100)
 function DepositField({
-  mode, value, price, onModeChange, onValueChange,
+  type, value, rentalPrice, error, onTypeChange, onValueChange,
 }: {
-  mode: 'amount' | 'percent'
-  value: string
-  price: number
-  onModeChange: (m: 'amount' | 'percent') => void
-  onValueChange: (raw: string) => void
+  type: DepositType
+  value: number | undefined
+  rentalPrice: number
+  error?: string
+  onTypeChange: (t: DepositType) => void
+  onValueChange: (n: number | undefined) => void
 }) {
   const computed = (() => {
-    const n = Number(value)
-    if (!Number.isFinite(n) || n <= 0) return null
-    if (mode === 'percent') {
-      return Math.round(price * Math.min(n, 100) / 100)
-    }
-    return Math.round(n)
+    if (type !== 'PERCENT' || value == null) return null
+    if (rentalPrice <= 0) return null
+    return Math.ceil(rentalPrice * Math.min(value, 100) / 100)
   })()
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-gray-700">보증금</label>
-        {/* 단위 토글 */}
         <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
           <button
             type="button"
-            onClick={() => onModeChange('amount')}
-            className={mode === 'amount'
+            onClick={() => onTypeChange('AMOUNT')}
+            className={type === 'AMOUNT'
               ? 'px-3 py-1 bg-primary-500 text-white'
-              : 'px-3 py-1 text-gray-600 hover:bg-gray-50'}
+              : 'px-3 py-1 text-gray-600 hover:bg-gray-50 bg-white'}
           >
             원
           </button>
           <button
             type="button"
-            onClick={() => onModeChange('percent')}
-            className={mode === 'percent'
+            onClick={() => onTypeChange('PERCENT')}
+            className={type === 'PERCENT'
               ? 'px-3 py-1 bg-primary-500 text-white'
-              : 'px-3 py-1 text-gray-600 hover:bg-gray-50'}
+              : 'px-3 py-1 text-gray-600 hover:bg-gray-50 bg-white'}
           >
             %
           </button>
@@ -371,25 +411,32 @@ function DepositField({
         <input
           type="number"
           min={0}
-          max={mode === 'percent' ? 100 : undefined}
+          max={type === 'PERCENT' ? 100 : undefined}
           inputMode="numeric"
-          value={value}
-          onChange={(e) => onValueChange(e.target.value)}
+          value={value ?? ''}
+          onChange={(e) => {
+            const raw = e.target.value
+            if (raw === '') { onValueChange(undefined); return }
+            const n = Number(raw)
+            if (!Number.isFinite(n)) { onValueChange(undefined); return }
+            onValueChange(Math.floor(n))
+          }}
           onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
-          placeholder={mode === 'percent' ? '예: 10 (대여가의 10%)' : '0'}
-          className="w-full h-10 rounded-lg border border-gray-300 px-3 pr-10 text-sm outline-none focus:border-primary-500"
+          placeholder={type === 'PERCENT' ? '예: 10' : '0'}
+          className="w-full h-10 rounded-lg border border-gray-300 px-3 pr-10 text-sm outline-none focus:border-primary-500 bg-white"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-          {mode === 'percent' ? '%' : '원'}
+          {type === 'PERCENT' ? '%' : '원'}
         </span>
       </div>
-      {mode === 'percent' && (
-        <p className="text-[11px] text-gray-400">
+      {type === 'PERCENT' && (
+        <p className="text-[11px] text-gray-500">
           {computed != null
-            ? `대여가 ${price.toLocaleString()}원 × ${value}% = ${computed.toLocaleString()}원`
-            : '대여가에 곱해서 보증금이 자동 계산돼요.'}
+            ? `대여가 ${rentalPrice.toLocaleString()}원 × ${value}% = ${computed.toLocaleString()}원 (거래 시 환산)`
+            : '대여가에 곱해서 보증금이 환산돼요.'}
         </p>
       )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }

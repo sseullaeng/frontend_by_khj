@@ -44,7 +44,7 @@ export default function ItemDetailPage() {
   const { mutate: toggleWish } = useToggleWish(Number(id))
   const { mutate: deleteItem }      = useDeleteItem()
   const { mutate: deleteByAdmin }   = useAdminDeleteItem()
-  const { open, openChatRoom, setPendingFirstMessage } = useDrawerStore()
+  const { open, openChatRoom } = useDrawerStore()
   const currentUser = useAuthStore((s) => s.user)
   const { requireVerified } = useEmailGuard()
 
@@ -90,9 +90,7 @@ export default function ItemDetailPage() {
   const handleChat = () =>
     requireVerified(async () => {
       try {
-        const room = await chatApi.createRoom(item.id)
-        const message = `${item.title} 관련 문의드립니다.`
-        setPendingFirstMessage(message)
+        const room = await chatApi.createRoom(item.id, item.tradeType)
         openChatRoom(room.data.id)
         open('chat')
       } catch {

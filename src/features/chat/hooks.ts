@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { chatApi } from './api'
 import { useChatStore } from './store'
 import type { ChatMessage, ChatRoom, SendMessageRequest } from './types'
+import type { TradeType } from '@/features/item/types'
 import { subscribeStomp } from '@/shared/lib/stomp'
 import { BusinessError } from '@/shared/types'
 import { getErrorMessage } from '@/shared/lib/errorMessages'
@@ -40,10 +41,13 @@ export function useChatRoom(id: number) {
   })
 }
 
-// 채팅방 생성 (멱등)
+// 채팅방 생성 (멱등) — 라운드13 tradeMode 명시 가능. 생략 시 백엔드가 item.tradeType auto.
 export function useCreateChatRoom() {
   return useMutation({
-    mutationFn: (itemId: number) => chatApi.createRoom(itemId).then((r) => r.data),
+    mutationFn: (args: number | { itemId: number; tradeMode?: TradeType | null }) => {
+      const { itemId, tradeMode } = typeof args === 'number' ? { itemId: args, tradeMode: undefined } : args
+      return chatApi.createRoom(itemId, tradeMode).then((r) => r.data)
+    },
   })
 }
 

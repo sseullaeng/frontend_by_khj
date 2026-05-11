@@ -5,8 +5,13 @@
 //   - linkType: 소문자 하이픈 (chat-room/transaction/delivery/item/review/payment/inquiry)
 // 프론트는 영문 대문자 enum → 응답 단계에서 매핑.
 import api from '@/shared/api/axios'
-import type { Notification, NotificationType, NotificationLinkType } from './types'
+import type { Notification, NotificationCategory, NotificationType, NotificationLinkType } from './types'
 import type { PageResponse } from '@/shared/types'
+
+// 라운드13 PR #116 — 백엔드가 영문 enum 으로 보내므로 통과. 미인식 값은 USER 로 폴백.
+const CATEGORY_SET = new Set<NotificationCategory>(['SYSTEM', 'REPORT', 'INQUIRY', 'USER'])
+const normalizeCategory = (c: string | undefined | null): NotificationCategory =>
+  c && CATEGORY_SET.has(c as NotificationCategory) ? (c as NotificationCategory) : 'USER'
 
 const TYPE_MAP: Record<string, NotificationType> = {
   '시스템': 'SYSTEM',
@@ -43,6 +48,7 @@ const LINK_TYPE_MAP: Record<string, NotificationLinkType> = {
 interface RawNotification {
   id: string
   type: string
+  category?: string | null      // 라운드13 PR #116
   title: string
   content: string
   linkType: string | null
@@ -54,6 +60,7 @@ interface RawNotification {
 const normalize = (n: RawNotification): Notification => ({
   id: n.id,
   type: TYPE_MAP[n.type] ?? 'SYSTEM',
+  category: normalizeCategory(n.category),
   title: n.title,
   content: n.content,
   linkType: n.linkType ? (LINK_TYPE_MAP[n.linkType] ?? null) : null,
