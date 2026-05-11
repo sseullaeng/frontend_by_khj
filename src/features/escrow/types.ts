@@ -127,6 +127,7 @@ export interface EscrowPreviewRequest {
   deliveryLat: number
   deliveryLng: number
   weight:    EscrowWeightCode
+  volume:    EscrowVolumeCode    // PR #102 spec — 정합 누락 픽스
   fragility: EscrowFragilityCode
   feePayer:  FeePayer
 }

@@ -66,6 +66,7 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
   }))
 
   const summary = data?.summary
+  const reportsSummary = data?.reportsSummary  // 라운드12 PR #106
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,6 +131,24 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
           onClick={() => navigate('/admin/reports')}
         />
       </div>
+
+      {/* 신고 위젯 — 라운드12 PR #106. 응답에 있을 때만 노출 (백엔드 배포 후 자동 활성화) */}
+      {reportsSummary && (
+        <button
+          onClick={() => navigate('/admin/reports')}
+          className="bg-white border border-gray-200 rounded-2xl p-4 text-left hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-900">신고 처리 현황</p>
+            <ChevronRight size={14} className="text-gray-300" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <ReportStat label="처리 대기"   value={reportsSummary.pending}        tone="red" />
+            <ReportStat label="처리 완료"   value={reportsSummary.resolved}       tone="emerald" />
+            <ReportStat label="최근 7일"    value={reportsSummary.totalLast7Days} tone="gray" />
+          </div>
+        </button>
+      )}
 
       {/* 차트 공통 날짜 범위 */}
       <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
@@ -257,6 +276,26 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
 }
 
 // ── 보조 컴포넌트/유틸 ─────────────────────────────────────────────────────
+
+function ReportStat({
+  label, value, tone,
+}: {
+  label: string
+  value: number
+  tone: 'red' | 'emerald' | 'gray'
+}) {
+  const palette = {
+    red:     'bg-red-50 text-red-700',
+    emerald: 'bg-emerald-50 text-emerald-700',
+    gray:    'bg-gray-50 text-gray-700',
+  }[tone]
+  return (
+    <div className={`rounded-lg py-2 px-3 ${palette}`}>
+      <p className="text-[11px] opacity-80 mb-0.5">{label}</p>
+      <p className="text-sm font-semibold">{value.toLocaleString()}건</p>
+    </div>
+  )
+}
 
 function QuickLink({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
   const navigate = useNavigate()
