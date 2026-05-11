@@ -90,7 +90,7 @@ export default function ItemDetailPage() {
   const handleChat = () =>
     requireVerified(async () => {
       try {
-        const room = await chatApi.createRoom(item.id)
+        const room = await chatApi.createRoom(item.id, item.tradeType)
         openChatRoom(room.data.id)
         open('chat')
       } catch {
