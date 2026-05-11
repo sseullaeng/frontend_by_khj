@@ -31,4 +31,9 @@ export const chatApi = {
   // 읽음 처리 — 채팅방 진입 시 / 새 메시지 수신 후 호출
   markRead: (roomId: number) =>
     api.patch<ChatRoom>(`/api/v1/chat-rooms/${roomId}/read`),
+
+  // 라운드12 — 채팅방 나가기 (본인만, body 없음)
+  //   에러: 404 CHAT_ROOM_NOT_FOUND / 403 CHAT_FORBIDDEN
+  leave: (roomId: number) =>
+    api.patch<void>(`/api/v1/chat-rooms/${roomId}/leave`),
 }

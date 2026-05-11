@@ -7,10 +7,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import type { InfiniteData } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { chatApi } from './api'
 import { useChatStore } from './store'
 import type { ChatMessage, ChatRoom, SendMessageRequest } from './types'
 import { subscribeStomp } from '@/shared/lib/stomp'
+import { BusinessError } from '@/shared/types'
+import { getErrorMessage } from '@/shared/lib/errorMessages'
 
 const ROOM_TOPIC = (id: number) => `/topic/chat-room/${id}`
 
@@ -41,6 +44,17 @@ export function useChatRoom(id: number) {
 export function useCreateChatRoom() {
   return useMutation({
     mutationFn: (itemId: number) => chatApi.createRoom(itemId).then((r) => r.data),
+  })
+}
+
+// 라운드12 — 채팅방 나가기. 본인 채팅방 목록에서 사라지고 상대 화면엔 opponentLeft=true 로 보임.
+export function useLeaveChatRoom() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (roomId: number) => chatApi.leave(roomId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: chatKeys.rooms() })
+    },
   })
 }
 
@@ -121,6 +135,18 @@ export function useChatMessages(roomId: number) {
     mutationFn: (body: SendMessageRequest) =>
       chatApi.sendMessage(roomId, body).then((r) => r.data),
     // STOMP broadcast 가 자기 자신에게도 오므로 onSuccess 에서 append 안 함 (중복 방지)
+    onError: (err) => {
+      if (err instanceof BusinessError) {
+        toast.error(getErrorMessage(err.code))
+        // 라운드12 — leave 가드. 채팅방 응답 갱신해서 UI 가 disable 되도록.
+        if (err.code === 'CHAT_ROOM_OPPONENT_LEFT' || err.code === 'CHAT_FORBIDDEN') {
+          qc.invalidateQueries({ queryKey: chatKeys.rooms() })
+          qc.invalidateQueries({ queryKey: chatKeys.room(roomId) })
+        }
+      } else {
+        toast.error('메시지를 보내지 못했어요.')
+      }
+    },
   })
 
   const sendMessage = (content: string, imageUrls?: string[]) => {

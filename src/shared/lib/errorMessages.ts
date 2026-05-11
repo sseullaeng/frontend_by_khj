@@ -36,6 +36,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   TRANSACTION_HANDOVER_NOT_ALLOWED:     '판매자만 인계 확인할 수 있어요.',
   TRANSACTION_RECEIVE_NOT_ALLOWED:      '구매자만 인수 확인할 수 있어요. 판매자가 먼저 인계 확인해야 해요.',
   TRANSACTION_HOLD_FAILED:              '포인트가 부족해서 예약할 수 없어요. 충전 후 다시 시도해 주세요.',
+  // 라운드12 — 거래 시작은 채팅방 안에서만, 판매자만
+  TX_CHATROOM_REQUIRED:                 '채팅방에서 거래를 시작해 주세요.',
+  TX_CHATROOM_ITEM_MISMATCH:            '채팅방의 물품과 거래 물품이 일치하지 않아요.',
+  TX_ALREADY_ACTIVE_IN_ROOM:            '이 채팅방에 이미 진행 중인 거래가 있어요.',
+  TX_SELLER_ONLY:                       '판매자만 거래를 시작할 수 있어요.',
 
   // ── 결제 / 포인트 / 출금 ──────────────────────────────────
   INSUFFICIENT_POINT:               '포인트가 부족해요.',
@@ -70,6 +75,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   CHAT_ROOM_NOT_FOUND:         '채팅방을 찾을 수 없어요.',
   CHAT_FORBIDDEN:              '채팅 참여자만 가능해요.',
   CHAT_MESSAGE_EMPTY:          '내용 또는 이미지 중 하나는 필요해요.',
+  CHAT_ROOM_OPPONENT_LEFT:     '상대방이 채팅방을 나갔어요. 메시지를 보낼 수 없어요.',
 
   // ── 배달 ──────────────────────────────────────────────────
   DELIVERY_ALREADY_ACCEPTED:       '다른 라이더가 이미 수락한 배달이에요.',

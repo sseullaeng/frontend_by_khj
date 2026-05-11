@@ -47,11 +47,23 @@ export function useCreateTransaction() {
     },
     onError: (err) => {
       if (err instanceof BusinessError) {
-        if (err.code === 'TRANSACTION_SELF_NOT_ALLOWED')
-          toast.error('본인 물품은 거래할 수 없어요.')
-        else if (err.code === 'ITEM_INVALID_STATE')
-          toast.error('현재 거래할 수 없는 물품이에요.')
-        else toast.error(err.message)
+        switch (err.code) {
+          case 'TRANSACTION_SELF_NOT_ALLOWED':
+            toast.error('본인 물품은 거래할 수 없어요.'); break
+          case 'ITEM_INVALID_STATE':
+            toast.error('현재 거래할 수 없는 물품이에요.'); break
+          // 라운드12 — 채팅방 안에서만 시작
+          case 'TX_CHATROOM_REQUIRED':
+            toast.error('채팅방에서 거래를 시작해 주세요.'); break
+          case 'TX_CHATROOM_ITEM_MISMATCH':
+            toast.error('채팅방의 물품과 거래 물품이 일치하지 않아요.'); break
+          case 'TX_ALREADY_ACTIVE_IN_ROOM':
+            toast.error('이 채팅방에 이미 진행 중인 거래가 있어요.'); break
+          case 'TX_SELLER_ONLY':
+            toast.error('판매자만 거래를 시작할 수 있어요.'); break
+          default:
+            toast.error(err.message)
+        }
       } else {
         toast.error('거래를 시작하지 못했어요.')
       }
