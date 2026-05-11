@@ -9,7 +9,7 @@ import {
   Heart, MapPin, Eye, Clock, ChevronLeft, Flag,
   Pencil, Trash2, MessageCircle,
 } from 'lucide-react'
-import { useItemDetail, useToggleWish, useDeleteItem } from '@/features/item/hooks'
+import { useItemDetail, useToggleWish, useDeleteItem, useAdminDeleteItem } from '@/features/item/hooks'
 import { useUserProfile } from '@/features/user/hooks'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
@@ -42,7 +42,8 @@ export default function ItemDetailPage() {
   const { data: item, isLoading } = useItemDetail(Number(id))
   const { data: seller } = useUserProfile(item?.sellerId)
   const { mutate: toggleWish } = useToggleWish(Number(id))
-  const { mutate: deleteItem } = useDeleteItem()
+  const { mutate: deleteItem }      = useDeleteItem()
+  const { mutate: deleteByAdmin }   = useAdminDeleteItem()
   const { open, openChatRoom, setPendingFirstMessage } = useDrawerStore()
   const currentUser = useAuthStore((s) => s.user)
   const { requireVerified } = useEmailGuard()
@@ -76,7 +77,13 @@ export default function ItemDetailPage() {
   const otherImages = item.images.filter((img) => img.imageUrl !== mainImage)
 
   const handleDelete = () => {
-    deleteItem(item.id, { onSuccess: () => navigate('/items') })
+    // 본인: 일반 endpoint / admin (본인 아닌 물품): admin endpoint
+    const onSuccess = () => navigate('/items')
+    if (showAdminActions) {
+      deleteByAdmin(item.id, { onSuccess })
+    } else {
+      deleteItem(item.id, { onSuccess })
+    }
   }
 
   // 채팅하기 — 이메일 인증 필요 (가이드 §2.5)

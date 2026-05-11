@@ -30,6 +30,9 @@ export const itemApi = {
   // 삭제 (본인, soft delete)
   delete: (id: number) => api.delete<void>(`/api/v1/items/${id}`),
 
+  // 라운드12 PR #109 — admin 권한 삭제 (soft delete, audit log). 본인 아닌 물품도 가능.
+  deleteByAdmin: (id: number) => api.delete<void>(`/api/v1/admin/items/${id}`),
+
   // 찜 추가 (멱등) — 응답: { wishlisted: true, wishlistCount }
   addWishlist: (id: number) =>
     api.post<WishlistToggleResponse>(`/api/v1/items/${id}/wishlist`),
