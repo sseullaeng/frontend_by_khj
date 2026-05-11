@@ -26,10 +26,11 @@ export type EscrowApplicationStatus =
   | '완료'
   | '취소'
 
-// 옵션 키 — 백엔드 admin fee_settings multipliers 키와 일치
-export type WeightKey = 'lt1' | '1to3' | '3to5' | '5to10' | 'gt10'
-export type VolumeKey = 's' | 'm' | 'l'
-export type FragilityKey = 'f1' | 'f2' | 'f3' | 'f4' | 'f5'
+// 옵션 키 — 라운드12 PR-B 부터 EscrowWeightCode / VolumeCode / FragilityCode 와 통일
+//   (옛 소문자 enum 사용처는 새 대문자 enum 으로 일괄 정합)
+export type WeightKey    = EscrowWeightCode
+export type VolumeKey    = EscrowVolumeCode
+export type FragilityKey = EscrowFragilityCode
 
 // ── Link ────────────────────────────────────────────────────────────────
 

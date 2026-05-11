@@ -67,6 +67,8 @@ export default function EscrowDetailPage() {
   const canCancel = app.status === '결제대기'
   // Mode B (INTERNAL) buyer 만 진행중에 수령 확인 가능
   const canConfirm = app.tradeMode === 'INTERNAL' && isBuyer && app.status === '진행중'
+  // PR-B-4: buyer 가 정보입력대기 상태에서 본인 수령지 미입력이면 진입 유도
+  const needsBuyerInfo = isBuyer && app.status === '정보입력대기' && !app.buyerInfoFilled
 
   const handleCancel = async () => {
     if (!applicationId) return
@@ -203,6 +205,19 @@ export default function EscrowDetailPage() {
           )}
         </dl>
       </div>
+
+      {/* PR-B-4: buyer 수령지 입력 유도 안내 + 진입 */}
+      {needsBuyerInfo && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="font-semibold text-amber-700 mb-1 text-sm">수령지 입력이 필요해요</p>
+          <p className="text-xs text-amber-700/90 mb-3">
+            판매자가 정보를 입력했어요. 수령지·연락처를 입력하면 결제 단계로 진행됩니다.
+          </p>
+          <Button fullWidth onClick={() => navigate(`/escrow/${app.id}/buyer-info`)}>
+            수령지 입력하기
+          </Button>
+        </div>
+      )}
 
       {/* 액션 */}
       <div className="flex gap-2">
