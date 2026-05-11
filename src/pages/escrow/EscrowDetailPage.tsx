@@ -1,43 +1,28 @@
 // 거래대행 신청 상세 — 백엔드 hook 연동
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Receipt, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react'
+import { ArrowLeft, MapPin, Receipt, Package, Clock, CheckCircle, XCircle, Truck, PackageCheck } from 'lucide-react'
 import {
   useEscrowApplicationDetail,
   useCancelEscrowApplication,
   useConfirmEscrowReceipt,
 } from '@/features/escrow/hooks'
-import type { EscrowApplicationStatus } from '@/features/escrow/types'
+import { useDeliveryDetail } from '@/features/delivery/hooks'
+import { getEscrowDisplayStatus, ESCROW_DISPLAY_COLOR, type EscrowDisplayStatus } from '@/features/escrow/displayStatus'
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/Button'
 import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-const STATUS_LABEL: Record<EscrowApplicationStatus, string> = {
-  '정보입력대기': '정보 입력 대기',
-  '결제대기':     '결제 대기',
-  '결제완료':     '결제 완료',
-  '진행중':       '진행 중',
-  '완료':         '완료',
-  '취소':         '취소',
-}
-
-const STATUS_COLOR: Record<EscrowApplicationStatus, string> = {
-  '정보입력대기': 'text-gray-600 bg-gray-100',
-  '결제대기':     'text-yellow-600 bg-yellow-100',
-  '결제완료':     'text-blue-600 bg-blue-100',
-  '진행중':       'text-orange-600 bg-orange-100',
-  '완료':         'text-green-600 bg-green-100',
-  '취소':         'text-red-600 bg-red-100',
-}
-
-const STATUS_ICON: Record<EscrowApplicationStatus, typeof Clock> = {
-  '정보입력대기': Clock,
-  '결제대기':     Clock,
-  '결제완료':     CheckCircle,
-  '진행중':       Truck,
-  '완료':         CheckCircle,
-  '취소':         XCircle,
+// 라운드13 — 통합 라벨 7단계용 아이콘 매핑
+const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
+  '신청중':   Clock,
+  '신청완료': CheckCircle,
+  '매칭중':   Clock,
+  '픽업중':   PackageCheck,
+  '배달중':   Truck,
+  '배달완료': CheckCircle,
+  '취소':     XCircle,
 }
 
 export default function EscrowDetailPage() {
@@ -47,6 +32,8 @@ export default function EscrowDetailPage() {
   const currentUser = useAuthStore((s) => s.user)
 
   const { data: app, isLoading } = useEscrowApplicationDetail(applicationId)
+  // 라운드13 PR #121 — 진행중일 때 deliveryId 가 있으면 sub-status 조회해서 7단계 라벨로 표시
+  const { data: delivery } = useDeliveryDetail(app?.deliveryId ?? 0)
   const cancelMut = useCancelEscrowApplication()
   const confirmMut = useConfirmEscrowReceipt()
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -62,7 +49,8 @@ export default function EscrowDetailPage() {
   }
 
   const isBuyer = currentUser?.id === app.buyerId
-  const StatusIcon = STATUS_ICON[app.status]
+  const displayStatus = getEscrowDisplayStatus(app.status, delivery?.status)
+  const StatusIcon = DISPLAY_ICON[displayStatus]
   // 결제대기 상태에서만 본인 취소 가능 (백엔드 정책: 매칭 후 차단)
   const canCancel = app.status === '결제대기'
   // Mode B (INTERNAL) buyer 만 진행중에 수령 확인 가능
@@ -109,9 +97,9 @@ export default function EscrowDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm text-gray-500 font-mono">#{app.id}</p>
-          <span className={cn('inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full', STATUS_COLOR[app.status])}>
+          <span className={cn('inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full', ESCROW_DISPLAY_COLOR[displayStatus])}>
             <StatusIcon size={12} />
-            {STATUS_LABEL[app.status]}
+            {displayStatus}
           </span>
         </div>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
