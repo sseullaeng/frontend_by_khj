@@ -1,18 +1,22 @@
 // 거래대행 신청 목록 — 본인 신청서
 import { useNavigate } from 'react-router-dom'
-import { Shield, Clock, CheckCircle, XCircle, Truck, ArrowRight } from 'lucide-react'
+import { Shield, Clock, CheckCircle, XCircle, Truck, ArrowRight, PackageCheck } from 'lucide-react'
 import { useMyEscrowApplications } from '@/features/escrow/hooks'
-import type { EscrowApplication, EscrowApplicationStatus } from '@/features/escrow/types'
+import type { EscrowApplication } from '@/features/escrow/types'
+import { getEscrowDisplayStatus, ESCROW_DISPLAY_COLOR, type EscrowDisplayStatus } from '@/features/escrow/displayStatus'
 import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-const STATUS_CFG: Record<EscrowApplicationStatus, { label: string; color: string; icon: typeof Clock }> = {
-  '정보입력대기': { label: '정보 입력 대기', color: 'text-gray-600 bg-gray-100',       icon: Clock },
-  '결제대기':     { label: '결제 대기',      color: 'text-yellow-600 bg-yellow-100',   icon: Clock },
-  '결제완료':     { label: '결제 완료',      color: 'text-blue-600 bg-blue-100',       icon: CheckCircle },
-  '진행중':       { label: '진행 중',        color: 'text-orange-600 bg-orange-100',   icon: Truck },
-  '완료':         { label: '완료',           color: 'text-emerald-600 bg-emerald-100', icon: CheckCircle },
-  '취소':         { label: '취소',           color: 'text-red-600 bg-red-100',         icon: XCircle },
+// 라운드13 — 통합 라벨 7단계 아이콘
+//   ⚠ 목록은 deliveryId 가 null 이라 진행중 시 sub-status 미상 → '매칭중' fallback 으로 표시
+const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
+  '신청중':   Clock,
+  '신청완료': CheckCircle,
+  '매칭중':   Clock,
+  '픽업중':   PackageCheck,
+  '배달중':   Truck,
+  '배달완료': CheckCircle,
+  '취소':     XCircle,
 }
 
 export default function EscrowListPage() {
@@ -38,8 +42,9 @@ export default function EscrowListPage() {
       ) : (
         <ul className="flex flex-col gap-3">
           {items.map((app) => {
-            const cfg = STATUS_CFG[app.status]
-            const StatusIcon = cfg.icon
+            // 목록은 deliveryId 없음 → '진행중' 일 때 '매칭중' fallback
+            const displayStatus = getEscrowDisplayStatus(app.status, undefined)
+            const StatusIcon = DISPLAY_ICON[displayStatus]
             return (
               <li key={app.id}>
                 <button
@@ -56,9 +61,9 @@ export default function EscrowListPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', cfg.color)}>
+                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', ESCROW_DISPLAY_COLOR[displayStatus])}>
                         <StatusIcon size={11} />
-                        {cfg.label}
+                        {displayStatus}
                       </span>
                       <span className="text-xs text-gray-400">#{app.id}</span>
                       <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
