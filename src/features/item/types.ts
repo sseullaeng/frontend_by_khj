@@ -97,37 +97,77 @@ export interface ItemFilter {
   size?: number
 }
 
-// ── 폼 스키마 (등록/수정) ────────────────────────────────────────────────────
+// ── 폼 스키마 (등록/수정) — 라운드13 PR #118 + PR-G ──────────────────────────
+//
+// 모드별 필수:
+//   판매 ∈ tradeTypes → salePrice
+//   대여 ∈ tradeTypes → rentalPrice + rentalUnit + deposit + depositType
+//   나눔 ∈ tradeTypes → 가격 필드 무시
+//   나눔은 판매/대여와 동시 선택 불가 (백엔드는 허용하나 UI 가드)
 
 export const itemCreateSchema = z.object({
   title:       z.string().min(2, '제목은 2자 이상 입력해 주세요.').max(200, '제목은 200자 이하예요.'),
   description: z.string().min(10, '내용은 10자 이상 입력해 주세요.').max(5000, '내용은 5000자 이하예요.'),
-  price:       z.number({ invalid_type_error: '금액을 입력해 주세요.' }).min(0, '금액은 0원 이상이어야 해요.'),
-  tradeType:   z.enum(['판매', '대여', '나눔']),
+  tradeTypes:  z.array(z.enum(['판매', '대여', '나눔'])).min(1, '거래 방식을 1개 이상 선택해 주세요.'),
   categoryId:  z.number().int().positive().optional(),
   region:      z.string().max(100, '지역은 100자 이하예요.').optional(),
   hashtags:    z.array(z.string()).max(5, '해시태그는 5개까지 가능해요.').optional(),
   imageUrls:   z.array(z.string()).max(5, '사진은 최대 5장이에요.').optional(),
-  deposit:     z.number().int().min(0).optional(),    // 대여만
-  rentalUnit:  z.enum(['시간', '일', '주', '월']).optional(),  // 대여만
+
+  // 라운드13 PR #118 — 모드별 가격
+  salePrice:   z.number().int().min(0).optional(),
+  rentalPrice: z.number().int().min(0).optional(),
+  rentalUnit:  z.enum(['시간', '일', '주', '월']).optional(),
+  deposit:     z.number().int().min(0).optional(),
+  depositType: z.enum(['AMOUNT', 'PERCENT']).optional(),
+}).superRefine((v, ctx) => {
+  const has = (t: TradeType) => v.tradeTypes.includes(t)
+  if (has('나눔') && (has('판매') || has('대여'))) {
+    ctx.addIssue({ code: 'custom', path: ['tradeTypes'], message: '나눔은 단독으로만 선택 가능해요.' })
+  }
+  if (has('판매') && (v.salePrice == null || v.salePrice <= 0)) {
+    ctx.addIssue({ code: 'custom', path: ['salePrice'], message: '판매 가격을 입력해 주세요.' })
+  }
+  if (has('대여')) {
+    if (v.rentalPrice == null || v.rentalPrice <= 0) {
+      ctx.addIssue({ code: 'custom', path: ['rentalPrice'], message: '대여 단가를 입력해 주세요.' })
+    }
+    if (!v.rentalUnit) {
+      ctx.addIssue({ code: 'custom', path: ['rentalUnit'], message: '대여 단위를 선택해 주세요.' })
+    }
+    if (v.deposit == null) {
+      ctx.addIssue({ code: 'custom', path: ['deposit'], message: '보증금을 입력해 주세요.' })
+    }
+    if (!v.depositType) {
+      ctx.addIssue({ code: 'custom', path: ['depositType'], message: '보증금 단위를 선택해 주세요.' })
+    }
+    if (v.depositType === 'PERCENT' && v.deposit != null && (v.deposit < 1 || v.deposit > 100)) {
+      ctx.addIssue({ code: 'custom', path: ['deposit'], message: '퍼센트는 1~100 사이로 입력해 주세요.' })
+    }
+  }
 })
 
 export type ItemCreateRequest = z.infer<typeof itemCreateSchema>
 
 /**
- * 수정 — title/description/price 필수, imageUrls/hashtags 는 null=유지, [...]=전체 교체
- * tradeType 은 변경 불가
+ * 수정 — title/description 필수, imageUrls/hashtags 는 null=유지, [...]=전체 교체
+ * tradeTypes 도 변경 가능 (백엔드 허용)
  */
 export interface ItemUpdateRequest {
-  title: string
+  title:       string
   description: string
-  price: number
   categoryId?: number | null
-  region?: string | null
-  hashtags?: string[] | null
-  imageUrls?: string[] | null
-  deposit?: number | null
+  region?:     string | null
+  hashtags?:   string[] | null
+  imageUrls?:  string[] | null
+
+  // 라운드13 PR #118 — 이중 등록
+  tradeTypes:  TradeType[]
+  salePrice?:  number | null
+  rentalPrice?: number | null
   rentalUnit?: RentalUnit | null
+  deposit?:    number | null
+  depositType?: DepositType | null
 }
 
 // ── 찜 응답 ──────────────────────────────────────────────────────────────────
