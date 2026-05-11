@@ -7,6 +7,8 @@ import type {
   EscrowApplicationStatus,
   EscrowCancelRequest,
   EscrowFeeSettingsRequest,
+  EscrowInternalApplicationRequest,
+  EscrowPreviewRequest,
   EscrowStartRequest,
 } from './types'
 
@@ -45,6 +47,27 @@ export function useCreateEscrowApplication() {
       escrowApi.applications.create(body).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
+    },
+  })
+}
+
+// 라운드12 PR #102 — 수수료 미리보기. 폼 작성 중 호출용 (debounce 는 호출부에서).
+export function useEscrowPreview() {
+  return useMutation({
+    mutationFn: (body: EscrowPreviewRequest) =>
+      escrowApi.applications.preview(body).then((r) => r.data),
+  })
+}
+
+// 라운드12 PR #105 — 채팅방 내부 신청 (판매자만)
+export function useCreateInternalEscrowApplication() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EscrowInternalApplicationRequest) =>
+      escrowApi.applications.createInternal(body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('거래대행 신청이 완료됐어요.')
     },
   })
 }

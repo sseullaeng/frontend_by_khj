@@ -112,6 +112,65 @@ export interface EscrowCancelRequest {
   reason?: string
 }
 
+// ── 라운드12 PR #102 / #105 — 채팅방 내부 거래대행 흐름 ────────────────
+// 기존 WeightKey 와는 별도 enum 형식 (R prefix, 대문자) — 백엔드 회신 정합
+export type EscrowWeightCode    = 'R1TO3' | 'R3TO5' | 'R5TO10' | 'R10PLUS'
+export type EscrowVolumeCode    = 'S' | 'M' | 'L'
+export type EscrowFragilityCode = 'F1' | 'F2' | 'F3'
+
+// 수수료/배달비 미리보기 (POST /escrow/applications/preview)
+export interface EscrowPreviewRequest {
+  tradeMode: TradeMode
+  itemPrice: number
+  pickupLat: number
+  pickupLng: number
+  deliveryLat: number
+  deliveryLng: number
+  weight:    EscrowWeightCode
+  fragility: EscrowFragilityCode
+  feePayer:  FeePayer
+}
+
+export interface EscrowPreviewResponse {
+  distanceKm:     number
+  deliveryFee:    number
+  commissionFee:  number
+  totalFee:       number
+  buyerPayable:   number   // BOTH=50%, BUYER 단독=전액(+itemPrice), SELLER 단독=0
+  sellerPayable:  number
+  commissionRate: number
+}
+
+// 채팅방 내부 신청 (POST /escrow/applications/internal) — 판매자만
+export interface EscrowInternalApplicationRequest {
+  chatRoomId: number
+  itemId:     number
+  tradeMode:  'INTERNAL'
+  feePayer:   FeePayer
+  itemPrice:  number
+  itemDescription: string
+
+  pickupAddress:   string
+  pickupLat:       number
+  pickupLng:       number
+  deliveryAddress: string
+  deliveryLat:     number
+  deliveryLng:     number
+
+  weight:    EscrowWeightCode
+  volume:    EscrowVolumeCode
+  fragility: EscrowFragilityCode
+  deliveryNotes?: string
+
+  // preview 결과 그대로 전달 (백엔드 ±10원 검증)
+  submittedDeliveryFee:   number
+  submittedCommissionFee: number
+  submittedTotalFee:      number
+  submittedDistanceKm:    number
+
+  imageUrls: string[]
+}
+
 // ── Admin fee settings ──────────────────────────────────────────────────
 
 export interface EscrowFeeSettings {
