@@ -90,10 +90,10 @@ export default function EscrowInternalApplicationPage() {
       itemPrice,
       pickupLat, pickupLng,
       deliveryLat, deliveryLng,
-      weight, fragility,
+      weight, volume, fragility,
       feePayer,
     }
-  }, [itemPrice, pickupLat, pickupLng, deliveryLat, deliveryLng, weight, fragility, feePayer])
+  }, [itemPrice, pickupLat, pickupLng, deliveryLat, deliveryLng, weight, volume, fragility, feePayer])
 
   useEffect(() => {
     if (!previewBody) return

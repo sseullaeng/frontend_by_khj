@@ -168,6 +168,12 @@ export interface AdminDashboardCharts {
   signupTrend:   { date: string; count: number }[]            // YYYY-MM-DD
   tradeByType:   { type: AdminChartTradeType; count: number }[]
   tradeByStatus: { status: AdminChartTradeStatus; count: number }[]
+  // 라운드12 PR #106 — 신고 위젯
+  reportsSummary?: {
+    pending:        number   // 접수 + 처리중
+    resolved:       number   // 처리완료 + 반려
+    totalLast7Days: number   // 최근 7일 신고 수 (전체 status)
+  }
 }
 
 export interface AdminDashboardChartsParams {
