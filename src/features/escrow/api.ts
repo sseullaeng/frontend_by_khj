@@ -9,7 +9,10 @@ import type {
   EscrowFeeSettings,
   EscrowFeeSettingsPatchResponse,
   EscrowFeeSettingsRequest,
+  EscrowInternalApplicationRequest,
   EscrowLink,
+  EscrowPreviewRequest,
+  EscrowPreviewResponse,
   EscrowStartRequest,
 } from './types'
 
@@ -26,6 +29,14 @@ export const escrowApi = {
   applications: {
     create: (body: EscrowApplicationCreateRequest) =>
       api.post<EscrowApplication>('/api/v1/escrow/applications', body),
+
+    // 라운드12 PR #102 — 수수료/배달비 미리보기 (폼 작성 중 실시간 호출)
+    preview: (body: EscrowPreviewRequest) =>
+      api.post<EscrowPreviewResponse>('/api/v1/escrow/applications/preview', body),
+
+    // 라운드12 PR #105 — 채팅방 내부 신청 (판매자만, link 흐름과 분리)
+    createInternal: (body: EscrowInternalApplicationRequest) =>
+      api.post<EscrowApplication>('/api/v1/escrow/applications/internal', body),
 
     listMine: (params?: { status?: EscrowApplicationStatus; page?: number; size?: number }) =>
       api.get<PageResponse<EscrowApplication>>('/api/v1/escrow/applications/me', { params }),
