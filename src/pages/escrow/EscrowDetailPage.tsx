@@ -14,27 +14,30 @@ import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
 const STATUS_LABEL: Record<EscrowApplicationStatus, string> = {
-  '결제대기': '결제 대기',
-  '결제완료': '결제 완료',
-  '진행중':   '진행 중',
-  '완료':     '완료',
-  '취소':     '취소',
+  '정보입력대기': '정보 입력 대기',
+  '결제대기':     '결제 대기',
+  '결제완료':     '결제 완료',
+  '진행중':       '진행 중',
+  '완료':         '완료',
+  '취소':         '취소',
 }
 
 const STATUS_COLOR: Record<EscrowApplicationStatus, string> = {
-  '결제대기': 'text-yellow-600 bg-yellow-100',
-  '결제완료': 'text-blue-600 bg-blue-100',
-  '진행중':   'text-orange-600 bg-orange-100',
-  '완료':     'text-green-600 bg-green-100',
-  '취소':     'text-red-600 bg-red-100',
+  '정보입력대기': 'text-gray-600 bg-gray-100',
+  '결제대기':     'text-yellow-600 bg-yellow-100',
+  '결제완료':     'text-blue-600 bg-blue-100',
+  '진행중':       'text-orange-600 bg-orange-100',
+  '완료':         'text-green-600 bg-green-100',
+  '취소':         'text-red-600 bg-red-100',
 }
 
 const STATUS_ICON: Record<EscrowApplicationStatus, typeof Clock> = {
-  '결제대기': Clock,
-  '결제완료': CheckCircle,
-  '진행중':   Truck,
-  '완료':     CheckCircle,
-  '취소':     XCircle,
+  '정보입력대기': Clock,
+  '결제대기':     Clock,
+  '결제완료':     CheckCircle,
+  '진행중':       Truck,
+  '완료':         CheckCircle,
+  '취소':         XCircle,
 }
 
 export default function EscrowDetailPage() {

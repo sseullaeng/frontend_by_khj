@@ -1,19 +1,18 @@
-// 채팅방 내부 거래대행 신청 페이지 (라운드12 PR #102 + #105)
+// 채팅방 내부 거래대행 신청 — Phase 1: 판매자 draft 작성 (라운드12 PR-B-4 #108)
 //
 // URL: /escrow/internal/new?chatRoomId=&itemId=
 //   - 채팅방 안 [거래대행 신청] 버튼 (판매자만) 에서 진입
-//   - 폼 작성 중 POST /escrow/applications/preview 실시간 호출 → 수수료/배달비 미리보기
-//   - 제출: POST /escrow/applications/internal — preview 결과 그대로 submitted* 로 전달
+//   - 판매자 본인 영역만 입력 (pickup / 물품 / 무게/부피/취급 / 메모 / 사진)
+//   - 구매자의 delivery 좌표는 별도 단계 (PATCH /buyer-info, EscrowBuyerInfoPage)
+//   - 제출: POST /escrow/applications/internal/draft → status="정보입력대기"
 //
-// 기존 외부 link 흐름 (EscrowApplicationPage) 과는 별도. linkToken 사용 X.
-import { useEffect, useMemo, useRef, useState } from 'react'
+// preview 호출은 delivery 좌표 필수라 draft 단계에선 호출 X.
+// 정확한 금액은 buyer-info 단계에서 표시.
+import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, MapPin, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  useEscrowPreview,
-  useCreateInternalEscrowApplication,
-} from '@/features/escrow/hooks'
+import { useCreateEscrowDraft } from '@/features/escrow/hooks'
 import type {
   EscrowFragilityCode,
   EscrowVolumeCode,
@@ -27,10 +26,11 @@ import { BusinessError } from '@/shared/types'
 import { cn } from '@/shared/lib/cn'
 
 const WEIGHT_OPTIONS: { code: EscrowWeightCode; label: string }[] = [
-  { code: 'R1TO3',   label: '1~3kg' },
-  { code: 'R3TO5',   label: '3~5kg' },
-  { code: 'R5TO10',  label: '5~10kg' },
-  { code: 'R10PLUS', label: '10kg 이상' },
+  { code: 'LT1',    label: '1kg 미만' },
+  { code: 'R1TO3',  label: '1~3kg' },
+  { code: 'R3TO5',  label: '3~5kg' },
+  { code: 'R5TO10', label: '5~10kg' },
+  { code: 'GT10',   label: '10kg 이상' },
 ]
 const VOLUME_OPTIONS: { code: EscrowVolumeCode; label: string }[] = [
   { code: 'S', label: 'Small' },
@@ -39,8 +39,10 @@ const VOLUME_OPTIONS: { code: EscrowVolumeCode; label: string }[] = [
 ]
 const FRAGILITY_OPTIONS: { code: EscrowFragilityCode; label: string }[] = [
   { code: 'F1', label: '일반' },
-  { code: 'F2', label: '주의' },
-  { code: 'F3', label: '취급주의' },
+  { code: 'F2', label: '보통' },
+  { code: 'F3', label: '주의' },
+  { code: 'F4', label: '취급주의' },
+  { code: 'F5', label: '극취급주의' },
 ]
 const FEE_PAYER_OPTIONS: { code: FeePayer; label: string }[] = [
   { code: 'both',   label: '50:50 부담' },
@@ -56,92 +58,40 @@ export default function EscrowInternalApplicationPage() {
   const chatRoomId = Number(params.get('chatRoomId'))
   const itemId     = Number(params.get('itemId'))
 
-  // 기본 필드
   const [itemPrice,       setItemPrice]       = useState<number>(0)
   const [itemDescription, setItemDescription] = useState('')
   const [feePayer,        setFeePayer]        = useState<FeePayer>('both')
 
-  // 주소 + 좌표
-  const [pickupAddress,   setPickupAddress]   = useState('')
-  const [pickupLat,       setPickupLat]       = useState<number | null>(null)
-  const [pickupLng,       setPickupLng]       = useState<number | null>(null)
-  const [deliveryAddress, setDeliveryAddress] = useState('')
-  const [deliveryLat,     setDeliveryLat]     = useState<number | null>(null)
-  const [deliveryLng,     setDeliveryLng]     = useState<number | null>(null)
+  const [pickupAddress, setPickupAddress] = useState('')
+  const [pickupLat,     setPickupLat]     = useState<number | null>(null)
+  const [pickupLng,     setPickupLng]     = useState<number | null>(null)
+  const [addressOpen,   setAddressOpen]   = useState(false)
 
-  const [addressTarget, setAddressTarget] = useState<'pickup' | 'delivery' | null>(null)
-
-  // 옵션
   const [weight,    setWeight]    = useState<EscrowWeightCode>('R1TO3')
-  const [volume,    setVolume]    = useState<EscrowVolumeCode>('S')
+  const [volume,    setVolume]    = useState<EscrowVolumeCode>('M')
   const [fragility, setFragility] = useState<EscrowFragilityCode>('F1')
   const [deliveryNotes, setDeliveryNotes] = useState('')
 
-  // 이미지
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ── preview (debounce 300ms, 필수 필드 모두 채워졌을 때만) ──
-  const preview = useEscrowPreview()
-  const previewBody = useMemo(() => {
-    if (!itemPrice || !pickupLat || !pickupLng || !deliveryLat || !deliveryLng) return null
-    return {
-      tradeMode: 'INTERNAL' as const,
-      itemPrice,
-      pickupLat, pickupLng,
-      deliveryLat, deliveryLng,
-      weight, volume, fragility,
-      feePayer,
-    }
-  }, [itemPrice, pickupLat, pickupLng, deliveryLat, deliveryLng, weight, volume, fragility, feePayer])
-
-  useEffect(() => {
-    if (!previewBody) return
-    const t = setTimeout(() => {
-      preview.mutate(previewBody)
-    }, 300)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewBody])
-
-  const previewData = preview.data
-
-  // ── 제출 ──
-  const create = useCreateInternalEscrowApplication()
+  const create = useCreateEscrowDraft()
 
   const handleSubmit = async () => {
     if (!chatRoomId || !itemId) {
       toast.error('잘못된 진입이에요. 채팅방에서 다시 시작해 주세요.')
       return
     }
-    if (!itemPrice || itemPrice <= 0) {
-      toast.error('물품 가격을 입력해 주세요.')
-      return
-    }
-    if (!itemDescription.trim()) {
-      toast.error('물품 설명을 입력해 주세요.')
-      return
-    }
+    if (!itemPrice || itemPrice <= 0)       { toast.error('물품 가격을 입력해 주세요.'); return }
+    if (!itemDescription.trim())            { toast.error('물품 설명을 입력해 주세요.'); return }
     if (!pickupAddress || pickupLat == null || pickupLng == null) {
-      toast.error('픽업 주소를 검색해 주세요.')
-      return
-    }
-    if (!deliveryAddress || deliveryLat == null || deliveryLng == null) {
-      toast.error('배달 주소를 검색해 주세요.')
-      return
-    }
-    if (imageFiles.length === 0) {
-      toast.error('물품 사진을 1장 이상 등록해 주세요.')
-      return
-    }
-    if (!previewData) {
-      toast.error('수수료 미리보기가 아직 안 떴어요. 잠시 후 다시 시도해 주세요.')
-      return
+      toast.error('픽업 주소를 검색해 주세요.'); return
     }
 
     try {
-      const uploaded = await uploadImages('ESCROW', imageFiles)
-      const imageUrls = uploaded.map((u) => u.getUrl)
+      const imageUrls = imageFiles.length > 0
+        ? (await uploadImages('ESCROW', imageFiles)).map((u) => u.getUrl)
+        : []
 
       const app = await create.mutateAsync({
         chatRoomId,
@@ -153,61 +103,49 @@ export default function EscrowInternalApplicationPage() {
         pickupAddress,
         pickupLat,
         pickupLng,
-        deliveryAddress,
-        deliveryLat,
-        deliveryLng,
         weight,
         volume,
         fragility,
         deliveryNotes: deliveryNotes.trim() || undefined,
-        submittedDeliveryFee:   previewData.deliveryFee,
-        submittedCommissionFee: previewData.commissionFee,
-        submittedTotalFee:      previewData.totalFee,
-        submittedDistanceKm:    previewData.distanceKm,
-        imageUrls,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       })
       navigate(`/escrow/list?highlight=${app.id}`)
     } catch (err) {
-      if (err instanceof BusinessError) {
-        toast.error(err.message)
-      } else if (err instanceof Error) {
-        toast.error(err.message)
-      }
+      if (err instanceof BusinessError) toast.error(err.message)
+      else if (err instanceof Error)    toast.error(err.message)
     }
   }
 
   return (
     <div className="max-w-2xl mx-auto w-full pb-24">
       <div className="flex items-center gap-2 mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-1 text-gray-400 hover:text-gray-600"
-          aria-label="뒤로"
-        >
+        <button onClick={() => navigate(-1)} className="p-1 text-gray-400 hover:text-gray-600" aria-label="뒤로">
           <ChevronLeft size={22} />
         </button>
-        <h1 className="text-lg font-bold text-gray-900">거래대행 신청 (내부)</h1>
+        <h1 className="text-lg font-bold text-gray-900">거래대행 신청 (판매자)</h1>
       </div>
 
       <div className="flex flex-col gap-4">
 
-        {/* 수수료 부담 */}
+        {/* 안내 */}
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
+          <p className="font-semibold mb-1">판매자 단계예요</p>
+          <p className="text-xs text-amber-700/90 leading-relaxed">
+            여기서는 픽업 주소 · 물품 정보까지만 입력해요.
+            제출 후 구매자가 수령지를 입력하면 정확한 수수료가 계산되고 결제 단계로 넘어가요.
+          </p>
+        </div>
+
         <Section title="수수료 부담">
           <div className="grid grid-cols-3 gap-2">
             {FEE_PAYER_OPTIONS.map((o) => (
-              <button
-                key={o.code}
-                type="button"
-                onClick={() => setFeePayer(o.code)}
-                className={chip(feePayer === o.code)}
-              >
+              <button key={o.code} type="button" onClick={() => setFeePayer(o.code)} className={chip(feePayer === o.code)}>
                 {o.label}
               </button>
             ))}
           </div>
         </Section>
 
-        {/* 물품 가격 / 설명 */}
         <Section title="물품 정보">
           <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-500">물품 가격 (원)</label>
@@ -226,39 +164,26 @@ export default function EscrowInternalApplicationPage() {
               value={itemDescription}
               onChange={(e) => setItemDescription(e.target.value)}
               rows={3}
+              maxLength={500}
               placeholder="예: 맥북 프로 13인치 2020 — 정상 작동"
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
             />
           </div>
         </Section>
 
-        {/* 주소 */}
-        <Section title="픽업·배달 주소">
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setAddressTarget('pickup')}
-              className="h-10 rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
-            >
-              <MapPin size={14} className="text-gray-400" />
-              <span className={pickupAddress ? 'text-gray-700 truncate' : 'text-gray-400'}>
-                {pickupAddress || '픽업 주소 검색'}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddressTarget('delivery')}
-              className="h-10 rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
-            >
-              <MapPin size={14} className="text-gray-400" />
-              <span className={deliveryAddress ? 'text-gray-700 truncate' : 'text-gray-400'}>
-                {deliveryAddress || '배달 주소 검색'}
-              </span>
-            </button>
-          </div>
+        <Section title="픽업 주소">
+          <button
+            type="button"
+            onClick={() => setAddressOpen(true)}
+            className="w-full h-10 rounded-lg border border-gray-300 px-3 text-sm text-left flex items-center gap-2 hover:border-primary-400"
+          >
+            <MapPin size={14} className="text-gray-400" />
+            <span className={pickupAddress ? 'text-gray-700 truncate' : 'text-gray-400'}>
+              {pickupAddress || '픽업 주소 검색'}
+            </span>
+          </button>
         </Section>
 
-        {/* 옵션 */}
         <Section title="무게·부피·취급">
           <div className="space-y-3">
             <OptionRow label="무게">
@@ -285,19 +210,18 @@ export default function EscrowInternalApplicationPage() {
           </div>
         </Section>
 
-        {/* 메모 */}
         <Section title="배달 메모 (선택)">
           <textarea
             value={deliveryNotes}
             onChange={(e) => setDeliveryNotes(e.target.value)}
             rows={2}
+            maxLength={500}
             placeholder="예: 부서지기 쉬워요. 세워서 배달 부탁드려요."
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
           />
         </Section>
 
-        {/* 이미지 */}
-        <Section title={`사진 (${imageFiles.length}/${MAX_IMAGES})`}>
+        <Section title={`사진 (${imageFiles.length}/${MAX_IMAGES}) — 선택`}>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {imageFiles.map((file, index) => (
               <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
@@ -337,51 +261,18 @@ export default function EscrowInternalApplicationPage() {
           </div>
         </Section>
 
-        {/* 미리보기 */}
-        <div className="bg-primary-50 border border-primary-200 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-primary-700 mb-2">수수료 미리보기</p>
-          {previewData ? (
-            <div className="space-y-1 text-sm">
-              <Row label="거리"        value={`${previewData.distanceKm.toFixed(2)}km`} />
-              <Row label="배달비"      value={`${previewData.deliveryFee.toLocaleString()}원`} />
-              <Row label={`대행 수수료 (${(previewData.commissionRate * 100).toFixed(1)}%)`}
-                   value={`${previewData.commissionFee.toLocaleString()}원`} />
-              <hr className="my-2 border-primary-200" />
-              <Row label="총 청구액" value={`${previewData.totalFee.toLocaleString()}원`} bold />
-              <Row label="구매자 부담"  value={`${previewData.buyerPayable.toLocaleString()}원`} />
-              <Row label="판매자 부담"  value={`${previewData.sellerPayable.toLocaleString()}원`} />
-            </div>
-          ) : (
-            <p className="text-xs text-primary-700/70">
-              물품 가격 + 픽업·배달 주소 + 옵션 입력 후 자동 계산돼요.
-            </p>
-          )}
-        </div>
-
-        {/* 제출 */}
-        <Button
-          onClick={handleSubmit}
-          isLoading={create.isPending}
-          disabled={!previewData}
-          fullWidth
-        >
-          {previewData ? `${previewData.totalFee.toLocaleString()}원 거래대행 신청` : '신청'}
+        <Button onClick={handleSubmit} isLoading={create.isPending} fullWidth>
+          신청 접수 (구매자에게 알림 전송)
         </Button>
       </div>
 
-      {/* 주소 검색 모달 */}
       <KakaoAddressSearch
-        open={addressTarget != null}
-        onClose={() => setAddressTarget(null)}
+        open={addressOpen}
+        onClose={() => setAddressOpen(false)}
         onSelect={(r) => {
-          if (addressTarget === 'pickup') {
-            setPickupAddress(r.address || r.region)
-            setPickupLat(r.lat); setPickupLng(r.lng)
-          } else if (addressTarget === 'delivery') {
-            setDeliveryAddress(r.address || r.region)
-            setDeliveryLat(r.lat); setDeliveryLng(r.lng)
-          }
-          setAddressTarget(null)
+          setPickupAddress(r.address || r.region)
+          setPickupLat(r.lat); setPickupLng(r.lng)
+          setAddressOpen(false)
         }}
       />
     </div>
@@ -404,15 +295,6 @@ function OptionRow({ label, children }: { label: string; children: React.ReactNo
     <div>
       <p className="text-[11px] text-gray-500 mb-1">{label}</p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  )
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-primary-700/80">{label}</span>
-      <span className={cn(bold ? 'font-bold text-primary-900' : 'text-primary-900')}>{value}</span>
     </div>
   )
 }

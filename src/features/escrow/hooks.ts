@@ -5,10 +5,13 @@ import { escrowApi } from './api'
 import type {
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
+  EscrowBuyerInfoPatch,
   EscrowCancelRequest,
+  EscrowDraftRequest,
   EscrowFeeSettingsRequest,
   EscrowInternalApplicationRequest,
   EscrowPreviewRequest,
+  EscrowSellerInfoPatch,
   EscrowStartRequest,
 } from './types'
 
@@ -59,7 +62,7 @@ export function useEscrowPreview() {
   })
 }
 
-// 라운드12 PR #105 — 채팅방 내부 신청 (판매자만)
+// 라운드12 PR #105 — 채팅방 내부 신청 (한 번에 입력, deprecated 권장)
 export function useCreateInternalEscrowApplication() {
   const qc = useQueryClient()
   return useMutation({
@@ -68,6 +71,70 @@ export function useCreateInternalEscrowApplication() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
       toast.success('거래대행 신청이 완료됐어요.')
+    },
+  })
+}
+
+// 라운드12 PR-B-4 — 판매자 draft 생성 (판매자 영역만)
+export function useCreateEscrowDraft() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EscrowDraftRequest) =>
+      escrowApi.applications.createDraft(body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('거래대행 신청이 접수됐어요. 구매자의 수령지 입력 후 결제로 진행됩니다.')
+    },
+  })
+}
+
+// 라운드12 PR-B-4 — 판매자 영역 수정
+export function usePatchEscrowSellerInfo(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EscrowSellerInfoPatch) =>
+      escrowApi.applications.patchSellerInfo(id, body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.applicationDetail(id) })
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('판매자 정보가 수정됐어요.')
+    },
+  })
+}
+
+// 라운드12 PR-B-4 — 구매자 영역 입력 (양쪽 filled 시 자동 결제대기 전환)
+export function usePatchEscrowBuyerInfo(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EscrowBuyerInfoPatch) =>
+      escrowApi.applications.patchBuyerInfo(id, body).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: escrowKeys.applicationDetail(id) })
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      if (data.status === '결제대기') {
+        toast.success('수령지 입력 완료 — 결제 화면으로 진행하세요.')
+      } else {
+        toast.success('수령지가 입력됐어요.')
+      }
+    },
+  })
+}
+
+// 라운드12 PR-B-5 — 본인 share 결제 (포인트 차감, 양쪽 결제 완료 시 자동 라이더 매칭)
+export function usePayEscrowApplication(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      escrowApi.applications.pay(id).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: escrowKeys.applicationDetail(id) })
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: ['point'] })  // 포인트 잔액 갱신
+      if (data.status === '결제완료' || data.status === '진행중') {
+        toast.success('양쪽 결제가 완료됐어요. 라이더 매칭이 시작돼요.')
+      } else {
+        toast.success('결제가 완료됐어요. 상대방 결제를 기다려 주세요.')
+      }
     },
   })
 }
