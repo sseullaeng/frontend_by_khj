@@ -7,6 +7,16 @@
 //   - createdAt 은 Instant (UTC offset 포함, "...Z" 형식)
 import type { TradeType } from '@/features/item/types'
 
+// 라운드13 PR-C #6 — 채팅 시스템 카드. 첫 메시지 send 시점에 백엔드가 lazy 생성.
+//   GET /api/v1/chat-rooms/{id} 응답에만 포함, 첫 메시지 전엔 null.
+export interface ChatRoomCard {
+  tradeMode:        TradeType
+  itemId:           number
+  itemTitle:        string
+  itemThumbnailUrl: string | null
+  price:            number
+}
+
 export interface ChatRoom {
   id: number
   itemId: number
@@ -38,6 +48,9 @@ export interface ChatRoom {
   // 라운드13 (PR #111) — 채팅방의 거래 모드. 같은 (item, buyer, seller) 라도 mode 다르면 별도 채팅방.
   //   생성 시 null 보내면 백엔드가 item.tradeType 자동 사용 → 응답엔 항상 채워져 옴.
   tradeMode: TradeType
+
+  // 라운드13 PR-C #6 — 채팅 시스템 카드. detail 응답에만 포함, 첫 메시지 전엔 null.
+  card?: ChatRoomCard | null
 
   createdAt: string
   updatedAt: string
