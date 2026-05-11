@@ -31,14 +31,8 @@ export interface Transaction {
 }
 
 // 라운드12 — 거래 시작은 채팅방 안에서만, 판매자만 호출.
-//   transactionType 영문 enum (TradeType 한국어와 별도). 매핑: 판매→SALE / 대여→RENTAL / 나눔→FREE
-export type TransactionTypeBE = 'SALE' | 'RENTAL' | 'FREE'
-
-export const TRADE_TO_TRANSACTION_TYPE: Record<TradeType, TransactionTypeBE> = {
-  '판매': 'SALE',
-  '대여': 'RENTAL',
-  '나눔': 'FREE',
-}
+//   transactionType 은 TradeType 과 동일한 한국어 enum (판매/대여/나눔).
+export type TransactionTypeBE = TradeType
 
 export interface TransactionCreateRequest {
   itemId: number

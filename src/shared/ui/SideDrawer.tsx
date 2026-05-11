@@ -445,9 +445,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                       return
                     }
                   }
-                  // tradeType 영문 매핑 — ChatRoom 응답에 한국어 tradeType 이 없어서
-                  // 대여 일시가 있으면 RENTAL, 그 외엔 SALE 로 추정. (정확한 분기는 백엔드가 검증)
-                  const transactionType = (rentalStart && rentalEnd) ? 'RENTAL' : 'SALE'
+                  // ChatRoom 응답에 한국어 tradeType 이 없어서 대여 일시 입력 여부로 추정.
+                  //   대여 일시 있음 → '대여' / 없음 → '판매' (정확한 분기는 백엔드가 검증)
+                  const transactionType: '판매' | '대여' = (rentalStart && rentalEnd) ? '대여' : '판매'
                   try {
                     const toBackendDateTime = (v: string) => v.length === 16 ? `${v}:00` : v
                     const { id: txId } = await createTxAsync({
