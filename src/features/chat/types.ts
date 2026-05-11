@@ -5,6 +5,17 @@
 //   - 필드는 chatRoomId (NOT roomId)
 //   - imageUrls 는 배열 (NOT single imageUrl)
 //   - createdAt 은 Instant (UTC offset 포함, "...Z" 형식)
+import type { TradeType } from '@/features/item/types'
+
+// 라운드13 PR-C #6 — 채팅 시스템 카드. 첫 메시지 send 시점에 백엔드가 lazy 생성.
+//   GET /api/v1/chat-rooms/{id} 응답에만 포함, 첫 메시지 전엔 null.
+export interface ChatRoomCard {
+  tradeMode:        TradeType
+  itemId:           number
+  itemTitle:        string
+  itemThumbnailUrl: string | null
+  price:            number
+}
 
 export interface ChatRoom {
   id: number
@@ -33,6 +44,9 @@ export interface ChatRoom {
   // 라운드12 — 채팅방 나가기 상태
   iLeft: boolean        // 본인이 leave 했는지 (백엔드 listMine 에서 자동 필터되긴 함)
   opponentLeft: boolean // 상대방이 leave 했는지 — UI 가 입력창/액션 disable + 시스템 메시지
+
+  // 라운드13 PR-C #6 — 채팅 시스템 카드. detail 응답에만 포함, 첫 메시지 전엔 null.
+  card?: ChatRoomCard | null
 
   createdAt: string
   updatedAt: string
