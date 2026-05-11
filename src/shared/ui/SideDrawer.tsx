@@ -160,7 +160,7 @@ const REPORT_REASONS = [
 function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoom; onBack: () => void }) {
   const navigate = useNavigate()
   const currentUser = useAuthStore(s => s.user)
-  const { close, pendingFirstMessage, setPendingFirstMessage } = useDrawerStore()
+  const { close } = useDrawerStore()
   const { messages, sendMessage } = useChatMessages(roomId)
   // 라운드9: ChatRoom.isSeller 백엔드 응답 사용 (이전엔 useItemDetail 추가 호출)
   const isSeller = room?.isSeller ?? false
@@ -217,16 +217,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     setPendingImage(null)
     setPendingPreview(null)
   }
-
-  // 채팅방 첫 진입 시 구매/대여 선택 안내 메시지 자동 전송
-  useEffect(() => {
-    if (!pendingFirstMessage) return
-    const content = pendingFirstMessage
-    setPendingFirstMessage(null)  // 중복 전송 방지를 위해 즉시 초기화
-    sendMessage(content)
-  // pendingFirstMessage가 바뀔 때만 실행 (roomId 변경 시 재실행 방지)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingFirstMessage])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
