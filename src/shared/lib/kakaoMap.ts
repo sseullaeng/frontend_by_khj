@@ -14,11 +14,28 @@ declare global {
         load: (cb: () => void) => void
         Map: new (container: HTMLElement, options: { center: KakaoLatLng; level: number }) => KakaoMapInstance
         LatLng: new (lat: number, lng: number) => KakaoLatLng
+        LatLngBounds: new () => KakaoLatLngBounds
         Marker: new (options: { position: KakaoLatLng; map?: KakaoMapInstance; image?: KakaoMarkerImage }) => KakaoMarker
         MarkerImage: new (src: string, size: KakaoSize, options?: { offset?: KakaoPoint }) => KakaoMarkerImage
         Size: new (w: number, h: number) => KakaoSize
         Point: new (x: number, y: number) => KakaoPoint
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow
+        CustomOverlay: new (options: {
+          position: KakaoLatLng
+          content: string | HTMLElement
+          map?: KakaoMapInstance
+          xAnchor?: number
+          yAnchor?: number
+          zIndex?: number
+        }) => KakaoCustomOverlay
+        Polyline: new (options: {
+          path: KakaoLatLng[]
+          strokeWeight?: number
+          strokeColor?: string
+          strokeOpacity?: number
+          strokeStyle?: 'solid' | 'shortdash' | 'shortdot' | 'shortdashdot' | 'shortdashdotdot' | 'dot' | 'dash' | 'dashdot' | 'longdash' | 'longdashdot' | 'longdashdotdot'
+          map?: KakaoMapInstance
+        }) => KakaoPolyline
         services: {
           Places: new () => KakaoPlaces
           Geocoder: new () => KakaoGeocoder
@@ -35,6 +52,10 @@ export interface KakaoMapInstance {
   setCenter: (latlng: KakaoLatLng) => void
   panTo: (latlng: KakaoLatLng) => void
   setLevel: (level: number) => void
+  setBounds: (bounds: KakaoLatLngBounds) => void
+}
+export interface KakaoLatLngBounds {
+  extend: (latlng: KakaoLatLng) => void
 }
 export interface KakaoMarker {
   setPosition: (latlng: KakaoLatLng) => void
@@ -46,6 +67,13 @@ export interface KakaoPoint { _opaque?: never }
 export interface KakaoInfoWindow {
   open: (map: KakaoMapInstance, marker: KakaoMarker) => void
   close: () => void
+}
+export interface KakaoCustomOverlay {
+  setMap: (map: KakaoMapInstance | null) => void
+  setPosition: (latlng: KakaoLatLng) => void
+}
+export interface KakaoPolyline {
+  setMap: (map: KakaoMapInstance | null) => void
 }
 
 // 카카오 로컬 검색 (services 라이브러리)

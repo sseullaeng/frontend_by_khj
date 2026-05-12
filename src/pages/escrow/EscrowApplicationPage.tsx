@@ -102,8 +102,11 @@ export default function EscrowApplicationPage() {
   }, [link, isReceiverBuyer])
 
   // ── preview 호출 — 양쪽 좌표/옵션/가격 모두 모이면 ──
+  // ⚠️ feeSettings 는 표시용(요율 카드)일 뿐 preview 호출에는 필요 X.
+  //    /admin/.../fee-settings 는 관리자 전용이라 일반 사용자는 401/403 → undefined.
+  //    여기서 feeSettings 로 게이팅하면 일반 사용자는 preview 가 영영 안 돌아 배달료가 "—" 로 남는다.
   const previewBody = useMemo(() => {
-    if (!link || !feeSettings) return null
+    if (!link) return null
 
     // 발급자가 seller: pickup/옵션은 initiator, delivery 는 본인
     if (isReceiverBuyer) {
@@ -136,7 +139,7 @@ export default function EscrowApplicationPage() {
       weight, volume, fragility,
       feePayer: link.feePayer,
     }
-  }, [link, feeSettings, isReceiverBuyer, initiator, deliveryAddr, pickupAddr, weight, volume, fragility, itemPrice])
+  }, [link, isReceiverBuyer, initiator, deliveryAddr, pickupAddr, weight, volume, fragility, itemPrice])
 
   useEffect(() => {
     if (!previewBody) return
