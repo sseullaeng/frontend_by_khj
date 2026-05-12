@@ -123,6 +123,110 @@ export interface AdminReportPatchRequest {
   memo?: string
 }
 
+// ── Admin 물품 관리 (라운드13 PR #134) ───────────────────────────────────
+import type { ItemDetail, ItemImage, TradeType, ItemStatus, RentalUnit, DepositType } from '@/features/item/types'
+
+export interface AdminItemSummary {
+  id: number
+  sellerId: number
+  sellerNickname: string
+  title: string
+  thumbnailUrl: string | null
+  tradeTypes: TradeType[]
+  salePrice:   number | null
+  rentalPrice: number | null
+  // legacy
+  tradeType: TradeType
+  price:     number
+  categoryId: number | null
+  status: ItemStatus
+  region: string | null
+  viewCount: number
+  wishlistCount: number
+  reportCount: number          // ⭐ 누적 신고 수
+  createdAt: string
+}
+
+export interface AdminItemReportEntry {
+  id: number
+  reporterId: number
+  reason: string
+  status: string               // 백엔드 status (예: '접수', PENDING 등)
+  createdAt: string
+}
+
+export interface AdminItemTransactionEntry {
+  id: number
+  buyerId: number
+  buyerNickname: string
+  status: TransactionStatus
+  price: number
+  completedAt: string | null
+}
+
+export interface AdminItemDetailResponse {
+  item: ItemDetail            // 기존 ItemDetail (전체 필드)
+  sellerNickname: string
+  reportCount: number
+  reportHistory: AdminItemReportEntry[]
+  transactionHistory: AdminItemTransactionEntry[]
+}
+
+export interface AdminItemsListParams {
+  q?: string
+  status?: ItemStatus
+  tradeType?: TradeType
+  categoryId?: number
+  createdAfter?: string
+  createdBefore?: string
+  sort?: 'latest' | 'view_desc' | 'report_desc'
+  page?: number
+  size?: number
+}
+
+// 명시적으로 사용하지 않는 import 방지용 re-export (lint)
+export type { ItemImage, RentalUnit, DepositType }
+
+// ── Admin 배달 관리 (라운드13 PR #134) ───────────────────────────────────
+
+export interface AdminDeliveryItem {
+  id: number
+  requesterId: number
+  requesterNickname: string
+  riderId: number | null
+  riderNickname: string | null
+  pickupAddress: string
+  dropoffAddress: string
+  itemDescription: string
+  fee: number
+  status: DeliveryStatus
+  requestedAt: string
+  acceptedAt: string | null
+  pickedUpAt: string | null
+  deliveredAt: string | null
+  completedAt: string | null
+  canceledAt: string | null
+  cancelReason: string | null
+  escrowApplicationId: number | null
+}
+
+export interface AdminDeliveryListParams {
+  status?: DeliveryStatus
+  riderId?: number
+  requesterId?: number
+  createdAfter?: string
+  createdBefore?: string
+  sort?: 'latest' | 'picked_up_desc'
+  page?: number
+  size?: number
+}
+
+export interface AdminDeliveryStats {
+  byStatus: Record<DeliveryStatus, number>
+  total: number
+  todayNew: number
+}
+
 // ── Withdrawal 처리 (§11.6) ───────────────────────────────────────────────
 export type AdminWithdrawalAction = 'APPROVE' | 'REJECT' | 'COMPLETE'
 

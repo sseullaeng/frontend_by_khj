@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { adminApi } from './api'
 import type {
+  AdminDeliveryListParams,
+  AdminItemsListParams,
   AdminLoginRequest,
   AdminReportPatchRequest,
   AdminReportStatus,
@@ -31,6 +33,11 @@ export const adminKeys = {
   reports:    (status?: AdminReportStatus, page = 0) => [...adminKeys.all(), 'reports', status ?? 'all', page] as const,
   report:     (id: number)                       => [...adminKeys.all(), 'report', id] as const,
   withdrawals:(status?: WithdrawalStatus, page = 0)  => [...adminKeys.all(), 'withdrawals', status ?? 'all', page] as const,
+  // 라운드13 PR #134
+  items:      (params?: unknown)                 => [...adminKeys.all(), 'items', params ?? {}] as const,
+  item:       (id: number)                       => [...adminKeys.all(), 'item', id] as const,
+  deliveries: (params?: unknown)                 => [...adminKeys.all(), 'deliveries', params ?? {}] as const,
+  deliveryStats: ()                              => [...adminKeys.all(), 'deliveries', 'stats'] as const,
   transactions:(params?: { startDate?: string; endDate?: string; type?: string; status?: string; keyword?: string; page?: number }) =>
                                                         [...adminKeys.all(), 'transactions', params ?? {}] as const,
 }
@@ -232,6 +239,38 @@ export function usePatchAdminReport() {
       qc.invalidateQueries({ queryKey: adminKeys.all() })
       toast.success('처리됐어요.')
     },
+  })
+}
+
+// ── Admin 물품 관리 (라운드13 PR #134) ─────────────────────────────────
+export function useAdminItems(params?: AdminItemsListParams) {
+  return useQuery({
+    queryKey: adminKeys.items(params),
+    queryFn: () => adminApi.items.list(params).then((r) => r.data),
+  })
+}
+
+export function useAdminItemDetail(id: number | undefined) {
+  return useQuery({
+    queryKey: adminKeys.item(id ?? 0),
+    queryFn: () => adminApi.items.detail(id!).then((r) => r.data),
+    enabled: !!id,
+  })
+}
+
+// ── Admin 배달 관리 (라운드13 PR #134) ─────────────────────────────────
+export function useAdminDeliveries(params?: AdminDeliveryListParams) {
+  return useQuery({
+    queryKey: adminKeys.deliveries(params),
+    queryFn: () => adminApi.deliveries.list(params).then((r) => r.data),
+  })
+}
+
+export function useAdminDeliveryStats() {
+  return useQuery({
+    queryKey: adminKeys.deliveryStats(),
+    queryFn: () => adminApi.deliveries.stats().then((r) => r.data),
+    staleTime: 30_000,
   })
 }
 

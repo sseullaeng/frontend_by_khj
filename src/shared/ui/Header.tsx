@@ -135,12 +135,15 @@ export default function Header() {
                 )}
 
                 {/* 마이페이지 / 로그인 — 데스크톱(md+) 노출, 모바일은 햄버거 안 */}
+                {/* 어드민(role=ADMIN) 은 마이페이지 거치지 않고 바로 대시보드로 */}
                 <Link
-                  to="/mypage"
+                  to={user?.role === 'ADMIN' ? '/admin/dashboard' : '/mypage'}
                   className="hidden md:flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
                 >
                   <User size={20} />
-                  <span className="text-sm hidden sm:block">{user ? user.nickname : '마이페이지'}</span>
+                  <span className="text-sm hidden sm:block">
+                    {user ? (user.role === 'ADMIN' ? '관리자 콘솔' : user.nickname) : '마이페이지'}
+                  </span>
                 </Link>
 
                 {!user && (
@@ -209,11 +212,13 @@ export default function Header() {
               {user ? (
                 <>
                   <Link
-                    to="/mypage"
+                    to={user.role === 'ADMIN' ? '/admin/dashboard' : '/mypage'}
                     className="flex items-center gap-3 py-3 px-2 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     <User size={18} className="text-gray-500" />
-                    <span className="text-sm font-medium">{user.nickname}</span>
+                    <span className="text-sm font-medium">
+                      {user.role === 'ADMIN' ? '관리자 콘솔' : user.nickname}
+                    </span>
                   </Link>
                   <button
                     type="button"
