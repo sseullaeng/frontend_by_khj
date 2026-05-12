@@ -7,11 +7,13 @@
 //   - 제출: POST /escrow/applications/internal/draft → status="정보입력대기"
 //
 // 좌우 2칸 + 공통 FeeCalculator. delivery 좌표 없어 preview 호출 불가 → fees=null.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, MapPin, Plus, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateEscrowDraft, useEscrowFeeSettings } from '@/features/escrow/hooks'
+import { useItemDetail } from '@/features/item/hooks'
+import { useChatRoom } from '@/features/chat/hooks'
 import type {
   EscrowFragilityCode,
   EscrowVolumeCode,
@@ -53,10 +55,41 @@ export default function EscrowInternalApplicationPage() {
   const [deliveryNotes, setDeliveryNotes] = useState('')
 
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  // 라운드13 — Item 의 기존 이미지 (URL) 도 함께 전송. 사용자가 X 누르면 제외.
+  const [keepImageUrls, setKeepImageUrls] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: feeSettings } = useEscrowFeeSettings()
   const create = useCreateEscrowDraft()
+
+  // 라운드13 — 채팅방의 거래 모드 + Item 정보로 폼 prefill (판매/대여 자동 분기)
+  const { data: chatRoom } = useChatRoom(chatRoomId || 0)
+  const { data: item } = useItemDetail(itemId || 0)
+  const [prefilled, setPrefilled] = useState(false)
+
+  useEffect(() => {
+    if (prefilled) return
+    if (!chatRoom || !item) return
+
+    // 채팅방의 tradeMode 기준으로 가격 선택 (판매 → salePrice, 대여 → rentalPrice, 나눔 → 0)
+    const mode = chatRoom.tradeMode
+    const price =
+      mode === '나눔' ? 0 :
+      mode === '대여' ? (item.rentalPrice ?? item.price ?? 0) :
+                        (item.salePrice   ?? item.price ?? 0)
+
+    setItemPrice(price)
+    // 물품 설명 — Item 의 description 우선, 없으면 title
+    setItemDescription(item.description?.trim() || item.title || '')
+    // 기존 Item 이미지 (썸네일 우선 정렬) → URL 그대로 유지
+    const urls = [...item.images]
+      .sort((a, b) => Number(b.thumbnail) - Number(a.thumbnail))
+      .map((img) => img.imageUrl)
+      .slice(0, MAX_IMAGES)
+    setKeepImageUrls(urls)
+
+    setPrefilled(true)
+  }, [chatRoom, item, prefilled])
 
   const handleSubmit = async () => {
     if (!chatRoomId || !itemId) {
@@ -70,9 +103,11 @@ export default function EscrowInternalApplicationPage() {
     if (!weight || !volume || !fragility)     { toast.error('옵션을 모두 선택해 주세요.'); return }
 
     try {
-      const imageUrls = imageFiles.length > 0
+      // 새로 추가한 사진 업로드 + 기존 Item 이미지 URL 합치기
+      const uploaded = imageFiles.length > 0
         ? (await uploadImages('ESCROW', imageFiles)).map((u) => u.getUrl)
         : []
+      const imageUrls = [...keepImageUrls, ...uploaded].slice(0, MAX_IMAGES)
 
       const app = await create.mutateAsync({
         chatRoomId,
@@ -198,25 +233,39 @@ export default function EscrowInternalApplicationPage() {
             </button>
           </section>
 
-          {/* 사진 */}
+          {/* 사진 — 기존 Item 사진(URL) + 새로 추가한 사진(File) */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <p className="text-sm font-semibold text-gray-900 mb-3">
-              물품 사진 <span className="text-xs font-normal text-gray-400">({imageFiles.length}/{MAX_IMAGES}, 선택)</span>
+              물품 사진 <span className="text-xs font-normal text-gray-400">({keepImageUrls.length + imageFiles.length}/{MAX_IMAGES}, 선택)</span>
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {imageFiles.map((file, index) => (
-                <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+              {keepImageUrls.map((url, index) => (
+                <div key={`url-${index}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))}
+                    onClick={() => setKeepImageUrls((prev) => prev.filter((_, i) => i !== index))}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                    aria-label="기존 사진 제거"
                   >
                     <X size={12} />
                   </button>
                 </div>
               ))}
-              {imageFiles.length < MAX_IMAGES && (
+              {imageFiles.map((file, index) => (
+                <div key={`new-${index}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                    aria-label="추가 사진 제거"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              {(keepImageUrls.length + imageFiles.length) < MAX_IMAGES && (
                 <label className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-200">
                   <input
                     ref={fileInputRef}
@@ -232,7 +281,8 @@ export default function EscrowInternalApplicationPage() {
                         if (err) { toast.error(err); continue }
                         valid.push(f)
                       }
-                      setImageFiles((prev) => [...prev, ...valid].slice(0, MAX_IMAGES))
+                      const slots = MAX_IMAGES - keepImageUrls.length
+                      setImageFiles((prev) => [...prev, ...valid].slice(0, Math.max(0, slots)))
                     }}
                     className="hidden"
                   />
