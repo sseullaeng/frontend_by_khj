@@ -138,7 +138,7 @@ export default function EscrowDetailPage() {
             </div>
           )}
           <p className="text-sm text-gray-700">
-            물품 가격: <span className="font-bold">{app.itemPrice.toLocaleString()}원</span>
+            물품 가격: <span className="font-bold">{(app.itemPrice ?? 0).toLocaleString()}원</span>
           </p>
         </div>
       )}
@@ -171,32 +171,37 @@ export default function EscrowDetailPage() {
         <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <Receipt size={16} className="text-gray-500" /> 비용
         </h2>
-        <dl className="text-sm space-y-1.5">
-          {app.tradeMode === 'INTERNAL' && (
+        {/* 정보입력대기 단계는 fee 미산정 — 양쪽 입력 후 안내 */}
+        {app.appliedTotalFee == null ? (
+          <p className="text-xs text-gray-400">양쪽 정보 입력 후 비용이 산정돼요.</p>
+        ) : (
+          <dl className="text-sm space-y-1.5">
+            {app.tradeMode === 'INTERNAL' && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">물품가</dt>
+                <dd className="text-gray-900">{(app.itemPrice ?? 0).toLocaleString()}원</dd>
+              </div>
+            )}
             <div className="flex justify-between">
-              <dt className="text-gray-500">물품가</dt>
-              <dd className="text-gray-900">{app.itemPrice.toLocaleString()}원</dd>
+              <dt className="text-gray-500">배달비</dt>
+              <dd className="text-gray-900">{(app.appliedDeliveryFee ?? 0).toLocaleString()}원</dd>
             </div>
-          )}
-          <div className="flex justify-between">
-            <dt className="text-gray-500">배달비</dt>
-            <dd className="text-gray-900">{app.appliedDeliveryFee.toLocaleString()}원</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">대행 수수료 ({(app.appliedCommissionRate * 100).toFixed(1)}%)</dt>
-            <dd className="text-gray-900">{app.appliedCommissionFee.toLocaleString()}원</dd>
-          </div>
-          <hr className="my-2" />
-          <div className="flex justify-between font-semibold">
-            <dt className="text-gray-900">총액</dt>
-            <dd className="text-primary-600">{app.appliedTotalFee.toLocaleString()}원</dd>
-          </div>
-          {app.feePayer === 'both' && (
-            <p className="text-xs text-gray-400 mt-1">
-              반반 부담 — 신청자 {app.initiatorShare.toLocaleString()}원 / 수신자 {app.receiverShare.toLocaleString()}원
-            </p>
-          )}
-        </dl>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">대행 수수료 ({((app.appliedCommissionRate ?? 0) * 100).toFixed(1)}%)</dt>
+              <dd className="text-gray-900">{(app.appliedCommissionFee ?? 0).toLocaleString()}원</dd>
+            </div>
+            <hr className="my-2" />
+            <div className="flex justify-between font-semibold">
+              <dt className="text-gray-900">총액</dt>
+              <dd className="text-primary-600">{app.appliedTotalFee.toLocaleString()}원</dd>
+            </div>
+            {app.feePayer === 'both' && (
+              <p className="text-xs text-gray-400 mt-1">
+                반반 부담 — 신청자 {(app.initiatorShare ?? 0).toLocaleString()}원 / 수신자 {(app.receiverShare ?? 0).toLocaleString()}원
+              </p>
+            )}
+          </dl>
+        )}
       </div>
 
       {/* PR-B-4: buyer 수령지 입력 유도 안내 + 진입 */}
