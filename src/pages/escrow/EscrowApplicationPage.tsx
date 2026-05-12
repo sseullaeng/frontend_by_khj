@@ -1,29 +1,30 @@
-// 거래대행 신청서 — 외부 link 흐름 (라운드13 정합)
+// 거래대행 신청서 — 외부 link 분리 입력 수신자 폼 (라운드13 PR #130)
 //
-// 백엔드 spec (정리):
-//   POST /escrow/links            — 메타만 (role/feePayer/tradeMode)
-//   POST /escrow/applications/preview  — fee 미리보기 (입력 변화 시 debounced)
-//   POST /escrow/applications     — 신청 생성. 수신자가 양쪽 영역 모두 입력.
-//                                   preview 결과 그대로 body 에 포함 (±10원 검증)
+// 흐름:
+//   POST /escrow/links             — 발급자가 본인 영역까지 입력 (EscrowStartPage)
+//   GET /escrow/links/{linkToken}  — 수신자가 link 진입 → 발급자 영역 확인
+//   POST /escrow/applications/preview  — 양쪽 영역 합쳐서 fee 계산
+//   POST /escrow/applications/by-link  — 수신자 본인 영역 + fee snapshot → 결제대기 진입
 //
-// 라운드13 — 좌우 2칸 + 공통 FeeCalculator + preview endpoint 통합.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+// link.initiatorRole === 'seller' → 발급자가 판매자, 수신자는 buyer (delivery + 연락처 입력)
+// link.initiatorRole === 'buyer'  → 발급자가 구매자, 수신자는 seller (pickup + 물품 + 옵션 입력)
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Upload, X, MapPin, AlertTriangle } from 'lucide-react'
+import { Upload, X, MapPin, AlertTriangle, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/ui/Button'
 import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import type { AddressResult } from '@/shared/ui/KakaoAddressSearch'
 import { uploadImages, validateImageFile } from '@/shared/api/upload'
 import {
-  useCreateEscrowApplication,
+  useCreateEscrowByLink,
   useEscrowLink,
   useEscrowFeeSettings,
   useEscrowPreview,
 } from '@/features/escrow/hooks'
 import type {
   EscrowApplication,
-  EscrowApplicationCreateRequest,
+  EscrowByLinkRequest,
   EscrowLink,
   FragilityKey,
   VolumeKey,
@@ -46,47 +47,96 @@ export default function EscrowApplicationPage() {
 
   const { data: feeSettings } = useEscrowFeeSettings()
   const preview = useEscrowPreview()
-  const create = useCreateEscrowApplication()
+  const create = useCreateEscrowByLink()
 
-  // 폼 상태
-  const [imageFiles, setImageFiles] = useState<File[]>([])
-  const [itemPrice, setItemPrice]   = useState<number | ''>('')
-  const [itemDescription, setItemDescription] = useState('')
+  // 발급자가 seller 면 수신자가 buyer 입력, 그 반대도 마찬가지
+  const initiatorRole = link?.initiatorRole
+  const isReceiverBuyer  = initiatorRole === 'seller'
+  const isReceiverSeller = initiatorRole === 'buyer'
 
-  const [pickupOpen,   setPickupOpen]   = useState(false)
-  const [deliveryOpen, setDeliveryOpen] = useState(false)
-  const [pickupAddr,   setPickupAddr]   = useState<AddressResult | null>(null)
-  const [deliveryAddr, setDeliveryAddr] = useState<AddressResult | null>(null)
+  // 수신자 본인 영역 — buyer 면
+  const [deliveryAddr,  setDeliveryAddr]  = useState<AddressResult | null>(null)
+  const [deliveryOpen,  setDeliveryOpen]  = useState(false)
+  const [receiverPhone, setReceiverPhone] = useState('')
 
-  const [weight,    setWeight]    = useState<WeightKey | null>(null)
-  const [volume,    setVolume]    = useState<VolumeKey | null>(null)
-  const [fragility, setFragility] = useState<FragilityKey | null>(null)
-  const [deliveryNotes, setDeliveryNotes] = useState('')
-  const [agreedCancel,  setAgreedCancel]  = useState(false)
-  const [submitting,    setSubmitting]    = useState(false)
+  // 수신자 본인 영역 — seller 면
+  const [pickupAddr,       setPickupAddr]       = useState<AddressResult | null>(null)
+  const [pickupOpen,       setPickupOpen]       = useState(false)
+  const [itemPrice,        setItemPrice]        = useState<number>(0)
+  const [itemDescription,  setItemDescription]  = useState('')
+  const [weight,           setWeight]           = useState<WeightKey | null>(null)
+  const [volume,           setVolume]           = useState<VolumeKey | null>(null)
+  const [fragility,        setFragility]        = useState<FragilityKey | null>(null)
+  const [deliveryNotes,    setDeliveryNotes]    = useState('')
+  const [imageFiles,       setImageFiles]       = useState<File[]>([])
 
-  // EXTERNAL 모드면 itemPrice 강제 0
-  const isExternal = link?.tradeMode === 'EXTERNAL'
-  useEffect(() => {
-    if (isExternal) setItemPrice(0)
-  }, [isExternal])
+  const [agreedCancel, setAgreedCancel] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  const price = typeof itemPrice === 'number' ? itemPrice : 0
+  // 발급자가 보낸 본인 영역 (link 응답에서)
+  const initiator = useMemo(() => {
+    if (!link) return null
+    if (isReceiverBuyer) {
+      // 발급자=seller. pickup/물품/옵션 영역
+      return {
+        pickupAddress:   link.initiatorPickupAddress,
+        pickupLat:       link.initiatorPickupLat,
+        pickupLng:       link.initiatorPickupLng,
+        itemPrice:       link.initiatorItemPrice ?? 0,
+        itemDescription: link.initiatorItemDescription,
+        weight:          link.initiatorWeight,
+        volume:          link.initiatorVolume,
+        fragility:       link.initiatorFragility,
+        deliveryNotes:   link.initiatorDeliveryNotes,
+        imageUrls:       link.initiatorImageUrls,
+      }
+    } else {
+      // 발급자=buyer. delivery/연락처 영역
+      return {
+        deliveryAddress: link.initiatorDeliveryAddress,
+        deliveryLat:     link.initiatorDeliveryLat,
+        deliveryLng:     link.initiatorDeliveryLng,
+        receiverPhone:   link.initiatorReceiverPhone,
+      }
+    }
+  }, [link, isReceiverBuyer])
 
-  // ── preview endpoint 통합 — 옵션 + 좌표 + 가격 변화 시 debounced 호출 ──
+  // ── preview 호출 — 양쪽 좌표/옵션/가격 모두 모이면 ──
   const previewBody = useMemo(() => {
-    if (!link || !pickupAddr || !deliveryAddr || !weight || !volume || !fragility) return null
+    if (!link || !feeSettings) return null
+
+    // 발급자가 seller: pickup/옵션은 initiator, delivery 는 본인
+    if (isReceiverBuyer) {
+      if (!deliveryAddr) return null
+      if (initiator?.pickupLat == null || initiator?.pickupLng == null) return null
+      if (!initiator.weight || !initiator.volume || !initiator.fragility) return null
+      return {
+        tradeMode: link.tradeMode,
+        itemPrice: initiator.itemPrice ?? 0,
+        pickupLat: initiator.pickupLat,
+        pickupLng: initiator.pickupLng,
+        deliveryLat: deliveryAddr.lat,
+        deliveryLng: deliveryAddr.lng,
+        weight: initiator.weight,
+        volume: initiator.volume,
+        fragility: initiator.fragility,
+        feePayer: link.feePayer,
+      }
+    }
+    // 발급자가 buyer: delivery 는 initiator, pickup/옵션은 본인
+    if (!pickupAddr || !weight || !volume || !fragility) return null
+    if (initiator?.deliveryLat == null || initiator?.deliveryLng == null) return null
     return {
       tradeMode: link.tradeMode,
-      itemPrice: price,
-      pickupLat:    pickupAddr.lat,
-      pickupLng:    pickupAddr.lng,
-      deliveryLat:  deliveryAddr.lat,
-      deliveryLng:  deliveryAddr.lng,
+      itemPrice,
+      pickupLat: pickupAddr.lat,
+      pickupLng: pickupAddr.lng,
+      deliveryLat: initiator.deliveryLat,
+      deliveryLng: initiator.deliveryLng,
       weight, volume, fragility,
       feePayer: link.feePayer,
     }
-  }, [link, pickupAddr, deliveryAddr, weight, volume, fragility, price])
+  }, [link, feeSettings, isReceiverBuyer, initiator, deliveryAddr, pickupAddr, weight, volume, fragility, itemPrice])
 
   useEffect(() => {
     if (!previewBody) return
@@ -97,65 +147,55 @@ export default function EscrowApplicationPage() {
 
   const fees = preview.data ?? null
 
+  // 검증
+  const phoneOk = /^[0-9+\-]+$/.test(receiverPhone) && receiverPhone.length >= 9
+  const buyerAreaReady  = !!deliveryAddr && phoneOk
+  const sellerAreaReady = !!pickupAddr && itemPrice >= 0 && itemDescription.trim().length > 0 && !!weight && !!volume && !!fragility
+
   const isValid =
-    imageFiles.length > 0 &&
-    (isExternal || price > 0) &&
-    itemDescription.trim().length > 0 &&
-    pickupAddr !== null &&
-    deliveryAddr !== null &&
-    weight !== null && volume !== null && fragility !== null &&
-    agreedCancel &&
-    fees !== null   // preview 받아야 fee snapshot 전송 가능
-
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (imageFiles.length + files.length > MAX_IMAGES) {
-      toast.error(`이미지는 최대 ${MAX_IMAGES}장까지 업로드할 수 있어요.`)
-      return
-    }
-    const valid: File[] = []
-    for (const f of files) {
-      const err = validateImageFile(f)
-      if (err) { toast.error(err); continue }
-      valid.push(f)
-    }
-    setImageFiles(prev => [...prev, ...valid])
-  }, [imageFiles.length])
-
-  const removeImage = (idx: number) => setImageFiles(prev => prev.filter((_, i) => i !== idx))
+    !!link && !!fees && agreedCancel &&
+    (isReceiverBuyer ? buyerAreaReady : sellerAreaReady) &&
+    (isReceiverSeller ? imageFiles.length > 0 : true)   // seller 라면 이미지 1장 이상
 
   const handleSubmit = async () => {
-    if (!isValid || !link || !weight || !volume || !fragility || !pickupAddr || !deliveryAddr || !fees) return
+    if (!isValid || !link || !fees) return
 
     setSubmitting(true)
     try {
-      // 1) S3 업로드
-      const uploaded = await uploadImages('ESCROW', imageFiles)
-      const imageUrls = uploaded.map(u => u.getUrl)
+      // seller 면 이미지 업로드
+      let imageUrls: string[] | undefined = undefined
+      if (isReceiverSeller && imageFiles.length > 0) {
+        const uploaded = await uploadImages('ESCROW', imageFiles)
+        imageUrls = uploaded.map(u => u.getUrl)
+      }
 
-      // 2) application 생성 — preview 결과 그대로 body 에 포함 (±10원 검증용 snapshot)
-      const body: EscrowApplicationCreateRequest = {
+      const body: EscrowByLinkRequest = {
         linkToken,
-        itemPrice: price,
-        pickupAddress:   pickupAddr.address,
-        pickupLat:       pickupAddr.lat,
-        pickupLng:       pickupAddr.lng,
-        deliveryAddress: deliveryAddr.address,
-        deliveryLat:     deliveryAddr.lat,
-        deliveryLng:     deliveryAddr.lng,
-        weight, volume, fragility,
-        deliveryNotes: deliveryNotes.trim() || undefined,
         deliveryFee:   fees.deliveryFee,
         commissionFee: fees.commissionFee,
         totalFee:      fees.totalFee,
         distanceKm:    fees.distanceKm,
-        imageUrls,
+        ...(isReceiverBuyer && deliveryAddr ? {
+          deliveryAddress: deliveryAddr.address,
+          deliveryLat:     deliveryAddr.lat,
+          deliveryLng:     deliveryAddr.lng,
+          receiverPhone,
+        } : {}),
+        ...(isReceiverSeller && pickupAddr && weight && volume && fragility ? {
+          pickupAddress:   pickupAddr.address,
+          pickupLat:       pickupAddr.lat,
+          pickupLng:       pickupAddr.lng,
+          itemPrice,
+          itemDescription: itemDescription.trim(),
+          weight,
+          volume,
+          fragility,
+          deliveryNotes:   deliveryNotes.trim() || undefined,
+          imageUrls,
+        } : {}),
       }
 
       const application: EscrowApplication = await create.mutateAsync(body)
-
-      // 3) 결제 페이지로 이동
       navigate(`/escrow/${application.id}/pay`)
     } catch (err) {
       const msg = err instanceof BusinessError ? err.message
@@ -172,137 +212,214 @@ export default function EscrowApplicationPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900 mb-1">거래 대행 신청서</h1>
         <p className="text-sm text-gray-500">
-          {link.tradeMode === 'INTERNAL' ? '쓸랭 거래' : '외부 거래'} · 신청자: {link.initiatorNickname}
+          {link.tradeMode === 'INTERNAL' ? '쓸랭 거래' : '외부 거래'} ·
+          {link.initiatorNickname} ({initiatorRole === 'seller' ? '판매자' : '구매자'}) 가 보낸 링크
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
 
-        {/* ── 좌측: 입력 ──────────────────────────────────────────── */}
+        {/* ── 좌측: 발급자 영역 요약 + 수신자 본인 영역 입력 ─────── */}
         <div className="flex flex-col gap-6">
 
-          {/* 물품 이미지 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <p className="text-sm font-semibold text-gray-900 mb-3">
-              물품 이미지 <span className="text-red-500">*</span>
-            </p>
-            <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
-              {imageFiles.map((file, i) => (
-                <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5"
-                  >
-                    <X size={10} />
-                  </button>
+          {/* 발급자 영역 요약 */}
+          {isReceiverBuyer && initiator?.pickupAddress && (
+            <section className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-5">
+              <p className="text-sm font-semibold text-gray-700 mb-3 inline-flex items-center gap-1.5">
+                <Package size={14} /> 판매자 입력 정보
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-700">
+                <li>물품 — {(initiator.itemPrice ?? 0).toLocaleString()}원</li>
+                {initiator.itemDescription && <li className="text-xs text-gray-500">{initiator.itemDescription}</li>}
+                <li>픽업 — {initiator.pickupAddress}</li>
+                <li className="text-xs text-gray-500">
+                  옵션 — 무게 {initiator.weight} · 부피 {initiator.volume} · 취급 {initiator.fragility}
+                </li>
+                {initiator.deliveryNotes && <li className="text-xs text-gray-500">메모 — {initiator.deliveryNotes}</li>}
+              </ul>
+              {(initiator.imageUrls?.length ?? 0) > 0 && (
+                <div className="grid grid-cols-5 gap-2 mt-3">
+                  {initiator.imageUrls!.slice(0, 5).map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer">
+                      <img src={url} alt="" className="aspect-square w-full object-cover rounded-lg border border-gray-200" />
+                    </a>
+                  ))}
                 </div>
-              ))}
-              {imageFiles.length < MAX_IMAGES && (
-                <label className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
-                  <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  <Upload className="text-gray-400 mb-1" size={18} />
-                  <span className="text-xs text-gray-400">{imageFiles.length}/{MAX_IMAGES}</span>
-                </label>
               )}
-            </div>
-          </section>
+            </section>
+          )}
 
-          {/* 물품 정보 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
-            <p className="text-sm font-semibold text-gray-900">물품 정보</p>
-            {!isExternal && (
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">
-                  거래 금액 (원) <span className="text-red-500">*</span>
-                </label>
+          {isReceiverSeller && initiator?.deliveryAddress && (
+            <section className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-5">
+              <p className="text-sm font-semibold text-gray-700 mb-3 inline-flex items-center gap-1.5">
+                <MapPin size={14} /> 구매자 입력 정보
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-700">
+                <li>수령지 — {initiator.deliveryAddress}</li>
+                {initiator.receiverPhone && <li>연락처 — {initiator.receiverPhone}</li>}
+              </ul>
+            </section>
+          )}
+
+          {/* 수신자 = buyer: delivery + 연락처 입력 */}
+          {isReceiverBuyer && (
+            <>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  수령지 주소 <span className="text-red-500">*</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryOpen(true)}
+                  className="w-full flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-left hover:border-primary-400"
+                >
+                  <MapPin size={14} className="text-gray-400 shrink-0" />
+                  <span className={deliveryAddr ? 'text-gray-900 truncate' : 'text-gray-400'}>
+                    {deliveryAddr?.address ?? '수령지 주소 검색'}
+                  </span>
+                </button>
+              </section>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  받는 사람 연락처 <span className="text-red-500">*</span>
+                </p>
                 <input
-                  type="number"
-                  placeholder="0"
-                  min={0}
-                  value={itemPrice}
-                  onChange={e => setItemPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
+                  type="tel"
+                  inputMode="tel"
+                  value={receiverPhone}
+                  onChange={(e) => setReceiverPhone(e.target.value)}
+                  placeholder="010-1234-5678"
+                  maxLength={20}
+                  className="w-full h-10 rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-primary-500"
                 />
-              </div>
-            )}
-            <div>
-              <label className="text-xs text-gray-600 mb-1 block">
-                물품 설명 <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={itemDescription}
-                onChange={e => setItemDescription(e.target.value)}
-                placeholder="물품 상태, 특이사항 등을 입력해 주세요"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
-              />
-            </div>
-          </section>
+                {receiverPhone && !phoneOk && (
+                  <p className="text-[11px] text-red-500 mt-1">숫자와 - / + 만 입력 가능, 9자 이상.</p>
+                )}
+              </section>
+            </>
+          )}
 
-          {/* 픽업·배달 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-gray-900 mb-1">
-                물품 수령지 <span className="text-red-500">*</span>
-              </p>
-              <p className="text-xs text-gray-500 mb-2">배달원이 물품을 가져갈 장소</p>
-              <button
-                type="button"
-                onClick={() => setPickupOpen(true)}
-                className="w-full flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-left hover:border-primary-400"
-              >
-                <MapPin size={14} className="text-gray-400 shrink-0" />
-                <span className={pickupAddr ? 'text-gray-900 truncate' : 'text-gray-400'}>
-                  {pickupAddr?.address ?? '주소 검색'}
-                </span>
-              </button>
-            </div>
+          {/* 수신자 = seller: pickup + 물품 + 옵션 + 사진 입력 */}
+          {isReceiverSeller && (
+            <>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <p className="text-sm font-semibold text-gray-900 mb-3">
+                  물품 이미지 <span className="text-red-500">*</span>
+                </p>
+                <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
+                  {imageFiles.map((file, i) => (
+                    <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                      <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {imageFiles.length < MAX_IMAGES && (
+                    <label className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files ?? [])
+                          e.target.value = ''
+                          if (imageFiles.length + files.length > MAX_IMAGES) {
+                            toast.error(`이미지는 최대 ${MAX_IMAGES}장까지 업로드할 수 있어요.`)
+                            return
+                          }
+                          const valid: File[] = []
+                          for (const f of files) {
+                            const err = validateImageFile(f)
+                            if (err) { toast.error(err); continue }
+                            valid.push(f)
+                          }
+                          setImageFiles(prev => [...prev, ...valid])
+                        }}
+                        className="hidden"
+                      />
+                      <Upload className="text-gray-400 mb-1" size={18} />
+                      <span className="text-xs text-gray-400">{imageFiles.length}/{MAX_IMAGES}</span>
+                    </label>
+                  )}
+                </div>
+              </section>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-gray-900 mb-1">
-                물품 배달지 <span className="text-red-500">*</span>
-              </p>
-              <p className="text-xs text-gray-500 mb-2">물품을 전달할 장소</p>
-              <button
-                type="button"
-                onClick={() => setDeliveryOpen(true)}
-                className="w-full flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-left hover:border-primary-400"
-              >
-                <MapPin size={14} className="text-gray-400 shrink-0" />
-                <span className={deliveryAddr ? 'text-gray-900 truncate' : 'text-gray-400'}>
-                  {deliveryAddr?.address ?? '주소 검색'}
-                </span>
-              </button>
-            </div>
-          </div>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
+                <p className="text-sm font-semibold text-gray-900">물품 정보</p>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">물품 가격 (원) — 나눔은 0</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    min={0}
+                    value={itemPrice || ''}
+                    onChange={e => setItemPrice(Number(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">
+                    물품 설명 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={itemDescription}
+                    onChange={e => setItemDescription(e.target.value)}
+                    placeholder="물품 상태, 특이사항 등을 입력해 주세요"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
+                  />
+                </div>
+              </section>
 
-          {/* 배달원 요청사항 */}
-          <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <label className="text-sm font-semibold text-gray-900 mb-2 block">배달원에게 요청사항</label>
-            <textarea
-              value={deliveryNotes}
-              onChange={e => setDeliveryNotes(e.target.value)}
-              placeholder="배달원에게 전달할 사항을 입력해 주세요 (선택, ≤500자)"
-              maxLength={500}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
-            />
-          </section>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  픽업 주소 <span className="text-red-500">*</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPickupOpen(true)}
+                  className="w-full flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-left hover:border-primary-400"
+                >
+                  <MapPin size={14} className="text-gray-400 shrink-0" />
+                  <span className={pickupAddr ? 'text-gray-900 truncate' : 'text-gray-400'}>
+                    {pickupAddr?.address ?? '주소 검색'}
+                  </span>
+                </button>
+              </section>
+
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <label className="text-sm font-semibold text-gray-900 mb-2 block">배달원에게 요청사항</label>
+                <textarea
+                  value={deliveryNotes}
+                  onChange={e => setDeliveryNotes(e.target.value)}
+                  placeholder="배달원에게 전달할 사항 (선택, ≤500자)"
+                  maxLength={500}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
+                />
+              </section>
+            </>
+          )}
         </div>
 
-        {/* ── 우측: 계산기 (preview 실시간) ─────────────────────── */}
+        {/* ── 우측: 계산기 (수신자=seller 면 옵션 입력 포함, =buyer 면 옵션은 발급자가 정함) ── */}
         <FeeCalculator
-          weight={weight} volume={volume} fragility={fragility}
-          onWeightChange={setWeight}
-          onVolumeChange={setVolume}
-          onFragilityChange={setFragility}
-          itemPrice={price}
+          weight={isReceiverSeller ? weight : (initiator?.weight ?? null)}
+          volume={isReceiverSeller ? volume : (initiator?.volume ?? null)}
+          fragility={isReceiverSeller ? fragility : (initiator?.fragility ?? null)}
+          onWeightChange={isReceiverSeller ? setWeight : () => {}}
+          onVolumeChange={isReceiverSeller ? setVolume : () => {}}
+          onFragilityChange={isReceiverSeller ? setFragility : () => {}}
+          itemPrice={isReceiverSeller ? itemPrice : (initiator?.itemPrice ?? 0)}
           fees={fees}
           isLoadingFees={preview.isPending}
           settings={feeSettings}
@@ -334,10 +451,8 @@ export default function EscrowApplicationPage() {
         <Button type="button" fullWidth disabled={!isValid || submitting} isLoading={submitting} onClick={handleSubmit}>
           신청하기
         </Button>
-        {!fees && pickupAddr && deliveryAddr && weight && volume && fragility && (
-          <p className="text-xs text-gray-400 text-center mt-2">
-            예상 수수료 계산 중... 잠시만 기다려 주세요.
-          </p>
+        {!fees && previewBody && (
+          <p className="text-xs text-gray-400 text-center mt-2">예상 수수료 계산 중... 잠시만 기다려 주세요.</p>
         )}
       </div>
 

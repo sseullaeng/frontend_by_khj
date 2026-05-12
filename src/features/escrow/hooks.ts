@@ -6,6 +6,7 @@ import type {
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
   EscrowBuyerInfoPatch,
+  EscrowByLinkRequest,
   EscrowCancelRequest,
   EscrowDraftRequest,
   EscrowFeeSettingsRequest,
@@ -49,6 +50,18 @@ export function useCreateEscrowApplication() {
   return useMutation({
     mutationFn: (body: EscrowApplicationCreateRequest) =>
       escrowApi.applications.create(body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+    },
+  })
+}
+
+// 라운드13 PR #130 — 외부 link 분리 입력. 수신자가 본인 영역만 보냄.
+export function useCreateEscrowByLink() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EscrowByLinkRequest) =>
+      escrowApi.applications.createByLink(body).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
     },

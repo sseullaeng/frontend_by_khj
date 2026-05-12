@@ -34,6 +34,8 @@ export type FragilityKey = EscrowFragilityCode
 
 // ── Link ────────────────────────────────────────────────────────────────
 
+// 라운드13 PR #130 — link 응답에 발급자 본인 영역 (initiator*) 포함.
+//   role=seller 면 pickup/물품 영역, role=buyer 면 delivery/연락처. 비워두면 옛 흐름.
 export interface EscrowLink {
   id: number
   linkToken: string                  // UUID v4 — URL 토큰
@@ -45,15 +47,83 @@ export interface EscrowLink {
   status: EscrowLinkStatus
   expiresAt: string                  // 24h 후
   createdAt: string
+
+  // 라운드13 PR #130 — 발급자가 link 발급 시 채운 본인 영역 (role 분기)
+  //   role=seller 면 아래 pickup/물품/옵션/메모/이미지 채워짐, delivery 측은 null
+  initiatorPickupAddress?:    string | null
+  initiatorPickupLat?:        number | null
+  initiatorPickupLng?:        number | null
+  initiatorItemPrice?:        number | null
+  initiatorItemDescription?:  string | null
+  initiatorWeight?:           EscrowWeightCode | null
+  initiatorVolume?:           EscrowVolumeCode | null
+  initiatorFragility?:        EscrowFragilityCode | null
+  initiatorDeliveryNotes?:    string | null
+  initiatorImageUrls?:        string[] | null
+  //   role=buyer 면 아래 delivery/연락처 채워짐, pickup 측은 null
+  initiatorDeliveryAddress?:  string | null
+  initiatorDeliveryLat?:      number | null
+  initiatorDeliveryLng?:      number | null
+  initiatorReceiverPhone?:    string | null
 }
 
 // 신청자 시작 폼 (POST /escrow/links)
+//   라운드13 PR #130 — 발급자 본인 영역까지 함께 입력 가능 (role 분기). 비워두면 옛 흐름.
 export const escrowStartSchema = z.object({
   role:      z.enum(['buyer', 'seller'],          { errorMap: () => ({ message: '역할을 선택해 주세요.' }) }),
   feePayer:  z.enum(['buyer', 'seller', 'both'],  { errorMap: () => ({ message: '수수료 부담을 선택해 주세요.' }) }),
   tradeMode: z.enum(['INTERNAL', 'EXTERNAL'],     { errorMap: () => ({ message: '거래 모드를 선택해 주세요.' }) }),
+
+  // 발급자 본인 영역 — 모두 optional (role 에 맞는 영역만 채워서 전송)
+  initiatorPickupAddress:    z.string().max(255).optional(),
+  initiatorPickupLat:        z.number().optional(),
+  initiatorPickupLng:        z.number().optional(),
+  initiatorItemPrice:        z.number().int().min(0).optional(),
+  initiatorItemDescription:  z.string().max(500).optional(),
+  initiatorWeight:           z.enum(['lt1', '1to3', '3to5', '5to10', 'over10']).optional(),
+  initiatorVolume:           z.enum(['s', 'm', 'l']).optional(),
+  initiatorFragility:        z.enum(['f1', 'f2', 'f3', 'f4', 'f5']).optional(),
+  initiatorDeliveryNotes:    z.string().max(500).optional(),
+  initiatorImageUrls:        z.array(z.string()).optional(),
+
+  initiatorDeliveryAddress:  z.string().max(255).optional(),
+  initiatorDeliveryLat:      z.number().optional(),
+  initiatorDeliveryLng:      z.number().optional(),
+  initiatorReceiverPhone:    z.string().max(20).optional(),
 })
 export type EscrowStartRequest = z.infer<typeof escrowStartSchema>
+
+// 라운드13 PR #130 — 수신자 본인 영역만 입력하는 by-link endpoint body
+//   POST /escrow/applications/by-link
+//   - seller link 받은 buyer 가 호출: deliveryAddress/Lat/Lng/receiverPhone + fee snapshot
+//   - buyer link 받은 seller 가 호출: pickupAddress/Lat/Lng + 물품 영역 + fee snapshot
+export interface EscrowByLinkRequest {
+  linkToken: string
+
+  // buyer 영역 (seller 가 발급한 link 받았을 때)
+  deliveryAddress?:  string
+  deliveryLat?:      number
+  deliveryLng?:      number
+  receiverPhone?:    string
+
+  // seller 영역 (buyer 가 발급한 link 받았을 때)
+  pickupAddress?:    string
+  pickupLat?:        number
+  pickupLng?:        number
+  itemPrice?:        number
+  itemDescription?:  string
+  weight?:           EscrowWeightCode
+  volume?:           EscrowVolumeCode
+  fragility?:        EscrowFragilityCode
+  deliveryNotes?:    string
+  imageUrls?:        string[]
+
+  // preview snapshot (필수 — 백엔드 ±10원 검증)
+  deliveryFee:   number
+  commissionFee: number
+  totalFee:      number
+  distanceKm:    number
+}
 
 // ── Application (신청서) ────────────────────────────────────────────────
 
