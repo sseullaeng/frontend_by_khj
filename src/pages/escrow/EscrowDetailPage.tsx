@@ -6,6 +6,7 @@ import {
   useEscrowApplicationDetail,
   useCancelEscrowApplication,
   useConfirmEscrowReceipt,
+  useEscrowPaymentPreview,
 } from '@/features/escrow/hooks'
 import { useDeliveryDetail } from '@/features/delivery/hooks'
 import { getEscrowDisplayStatus, ESCROW_DISPLAY_COLOR, type EscrowDisplayStatus } from '@/features/escrow/displayStatus'
@@ -34,6 +35,10 @@ export default function EscrowDetailPage() {
   const { data: app, isLoading } = useEscrowApplicationDetail(applicationId)
   // 라운드13 PR #121 — 진행중일 때 deliveryId 가 있으면 sub-status 조회해서 7단계 라벨로 표시
   const { data: delivery } = useDeliveryDetail(app?.deliveryId ?? 0)
+  // 결제대기 단계에서 본인 결제 완료 여부 확인 (alreadyPaid)
+  const { data: payPreview } = useEscrowPaymentPreview(
+    app?.status === '결제대기' ? applicationId : undefined,
+  )
   const cancelMut = useCancelEscrowApplication()
   const confirmMut = useConfirmEscrowReceipt()
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -57,11 +62,14 @@ export default function EscrowDetailPage() {
   const canConfirm = app.tradeMode === 'INTERNAL' && isBuyer && app.status === '진행중'
   // PR-B-4: buyer 가 정보입력대기 상태에서 본인 수령지 미입력이면 진입 유도
   const needsBuyerInfo = isBuyer && app.status === '정보입력대기' && !app.buyerInfoFilled
-  // PR-B-5: 결제대기 상태에서 본인이 결제 부담이 있으면 결제 진입
-  const needsPay = app.status === '결제대기' && (
+  // PR-B-5: 결제대기 + 본인 결제 부담 + 본인 미결제 시에만 결제 진입 노출
+  //   payPreview.alreadyPaid 가 true 면 이미 결제했으므로 버튼 숨김 (반복 결제 방지)
+  const hasMyShare = app.status === '결제대기' && (
     (isBuyer  && (app.feePayer === 'buyer'  || app.feePayer === 'both' || app.tradeMode === 'INTERNAL')) ||
     (!isBuyer && (app.feePayer === 'seller' || app.feePayer === 'both'))
   )
+  const needsPay = hasMyShare && !payPreview?.alreadyPaid
+  const myShareWaitingOther = hasMyShare && !!payPreview?.alreadyPaid
   // 라운드13 — 매칭된 배달이 있으면 추적 페이지로 진입 (진행중·완료 모두 노출)
   const canTrackDelivery = !!app.deliveryId && (app.status === '진행중' || app.status === '완료')
 
@@ -221,7 +229,7 @@ export default function EscrowDetailPage() {
         </div>
       )}
 
-      {/* PR-B-5: 결제대기 상태 — 본인 결제 진입 */}
+      {/* PR-B-5: 결제대기 상태 — 본인 결제 진입 (이미 결제했으면 안내만) */}
       {needsPay && (
         <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
           <p className="font-semibold text-primary-700 mb-1 text-sm">결제할 차례에요</p>
@@ -231,6 +239,14 @@ export default function EscrowDetailPage() {
           <Button fullWidth onClick={() => navigate(`/escrow/${app.id}/pay`)}>
             결제하기
           </Button>
+        </div>
+      )}
+      {myShareWaitingOther && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="font-semibold text-emerald-700 mb-1 text-sm">결제를 완료했어요</p>
+          <p className="text-xs text-emerald-700/90">
+            상대방의 결제가 완료되면 라이더 매칭이 자동 시작됩니다.
+          </p>
         </div>
       )}
 
