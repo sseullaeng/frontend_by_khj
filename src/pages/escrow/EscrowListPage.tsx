@@ -80,7 +80,8 @@ export default function EscrowListPage() {
                         신청일: {formatKst(app.createdAt, 'yyyy.MM.dd')}
                       </p>
                       <span className="font-medium text-gray-900 text-sm">
-                        {app.appliedTotalFee.toLocaleString()}원
+                        {/* 정보입력대기 단계 등은 fee 미산정 → '-' 표시 */}
+                        {app.appliedTotalFee != null ? `${app.appliedTotalFee.toLocaleString()}원` : '-'}
                       </span>
                     </div>
                   </div>
