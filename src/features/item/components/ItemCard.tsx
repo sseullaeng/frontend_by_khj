@@ -1,4 +1,8 @@
-// 물품 카드 컴포넌트 — ItemSummaryResponse 기반 (PR #66 정합)
+// 물품 카드 컴포넌트 — ItemSummaryResponse 기반
+//
+// 라운드13 — 카드 크기 고정 + 판매/대여 다중 가격 표시
+//   · 카드 전체 높이 고정 (썸네일 aspect-square + 정보 영역 고정 크기)
+//   · tradeTypes 배열에서 판매/대여 모드별 가격 모두 표시
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, Eye } from 'lucide-react'
 import type { Item, TradeType, ItemStatus } from '../types'
@@ -18,15 +22,6 @@ const tradeTypeColor: Record<TradeType, string> = {
   '나눔': 'bg-purple-100 text-purple-800',
 }
 
-// 거래유형별 가격 라벨 (대여 단가 단위는 detail 응답에만 있어 카드에선 일단 '대여 단가' 까지)
-function priceLabel(tradeType: TradeType): string {
-  switch (tradeType) {
-    case '판매': return '판매가'
-    case '대여': return '대여 단가'
-    case '나눔': return ''
-  }
-}
-
 // 상태 배지 (판매중은 미표시)
 const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>> = {
   '예약':     { label: '예약중',  color: 'bg-yellow-100 text-yellow-800' },
@@ -37,6 +32,9 @@ const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>>
 export default function ItemCard({ item, className }: ItemCardProps) {
   const { mutate: toggleWish } = useToggleWish(item.id)
   const status = statusBadge[item.status]
+
+  // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
+  const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
 
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
@@ -55,16 +53,19 @@ export default function ItemCard({ item, className }: ItemCardProps) {
             </div>
           )}
 
-          {/* 거래 유형 태그 */}
-          <div className="absolute top-2 left-2">
-            <span
-              className={cn(
-                'px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap',
-                tradeTypeColor[item.tradeType],
-              )}
-            >
-              {item.tradeType}
-            </span>
+          {/* 거래 유형 태그 — 다중 등록이면 여러 개 */}
+          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            {modes.map((m) => (
+              <span
+                key={m}
+                className={cn(
+                  'px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap',
+                  tradeTypeColor[m],
+                )}
+              >
+                {m}
+              </span>
+            ))}
           </div>
 
           {/* 찜 버튼 */}
@@ -92,26 +93,40 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           )}
         </div>
 
-        {/* 정보 — 카드 크기 통일을 위해 영역별 고정 높이 */}
-        <div className="p-3">
-          <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 min-h-[2.5rem] group-hover:text-primary-600 transition-colors">
+        {/* 정보 — 영역별 고정 높이로 카드 전체 크기 통일 */}
+        <div className="p-3 h-[7.25rem] flex flex-col">
+          <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 h-[2.5rem] group-hover:text-primary-600 transition-colors">
             {item.title}
           </h3>
 
-          {/* 가격 영역 — 거래유형 라벨 + 금액. 두 줄 고정 높이 */}
-          <div className="mb-2 min-h-[2.25rem]">
-            <p className="text-[11px] text-gray-400 leading-tight">{priceLabel(item.tradeType)}</p>
-            <p
-              className={cn(
-                'font-semibold text-sm leading-tight',
-                item.tradeType === '나눔' ? 'text-emerald-600' : 'text-gray-900',
-              )}
-            >
-              {item.tradeType === '나눔' ? '무료 나눔' : `${item.price.toLocaleString()}원`}
-            </p>
+          {/* 가격 영역 — 모드별 한 줄씩, 2 줄 고정 높이 */}
+          <div className="mb-1.5 h-[2.5rem] flex flex-col justify-center gap-0.5">
+            {modes.includes('나눔') ? (
+              <p className="font-semibold text-sm leading-tight text-emerald-600">무료 나눔</p>
+            ) : (
+              <>
+                {modes.includes('판매') && (
+                  <p className="text-sm leading-tight">
+                    <span className="text-[10px] text-gray-400 mr-1">판매</span>
+                    <span className="font-semibold text-gray-900">
+                      {(item.salePrice ?? item.price).toLocaleString()}원
+                    </span>
+                  </p>
+                )}
+                {modes.includes('대여') && (
+                  <p className="text-sm leading-tight">
+                    <span className="text-[10px] text-gray-400 mr-1">대여</span>
+                    <span className="font-semibold text-gray-900">
+                      {(item.rentalPrice ?? item.price).toLocaleString()}원
+                    </span>
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
-          <div className="flex items-center justify-between text-xs text-gray-500">
+          {/* 메타 정보 — 한 줄 고정 */}
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-auto">
             <div className="flex items-center gap-1 min-w-0">
               <MapPin size={12} />
               <span className="truncate">{item.region ?? '지역 미설정'}</span>
@@ -121,8 +136,6 @@ export default function ItemCard({ item, className }: ItemCardProps) {
                 <Eye size={11} />
                 {item.viewCount.toLocaleString()}
               </span>
-              <span>·</span>
-              <span>관심 {item.wishlistCount}</span>
               <span>·</span>
               <span>{fromNow(item.createdAt)}</span>
             </div>
