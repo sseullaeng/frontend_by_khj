@@ -268,13 +268,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     sendMessage(content)
   }
 
-  // 라운드11: 거래 흐름은 마이페이지 → 거래 상세에서 처리.
-  //   채팅방에선 진입 단축키만 제공 (zustand 가짜 상태바 제거)
-  const handleOpenTrades = () => {
-    close()
-    navigate('/mypage/items')
-  }
-
   const handleReviewNav = () => {
     close()
     navigate('/reviews/write', {
@@ -632,15 +625,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                 거래대행 신청
               </button>
             </>
-          ) : (
-            <button
-              onClick={handleOpenTrades}
-              className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Receipt size={13} />
-              구매 거래 관리
-            </button>
-          )}
+          ) : null /* 구매자 — 채팅방 안에 거래 액션 없음 (거래 시작은 판매자 권한) */}
           <button
             onClick={() => setLeaveConfirmOpen(true)}
             disabled={isLeaving}
