@@ -4,6 +4,12 @@ import type {
   AdminDashboard,
   AdminDashboardCharts,
   AdminDashboardChartsParams,
+  AdminDeliveryItem,
+  AdminDeliveryListParams,
+  AdminDeliveryStats,
+  AdminItemDetailResponse,
+  AdminItemSummary,
+  AdminItemsListParams,
   AdminLoginRequest,
   AdminMe,
   AdminReport,
@@ -106,6 +112,23 @@ export const adminApi = {
       api.get<AdminReport>(`/api/v1/admin/reports/${id}`),
     patch: (id: number, body: AdminReportPatchRequest) =>
       api.patch<void>(`/api/v1/admin/reports/${id}`, body),
+  },
+
+  // 라운드13 PR #134 — 물품 관리
+  items: {
+    list: (params?: AdminItemsListParams) =>
+      api.get<PageResponse<AdminItemSummary>>('/api/v1/admin/items', { params }),
+    detail: (id: number) =>
+      api.get<AdminItemDetailResponse>(`/api/v1/admin/items/${id}`),
+    // delete 는 기존 itemApi.deleteByAdmin (PR #54) 사용
+  },
+
+  // 라운드13 PR #134 — 배달 관리
+  deliveries: {
+    list: (params?: AdminDeliveryListParams) =>
+      api.get<PageResponse<AdminDeliveryItem>>('/api/v1/admin/deliveries', { params }),
+    stats: () =>
+      api.get<AdminDeliveryStats>('/api/v1/admin/deliveries/stats'),
   },
 
   // 11.6 출금
