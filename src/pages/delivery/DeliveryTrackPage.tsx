@@ -26,7 +26,7 @@ import { useEmailGuard } from '@/features/auth/emailGuard'
 import { fromNow, formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui/Button'
-import KakaoMap from '@/shared/ui/KakaoMap'
+import DeliveryRouteMap from '@/features/delivery/DeliveryRouteMap'
 import type { DeliveryStatus } from '@/features/delivery/types'
 
 const STATUS_CFG: Record<DeliveryStatus, { color: string; step: number }> = {
@@ -62,11 +62,18 @@ export default function DeliveryTrackPage() {
   const requesterProfile = useUserProfile(delivery?.requesterId ?? 0)
   const riderProfile = useUserProfile(delivery?.riderId ?? 0)
 
+  // 실시간 위치 — 추적 가능 상태(수락/배송중) 에서만 활성화
+  // ⚠️ Hook 은 early return 위에서 호출해야 React error #310 (hook count 변화) 회피
+  const isRequester = currentUser?.id != null && currentUser.id === delivery?.requesterId
+  const isRider = currentUser?.id != null && currentUser.id === delivery?.riderId
+  const isTrackable = delivery?.status === '수락' || delivery?.status === '배송중'
+  // 라이더는 publish, 요청자/라이더 모두 subscribe
+  useRiderLocationPublisher(deliveryId, isRider && isTrackable)
+  const liveLocation = useDeliveryLocation(deliveryId, (isRequester || isRider) && isTrackable)
+
   if (isLoading) return <div className="py-20 text-center text-gray-500">불러오는 중...</div>
   if (!delivery) return <div className="py-20 text-center text-gray-500">배달 정보를 찾을 수 없어요.</div>
 
-  const isRequester = currentUser?.id === delivery.requesterId
-  const isRider = currentUser?.id === delivery.riderId
   const isOpen = delivery.status === '모집중'
   const cfg = STATUS_CFG[delivery.status]
 
@@ -76,12 +83,6 @@ export default function DeliveryTrackPage() {
   const canDeliver  = isRider && delivery.status === '배송중'
   const canComplete = isRequester && delivery.status === '배송완료'
   const canCancel   = isRequester && isOpen   // 모집중 한정
-
-  // 실시간 위치 — 추적 가능 상태(수락/배송중) 에서만 활성화
-  const isTrackable = delivery.status === '수락' || delivery.status === '배송중'
-  // 라이더는 publish, 요청자/라이더 모두 subscribe
-  useRiderLocationPublisher(deliveryId, isRider && isTrackable)
-  const liveLocation = useDeliveryLocation(deliveryId, (isRequester || isRider) && isTrackable)
 
   return (
     <div className="pb-24">
@@ -146,31 +147,35 @@ export default function DeliveryTrackPage() {
         </div>
       </div>
 
-      {/* 실시간 위치 — 수락/배송중 동안 노출 */}
+      {/* 실시간 위치 — 수락/배송중 동안 노출 (출발/도착 + 경로 + 라이더) */}
       {isTrackable && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Navigation size={16} className="text-blue-500" />
-            라이더 위치
+            배달 경로
             {isRider && (
               <span className="text-xs text-gray-400 font-normal">
-                (5초 주기 자동 전송 중)
+                (5초 주기 위치 자동 전송 중)
               </span>
             )}
           </h2>
 
-          {liveLocation ? (
-            <div className="space-y-3">
-              {/* 카카오맵 — 라이더 마커 + center 자동 panTo */}
-              <KakaoMap
-                center={{ lat: liveLocation.latitude, lng: liveLocation.longitude }}
-                marker={{ lat: liveLocation.latitude, lng: liveLocation.longitude, label: '라이더' }}
-                height="280px"
-              />
+          <div className="space-y-3">
+            <DeliveryRouteMap
+              pickupAddress={delivery.pickupAddress}
+              dropoffAddress={delivery.dropoffAddress}
+              riderLocation={
+                liveLocation
+                  ? { lat: liveLocation.latitude, lng: liveLocation.longitude }
+                  : null
+              }
+              height="280px"
+            />
 
+            {liveLocation ? (
               <div className="space-y-1.5 text-sm">
                 <div className="flex items-start gap-3">
-                  <span className="text-gray-500 w-14 shrink-0">좌표</span>
+                  <span className="text-gray-500 w-14 shrink-0">라이더</span>
                   <a
                     href={`https://map.kakao.com/link/map/라이더,${liveLocation.latitude},${liveLocation.longitude}`}
                     target="_blank"
@@ -191,14 +196,14 @@ export default function DeliveryTrackPage() {
                   <span>{fromNow(liveLocation.recordedAt)}</span>
                 </div>
               </div>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400">
-              {isRider
-                ? '위치 권한을 허용하면 자동으로 전송됩니다.'
-                : '아직 라이더 위치 정보가 없어요.'}
-            </p>
-          )}
+            ) : (
+              <p className="text-xs text-gray-400">
+                {isRider
+                  ? '위치 권한을 허용하면 자동으로 전송됩니다.'
+                  : '아직 라이더 위치 정보가 없어요.'}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
