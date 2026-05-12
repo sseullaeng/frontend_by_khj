@@ -10,7 +10,7 @@ import { lazy, Suspense, useState, type ComponentType } from 'react'
 import {
   ChevronLeft, ChevronRight, LayoutDashboard,
   Users, UserPlus, UserX, ShoppingBag, Package, AlertTriangle,
-  MessageSquare, ArrowDownToLine, Wallet, Megaphone, Image as ImageIcon,
+  MessageSquare, ArrowDownToLine, Megaphone, Image as ImageIcon,
   ShieldAlert, Truck, Menu as MenuIcon,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
@@ -25,7 +25,6 @@ const AdminItemPage          = lazy(() => import('@/pages/admin/AdminItemPage'))
 const AdminReportPage        = lazy(() => import('@/pages/admin/AdminReportPage'))
 const SupportPage            = lazy(() => import('@/pages/support/SupportPage'))   // admin 일 때 문의 목록 노출
 const AdminWithdrawPage      = lazy(() => import('@/pages/admin/AdminWithdrawPage'))
-const AdminDepositPage       = lazy(() => import('@/pages/admin/AdminDepositPage'))
 const AdminNoticePage        = lazy(() => import('@/pages/admin/AdminNoticePage'))
 const AdminBannerPage        = lazy(() => import('@/pages/admin/AdminBannerPage'))
 const AdminEscrowConfigPage  = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
@@ -75,14 +74,13 @@ const MENU_GROUPS: MenuGroup[] = [
       { id: 'ops.reports',   label: '신고 처리',    icon: AlertTriangle,   component: AdminReportPage },
       { id: 'ops.support',   label: '문의 처리',    icon: MessageSquare,   component: SupportPage },
       { id: 'ops.withdraws', label: '출금 관리',    icon: ArrowDownToLine, component: AdminWithdrawPage },
-      { id: 'ops.deposits',  label: '보증금 관리',  icon: Wallet,          component: AdminDepositPage },
     ],
   },
   {
     id: 'content',
     label: '콘텐츠',
     items: [
-      { id: 'content.notices', label: '공지', icon: Megaphone, component: AdminNoticePage },
+      { id: 'content.notices', label: '알림', icon: Megaphone, component: AdminNoticePage },
       { id: 'content.banners', label: '배너', icon: ImageIcon, component: AdminBannerPage },
     ],
   },
