@@ -3,10 +3,13 @@
 // URL: /escrow/{id}/buyer-info
 //   - 판매자가 draft 생성 후 채팅방 시스템 메시지로 안내된 구매자가 진입
 //   - 본인 영역만 입력 (delivery 주소/좌표/연락처)
-//   - 입력 변경 시 preview 호출 (판매자의 pickup 좌표 + 구매자의 delivery 좌표로 계산)
-//   - PATCH /buyer-info → 백엔드가 양쪽 filled 확인 + 자동 결제대기 전환
+//   - preview 는 입력 도움용(예상 수수료 표시) — 실패해도 제출 가능
+//   - PATCH /buyer-info → 백엔드가 양쪽 filled 확인 + 거리·수수료 계산 + 결제대기 전환
 //
 // 권한: applications.detail 에서 받은 buyerId === currentUser.id 여야 진입 가능
+//
+// ⚠ 버튼 활성화 조건은 입력 4개 필드만 본다 (preview 응답 의존 X).
+//   preview 가 못 오더라도 PATCH 는 서버에서 계산하므로 흐름이 막히지 않아야 함.
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, MapPin } from 'lucide-react'
@@ -101,6 +104,8 @@ export default function EscrowBuyerInfoPage() {
   }
 
   const phoneOk = /^[0-9+\-]+$/.test(receiverPhone) && receiverPhone.length >= 9
+  // 제출 활성화 — 입력 4개 필드만 본다. preview 응답 기다리지 않음.
+  const canSubmit = !!deliveryAddress && deliveryLat != null && deliveryLng != null && phoneOk
 
   const handleSubmit = async () => {
     if (!deliveryAddress || deliveryLat == null || deliveryLng == null) {
@@ -184,9 +189,9 @@ export default function EscrowBuyerInfoPage() {
           )}
         </Section>
 
-        {/* 미리보기 */}
+        {/* 예상 수수료 — 참고용 (preview). 못 받아도 PATCH 는 진행 가능. */}
         <div className="bg-primary-50 border border-primary-200 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-primary-700 mb-2">예상 수수료</p>
+          <p className="text-xs font-semibold text-primary-700 mb-2">예상 수수료 <span className="font-normal text-primary-700/60">(참고)</span></p>
           {previewData ? (
             <div className="space-y-1 text-sm">
               <Row label="거리"   value={`${previewData.distanceKm.toFixed(2)}km`} />
@@ -202,9 +207,11 @@ export default function EscrowBuyerInfoPage() {
                 </p>
               )}
             </div>
+          ) : preview.isPending ? (
+            <p className="text-xs text-primary-700/70">예상 수수료 계산 중...</p>
           ) : (
             <p className="text-xs text-primary-700/70">
-              수령지 주소를 입력하면 자동 계산돼요.
+              수령지 주소를 검색하면 자동 계산돼요. (실패해도 [확인·계산] 누르면 서버에서 계산해요.)
             </p>
           )}
         </div>
@@ -212,10 +219,10 @@ export default function EscrowBuyerInfoPage() {
         <Button
           onClick={handleSubmit}
           isLoading={patch.isPending}
-          disabled={!previewData}
+          disabled={!canSubmit}
           fullWidth
         >
-          입력 완료 — 결제 단계로 진행
+          확인 · 계산 (수수료 산정 후 결제 단계로)
         </Button>
       </div>
 
