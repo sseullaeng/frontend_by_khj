@@ -154,10 +154,12 @@ export default function EscrowDetailPage() {
         </div>
         <div className="text-sm">
           <p className="text-xs text-gray-500 mb-0.5">배달</p>
-          <p className="text-gray-900">{app.deliveryAddress}</p>
+          <p className="text-gray-900">{app.deliveryAddress || <span className="text-gray-400">아직 입력 전</span>}</p>
         </div>
         <div className="text-xs text-gray-500">
-          거리: {app.appliedDistanceKm.toFixed(1)} km · 무게 {app.weight} · 부피 {app.volume} · 취급 {app.fragility}
+          {/* 정보입력대기 단계는 거리 미산정 → 거리 생략 */}
+          {app.appliedDistanceKm != null && <>거리: {app.appliedDistanceKm.toFixed(1)} km · </>}
+          무게 {app.weight} · 부피 {app.volume} · 취급 {app.fragility}
         </div>
         {app.deliveryNotes && (
           <p className="text-xs text-gray-600 bg-gray-50 rounded p-2 whitespace-pre-wrap">
