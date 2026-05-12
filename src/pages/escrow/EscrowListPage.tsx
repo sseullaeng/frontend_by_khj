@@ -45,15 +45,17 @@ export default function EscrowListPage() {
             // 목록은 deliveryId 없음 → '진행중' 일 때 '매칭중' fallback
             const displayStatus = getEscrowDisplayStatus(app.status, undefined)
             const StatusIcon = DISPLAY_ICON[displayStatus]
-            // 진행중 카드는 '?track=1' 로 보내 상세에서 자동으로 배달 추적 페이지로 redirect
-            const detailHref = app.status === '진행중'
-              ? `/escrow/list/${app.id}?track=1`
-              : `/escrow/list/${app.id}`
+            // 진행중·완료 상태에서 [배달 추적] 보조 버튼 노출 (deliveryId 는 상세에서 받음)
+            const canTrack = app.status === '진행중' || app.status === '완료'
+            const goDetail = () => navigate(`/escrow/list/${app.id}`)
             return (
               <li key={app.id}>
-                <button
-                  onClick={() => navigate(detailHref)}
-                  className="w-full flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={goDetail}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goDetail() } }}
+                  className="w-full flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
                 >
                   <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                     {app.imageUrls.length > 0 ? (
@@ -88,10 +90,25 @@ export default function EscrowListPage() {
                         {app.appliedTotalFee != null ? `${app.appliedTotalFee.toLocaleString()}원` : '-'}
                       </span>
                     </div>
+
+                    {/* 진행중·완료 — [배달 추적] 단축 버튼. 카드 클릭과 분리. */}
+                    {canTrack && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/escrow/list/${app.id}?track=1`)
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                      >
+                        <Truck size={11} />
+                        배달 추적
+                      </button>
+                    )}
                   </div>
 
                   <ArrowRight className="text-gray-400 mt-1 shrink-0" size={18} />
-                </button>
+                </div>
               </li>
             )
           })}
