@@ -129,9 +129,13 @@ export interface EscrowCancelRequest {
 
 // ── 라운드12 PR-B — 채팅방 내부 거래대행 흐름 (preview / draft / buyer-info / pay) ───
 // 백엔드 spec PR #102 ~ #110 정합
-export type EscrowWeightCode    = 'LT1' | 'R1TO3' | 'R3TO5' | 'R5TO10' | 'GT10'
-export type EscrowVolumeCode    = 'S' | 'M' | 'L'
-export type EscrowFragilityCode = 'F1' | 'F2' | 'F3' | 'F4' | 'F5'
+//   ⚠ 라운드13 정정 — Jackson 매칭이 소문자 code 기반. 대문자로 보내면 400.
+//   weight    : lt1 / 1to3 / 3to5 / 5to10 / gt10
+//   volume    : s / m / l
+//   fragility : f1 ~ f5
+export type EscrowWeightCode    = 'lt1' | '1to3' | '3to5' | '5to10' | 'gt10'
+export type EscrowVolumeCode    = 's' | 'm' | 'l'
+export type EscrowFragilityCode = 'f1' | 'f2' | 'f3' | 'f4' | 'f5'
 
 // EscrowApplicationResponse — 라운드 12 신규 필드 (entryType / chatRoomId / *Filled / receiverPhone)
 //   기존 EscrowApplication 인터페이스에 옵셔널로 추가 — 외부 link 흐름은 chatRoomId=null
