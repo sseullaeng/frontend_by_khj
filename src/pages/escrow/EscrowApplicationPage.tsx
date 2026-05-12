@@ -26,23 +26,23 @@ import { BusinessError } from '@/shared/types/api'
 // ── 옵션 (백엔드 fee_settings.multipliers 키와 동일) ─────────────────────
 
 const WEIGHT_OPTIONS = [
-  { value: 'LT1'    as WeightKey, label: '1kg 미만',  isVan: false },
-  { value: 'R1TO3'  as WeightKey, label: '1~3kg',     isVan: false },
-  { value: 'R3TO5'  as WeightKey, label: '3~5kg',     isVan: false },
-  { value: 'R5TO10' as WeightKey, label: '5~10kg',    isVan: true  },
-  { value: 'GT10'   as WeightKey, label: '10kg 이상', isVan: true  },
+  { value: 'lt1'   as WeightKey, label: '1kg 미만',  isVan: false },
+  { value: '1to3'  as WeightKey, label: '1~3kg',     isVan: false },
+  { value: '3to5'  as WeightKey, label: '3~5kg',     isVan: false },
+  { value: '5to10' as WeightKey, label: '5~10kg',    isVan: true  },
+  { value: 'gt10'  as WeightKey, label: '10kg 이상', isVan: true  },
 ]
 const VOLUME_OPTIONS = [
-  { value: 'S' as VolumeKey, label: '소형', sub: '30cm 미만', isVan: false },
-  { value: 'M' as VolumeKey, label: '중형', sub: '50cm 미만', isVan: false },
-  { value: 'L' as VolumeKey, label: '대형', sub: '50cm 이상', isVan: true  },
+  { value: 's' as VolumeKey, label: '소형', sub: '30cm 미만', isVan: false },
+  { value: 'm' as VolumeKey, label: '중형', sub: '50cm 미만', isVan: false },
+  { value: 'l' as VolumeKey, label: '대형', sub: '50cm 이상', isVan: true  },
 ]
 const FRAGILITY_OPTIONS = [
-  { value: 'F1' as FragilityKey, label: '안전',       examples: '의류·책·플라스틱',  color: 'bg-green-500 border-green-500' },
-  { value: 'F2' as FragilityKey, label: '낮음',       examples: '목재·금속',          color: 'bg-lime-500 border-lime-500' },
-  { value: 'F3' as FragilityKey, label: '보통',       examples: '전자제품·악기',      color: 'bg-yellow-500 border-yellow-500' },
-  { value: 'F4' as FragilityKey, label: '높음',       examples: '도자기·식기·액자',   color: 'bg-orange-500 border-orange-500' },
-  { value: 'F5' as FragilityKey, label: '매우 높음',  examples: '유리·미술품·앤티크', color: 'bg-red-500 border-red-500' },
+  { value: 'f1' as FragilityKey, label: '안전',       examples: '의류·책·플라스틱',  color: 'bg-green-500 border-green-500' },
+  { value: 'f2' as FragilityKey, label: '낮음',       examples: '목재·금속',          color: 'bg-lime-500 border-lime-500' },
+  { value: 'f3' as FragilityKey, label: '보통',       examples: '전자제품·악기',      color: 'bg-yellow-500 border-yellow-500' },
+  { value: 'f4' as FragilityKey, label: '높음',       examples: '도자기·식기·액자',   color: 'bg-orange-500 border-orange-500' },
+  { value: 'f5' as FragilityKey, label: '매우 높음',  examples: '유리·미술품·앤티크', color: 'bg-red-500 border-red-500' },
 ]
 
 const MAX_IMAGES = 10
@@ -75,9 +75,9 @@ interface FeeSettings {
 
 // 무게/부피/취급 multiplier — admin fee_settings 의 dictionary 와 동일하게 하드코딩
 // (백엔드가 multipliers 를 fee_settings 에 포함시키지 않은 경우 대비 — 라운드 9 schema 는 11개 필드)
-const WEIGHT_MUL: Record<WeightKey, number>      = { LT1: 1.0, R1TO3: 1.2, R3TO5: 1.5, R5TO10: 2.0, GT10: 2.5 }
-const VOLUME_MUL: Record<VolumeKey, number>      = { S: 1.0, M: 1.2, L: 1.5 }
-const FRAGILITY_MUL: Record<FragilityKey, number> = { F1: 1.0, F2: 1.1, F3: 1.3, F4: 1.5, F5: 2.0 }
+const WEIGHT_MUL: Record<WeightKey, number>      = { lt1: 1.0, '1to3': 1.2, '3to5': 1.5, '5to10': 2.0, gt10: 2.5 }
+const VOLUME_MUL: Record<VolumeKey, number>      = { s: 1.0, m: 1.2, l: 1.5 }
+const FRAGILITY_MUL: Record<FragilityKey, number> = { f1: 1.0, f2: 1.1, f3: 1.3, f4: 1.5, f5: 2.0 }
 
 function calcFees(
   itemPrice: number, distKm: number, weight: WeightKey, volume: VolumeKey, fragility: FragilityKey,

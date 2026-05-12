@@ -26,23 +26,23 @@ import { BusinessError } from '@/shared/types'
 import { cn } from '@/shared/lib/cn'
 
 const WEIGHT_OPTIONS: { code: EscrowWeightCode; label: string }[] = [
-  { code: 'LT1',    label: '1kg 미만' },
-  { code: 'R1TO3',  label: '1~3kg' },
-  { code: 'R3TO5',  label: '3~5kg' },
-  { code: 'R5TO10', label: '5~10kg' },
-  { code: 'GT10',   label: '10kg 이상' },
+  { code: 'lt1',   label: '1kg 미만' },
+  { code: '1to3',  label: '1~3kg' },
+  { code: '3to5',  label: '3~5kg' },
+  { code: '5to10', label: '5~10kg' },
+  { code: 'gt10',  label: '10kg 이상' },
 ]
 const VOLUME_OPTIONS: { code: EscrowVolumeCode; label: string }[] = [
-  { code: 'S', label: 'Small' },
-  { code: 'M', label: 'Medium' },
-  { code: 'L', label: 'Large' },
+  { code: 's', label: 'Small' },
+  { code: 'm', label: 'Medium' },
+  { code: 'l', label: 'Large' },
 ]
 const FRAGILITY_OPTIONS: { code: EscrowFragilityCode; label: string }[] = [
-  { code: 'F1', label: '일반' },
-  { code: 'F2', label: '보통' },
-  { code: 'F3', label: '주의' },
-  { code: 'F4', label: '취급주의' },
-  { code: 'F5', label: '극취급주의' },
+  { code: 'f1', label: '일반' },
+  { code: 'f2', label: '보통' },
+  { code: 'f3', label: '주의' },
+  { code: 'f4', label: '취급주의' },
+  { code: 'f5', label: '극취급주의' },
 ]
 const FEE_PAYER_OPTIONS: { code: FeePayer; label: string }[] = [
   { code: 'both',   label: '50:50 부담' },
@@ -67,9 +67,9 @@ export default function EscrowInternalApplicationPage() {
   const [pickupLng,     setPickupLng]     = useState<number | null>(null)
   const [addressOpen,   setAddressOpen]   = useState(false)
 
-  const [weight,    setWeight]    = useState<EscrowWeightCode>('R1TO3')
-  const [volume,    setVolume]    = useState<EscrowVolumeCode>('M')
-  const [fragility, setFragility] = useState<EscrowFragilityCode>('F1')
+  const [weight,    setWeight]    = useState<EscrowWeightCode>('1to3')
+  const [volume,    setVolume]    = useState<EscrowVolumeCode>('m')
+  const [fragility, setFragility] = useState<EscrowFragilityCode>('f1')
   const [deliveryNotes, setDeliveryNotes] = useState('')
 
   const [imageFiles, setImageFiles] = useState<File[]>([])
