@@ -34,32 +34,45 @@ function toKstWallTime(date: Date): Date {
   return new Date(date.getTime() + diffMs)
 }
 
+// Invalid Date 보호. 백엔드 응답에 null/누락 timestamp 가 섞여도 RangeError 안 나게.
+function isValid(d: Date): boolean {
+  return !Number.isNaN(d.getTime())
+}
+
 /**
  * 절대 시각 기준 상대 시간. ("5분 전", "2시간 전", "3일 전")
  * 절대 시각만 비교하므로 wall-time 변환 불필요.
  */
-export function fromNow(isoString: string): string {
-  return formatDistanceToNow(parseKst(isoString), { addSuffix: true, locale: ko })
+export function fromNow(isoString: string | null | undefined): string {
+  const d = parseKst(isoString)
+  if (!isValid(d)) return ''
+  return formatDistanceToNow(d, { addSuffix: true, locale: ko })
 }
 
 /**
  * "yyyy.MM.dd" — KST 기준 표시
  */
-export function toDateString(isoString: string): string {
-  return format(toKstWallTime(parseKst(isoString)), 'yyyy.MM.dd')
+export function toDateString(isoString: string | null | undefined): string {
+  const d = parseKst(isoString)
+  if (!isValid(d)) return ''
+  return format(toKstWallTime(d), 'yyyy.MM.dd')
 }
 
 /**
  * "MM.dd a hh:mm" — 채팅 타임스탬프, KST 기준 표시
  */
-export function toChatTimestamp(isoString: string): string {
-  return format(toKstWallTime(parseKst(isoString)), 'MM.dd a hh:mm', { locale: ko })
+export function toChatTimestamp(isoString: string | null | undefined): string {
+  const d = parseKst(isoString)
+  if (!isValid(d)) return ''
+  return format(toKstWallTime(d), 'MM.dd a hh:mm', { locale: ko })
 }
 
 /**
  * 임의의 패턴으로 KST 기준 표시.
  * @param pattern date-fns 포맷 패턴 (예: 'yyyy-MM-dd HH:mm')
  */
-export function formatKst(isoString: string, pattern: string): string {
-  return format(toKstWallTime(parseKst(isoString)), pattern, { locale: ko })
+export function formatKst(isoString: string | null | undefined, pattern: string): string {
+  const d = parseKst(isoString)
+  if (!isValid(d)) return ''
+  return format(toKstWallTime(d), pattern, { locale: ko })
 }
