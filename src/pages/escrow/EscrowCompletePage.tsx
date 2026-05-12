@@ -43,7 +43,7 @@ export default function EscrowCompletePage() {
           )}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">총 청구액</span>
-            <span className="text-gray-900">{app.appliedTotalFee.toLocaleString()}원</span>
+            <span className="text-gray-900">{(app.appliedTotalFee ?? 0).toLocaleString()}원</span>
           </div>
           <hr />
           <div className="flex items-start justify-between text-sm gap-4">

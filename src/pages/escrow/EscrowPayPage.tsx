@@ -142,13 +142,13 @@ export default function EscrowPayPage() {
             {app.tradeMode === 'INTERNAL' && app.itemPrice > 0 && (
               <Row label="물품 가격" value={`${app.itemPrice.toLocaleString()}원`} />
             )}
-            <Row label="배달비" value={`${app.appliedDeliveryFee.toLocaleString()}원`} />
+            <Row label="배달비" value={`${(app.appliedDeliveryFee ?? 0).toLocaleString()}원`} />
             <Row
-              label={`대행 수수료 (${(app.appliedCommissionRate * 100).toFixed(1)}%)`}
-              value={`${app.appliedCommissionFee.toLocaleString()}원`}
+              label={`대행 수수료 (${((app.appliedCommissionRate ?? 0) * 100).toFixed(1)}%)`}
+              value={`${(app.appliedCommissionFee ?? 0).toLocaleString()}원`}
             />
             <hr className="my-2" />
-            <Row label="총 청구액" value={`${app.appliedTotalFee.toLocaleString()}원`} bold />
+            <Row label="총 청구액" value={`${(app.appliedTotalFee ?? 0).toLocaleString()}원`} bold />
             {app.feePayer === 'both' && (
               <p className="text-[11px] text-gray-400 mt-1">반반 부담 — 양쪽이 절반씩 결제합니다.</p>
             )}
