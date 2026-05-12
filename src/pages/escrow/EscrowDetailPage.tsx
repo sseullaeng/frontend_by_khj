@@ -62,6 +62,8 @@ export default function EscrowDetailPage() {
     (isBuyer  && (app.feePayer === 'buyer'  || app.feePayer === 'both' || app.tradeMode === 'INTERNAL')) ||
     (!isBuyer && (app.feePayer === 'seller' || app.feePayer === 'both'))
   )
+  // 라운드13 — 매칭된 배달이 있으면 추적 페이지로 진입 (진행중·완료 모두 노출)
+  const canTrackDelivery = !!app.deliveryId && (app.status === '진행중' || app.status === '완료')
 
   const handleCancel = async () => {
     if (!applicationId) return
@@ -228,6 +230,21 @@ export default function EscrowDetailPage() {
           </p>
           <Button fullWidth onClick={() => navigate(`/escrow/${app.id}/pay`)}>
             결제하기
+          </Button>
+        </div>
+      )}
+
+      {/* 라운드13 — 매칭된 배달 추적 진입 */}
+      {canTrackDelivery && (
+        <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
+          <p className="font-semibold text-purple-700 mb-1 text-sm inline-flex items-center gap-1.5">
+            <Truck size={14} /> 배달이 진행 중이에요
+          </p>
+          <p className="text-xs text-purple-700/90 mb-3">
+            라이더 위치와 진행 단계를 실시간으로 확인할 수 있어요.
+          </p>
+          <Button fullWidth variant="outline" onClick={() => navigate(`/delivery/${app.deliveryId}/track`)}>
+            배달 추적
           </Button>
         </div>
       )}
