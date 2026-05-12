@@ -1,6 +1,30 @@
 // 애플리케이션 라우터 설정: React Router를 사용한 페이지 경로 관리
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { lazy } from 'react'
+import { lazy as reactLazy, type ComponentType } from 'react'
+
+// Vercel 같은 호스팅이 새로 배포되면 chunk hash 가 바뀜.
+// 이미 열어둔 탭이 옛 chunk 를 fetch 하면 404 → "Failed to fetch dynamically imported module".
+// 첫 실패 시 한 번만 자동 새로고침해 새 hash 의 chunk 를 받도록 한다.
+//
+// sessionStorage 플래그로 무한 reload 루프 방지 (실제 chunk 가 망가졌을 땐 두 번째에 throw).
+const RELOAD_KEY = 'chunk_reload_attempted'
+function lazy<T extends ComponentType<any>>(importer: () => Promise<{ default: T }>) {
+  return reactLazy<T>(async () => {
+    try {
+      const mod = await importer()
+      sessionStorage.removeItem(RELOAD_KEY)  // 정상 로드되면 플래그 리셋
+      return mod
+    } catch (err) {
+      if (!sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1')
+        window.location.reload()
+        // reload 가 진행되는 동안 Suspense fallback 유지하도록 영원히 pending Promise 반환
+        return new Promise<{ default: T }>(() => {})
+      }
+      throw err
+    }
+  })
+}
 
 // 공통 레이아웃 컴포넌트
 import RootLayout from '@/shared/ui/RootLayout'
