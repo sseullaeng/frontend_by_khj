@@ -6,6 +6,7 @@ import type {
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
   EscrowBuyerInfoPatch,
+  EscrowByLinkRequest,
   EscrowCancelRequest,
   EscrowDraftRequest,
   EscrowFeeSettings,
@@ -33,6 +34,11 @@ export const escrowApi = {
   applications: {
     create: (body: EscrowApplicationCreateRequest) =>
       api.post<EscrowApplication>('/api/v1/escrow/applications', body),
+
+    // 라운드13 PR #130 — 외부 link 분리 입력. 수신자가 본인 영역만 채워 신청.
+    //   link 응답의 발급자 영역과 백엔드가 머지해서 application 생성.
+    createByLink: (body: EscrowByLinkRequest) =>
+      api.post<EscrowApplication>('/api/v1/escrow/applications/by-link', body),
 
     // 라운드12 PR #102 — 수수료/배달비 미리보기 (폼 작성 중 실시간 호출)
     preview: (body: EscrowPreviewRequest) =>
