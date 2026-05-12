@@ -72,7 +72,6 @@ export default function ItemDetailPage() {
   // admin 은 본인 아닌 물품도 삭제 가능 (백엔드 가드 별도). 수정은 본인만.
   const showAdminActions = isAdmin && !isOwner
   const status = STATUS_BADGE[item.status]
-  const typeBadge = TRADE_TYPE_BADGE[item.tradeType]
   const mainImage = item.images.find((img) => img.thumbnail)?.imageUrl ?? item.images[0]?.imageUrl
   const otherImages = item.images.filter((img) => img.imageUrl !== mainImage)
 
@@ -100,13 +99,9 @@ export default function ItemDetailPage() {
 
   // 라운드12 — 거래 시작은 채팅방 안 [거래 시작] 버튼이 처리. 물품 상세에는 [채팅하기] 만.
 
-  // 가격 표시
-  const priceLabel =
-    item.tradeType === '나눔'
-      ? '무료 나눔'
-      : item.tradeType === '대여'
-        ? `${item.price.toLocaleString()}원${item.rentalUnit ? ` / ${item.rentalUnit}` : ''}`
-        : `${item.price.toLocaleString()}원`
+  // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
+  const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
+  const isShare = modes.includes('나눔')
 
   return (
     <div className="max-w-5xl mx-auto pb-28">
@@ -155,10 +150,13 @@ export default function ItemDetailPage() {
 
         {/* 정보 영역 */}
         <div className="flex flex-col gap-5">
-          <div className="flex items-center gap-2">
-            <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', typeBadge.cls)}>
-              {item.tradeType}
-            </span>
+          {/* 거래 방식 태그 — 다중 등록이면 여러 개 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {modes.map((m) => (
+              <span key={m} className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', TRADE_TYPE_BADGE[m].cls)}>
+                {m}
+              </span>
+            ))}
             {status && (
               <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', status.cls)}>
                 {status.label}
@@ -168,20 +166,37 @@ export default function ItemDetailPage() {
 
           <h1 className="text-xl font-bold text-gray-900 leading-snug">{item.title}</h1>
 
-          {/* 가격 */}
-          <div className="flex flex-col gap-1">
-            <span
-              className={cn(
-                'text-2xl font-bold',
-                item.tradeType === '나눔' ? 'text-green-600' : 'text-gray-900',
-              )}
-            >
-              {priceLabel}
-            </span>
-            {item.tradeType === '대여' && item.deposit != null && item.deposit > 0 && (
-              <span className="text-xs text-gray-500">
-                보증금 {item.deposit.toLocaleString()}원
-              </span>
+          {/* 가격 — 모드별 한 줄씩 */}
+          <div className="flex flex-col gap-1.5">
+            {isShare ? (
+              <span className="text-2xl font-bold text-green-600">무료 나눔</span>
+            ) : (
+              <>
+                {modes.includes('판매') && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-gray-500 w-8">판매</span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {(item.salePrice ?? item.price).toLocaleString()}원
+                    </span>
+                  </div>
+                )}
+                {modes.includes('대여') && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-gray-500 w-8">대여</span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {(item.rentalPrice ?? item.price).toLocaleString()}원
+                      {item.rentalUnit && <span className="text-sm text-gray-500 ml-1">/ {item.rentalUnit}</span>}
+                    </span>
+                  </div>
+                )}
+                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (
+                  <span className="text-xs text-gray-500">
+                    {item.depositType === 'PERCENT'
+                      ? `보증금 ${item.deposit}% (대여가 기준)`
+                      : `보증금 ${item.deposit.toLocaleString()}원`}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
