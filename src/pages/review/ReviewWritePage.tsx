@@ -12,7 +12,7 @@ import { useUserProfile } from '@/features/user/hooks'
 
 interface ReviewRouteState {
   transactionId: number
-  itemId: number
+  itemId: number | null     // 라운드13 PR #133 — 거래대행(EXTERNAL) 은 Item 미연결로 null
   revieweeId: number
 }
 
@@ -76,7 +76,7 @@ export default function ReviewWritePage() {
             {reviewee?.nickname ?? `사용자 #${state.revieweeId}`}
           </p>
           <p className="text-xs text-gray-400">
-            거래 #{state.transactionId} · 물품 #{state.itemId}
+            거래 #{state.transactionId}{state.itemId != null && ` · 물품 #${state.itemId}`}
           </p>
         </div>
       </div>
