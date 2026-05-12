@@ -121,6 +121,9 @@ export interface EscrowApplication {
   //   sub-status 필요 시 GET /deliveries/{deliveryId} 호출.
   deliveryId?: number | null
 
+  // 라운드13 PR #131 — 판매자 인계 마킹 시각 (멱등 endpoint, 한 번 누르면 채워짐)
+  handoverConfirmedBySellerAt?: string | null
+
   createdAt: string
   updatedAt: string
 }
@@ -132,10 +135,10 @@ export interface EscrowCancelRequest {
 // ── 라운드12 PR-B — 채팅방 내부 거래대행 흐름 (preview / draft / buyer-info / pay) ───
 // 백엔드 spec PR #102 ~ #110 정합
 //   ⚠ 라운드13 정정 — Jackson 매칭이 소문자 code 기반. 대문자로 보내면 400.
-//   weight    : lt1 / 1to3 / 3to5 / 5to10 / gt10
+//   weight    : lt1 / 1to3 / 3to5 / 5to10 / over10  (라운드13 PR #130: gt10 → over10)
 //   volume    : s / m / l
 //   fragility : f1 ~ f5
-export type EscrowWeightCode    = 'lt1' | '1to3' | '3to5' | '5to10' | 'gt10'
+export type EscrowWeightCode    = 'lt1' | '1to3' | '3to5' | '5to10' | 'over10'
 export type EscrowVolumeCode    = 's' | 'm' | 'l'
 export type EscrowFragilityCode = 'f1' | 'f2' | 'f3' | 'f4' | 'f5'
 

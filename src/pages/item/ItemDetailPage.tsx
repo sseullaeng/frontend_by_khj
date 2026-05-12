@@ -51,6 +51,7 @@ export default function ItemDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [profileFloatOpen, setProfileFloatOpen] = useState(false)
+  const [tradeModeOpen, setTradeModeOpen] = useState(false)   // 라운드13 #5 — 채팅 시작 시 거래방식 모달
 
   // 로딩/에러 가드
   if (isLoading) {
@@ -85,23 +86,31 @@ export default function ItemDetailPage() {
     }
   }
 
-  // 채팅하기 — 이메일 인증 필요 (가이드 §2.5)
-  const handleChat = () =>
-    requireVerified(async () => {
-      try {
-        const room = await chatApi.createRoom(item.id, item.tradeType)
-        openChatRoom(room.data.id)
-        open('chat')
-      } catch {
-        toast.error('채팅을 시작하지 못했어요.')
-      }
-    })
-
-  // 라운드12 — 거래 시작은 채팅방 안 [거래 시작] 버튼이 처리. 물품 상세에는 [채팅하기] 만.
-
   // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
   const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
   const isShare = modes.includes('나눔')
+
+  // 라운드13 #5 — 채팅 시작 시 거래방식 선택
+  //   다중 모드(판매+대여) 면 선택 모달 → 선택된 mode 로 채팅방 생성
+  //   단일 모드면 바로 채팅방 (모달 X)
+  const startChatWithMode = async (mode: TradeType) => {
+    try {
+      const room = await chatApi.createRoom(item.id, mode)
+      openChatRoom(room.data.id)
+      open('chat')
+    } catch {
+      toast.error('채팅을 시작하지 못했어요.')
+    }
+  }
+
+  const handleChat = () =>
+    requireVerified(async () => {
+      if (modes.length === 1) {
+        await startChatWithMode(modes[0])
+      } else {
+        setTradeModeOpen(true)   // 모달 열기
+      }
+    })
 
   return (
     <div className="max-w-5xl mx-auto pb-28">
@@ -401,6 +410,40 @@ export default function ItemDetailPage() {
           userId={item.sellerId}
           onClose={() => setProfileFloatOpen(false)}
         />
+      )}
+
+      {/* 라운드13 #5 — 채팅 시작 시 거래방식 선택 모달 (다중 모드 물품) */}
+      {tradeModeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
+            <h3 className="font-bold text-gray-900 mb-1">어떤 거래로 채팅하시겠어요?</h3>
+            <p className="text-sm text-gray-500 mb-4">이 물품은 여러 거래 방식으로 등록되어 있어요. 채팅방은 거래 방식별로 분리됩니다.</p>
+            <div className="flex flex-col gap-2">
+              {modes.map((m) => (
+                <button
+                  key={m}
+                  onClick={async () => {
+                    setTradeModeOpen(false)
+                    await startChatWithMode(m)
+                  }}
+                  className={cn('w-full py-3 rounded-xl text-sm font-semibold border-2 transition-colors text-left px-4',
+                    TRADE_TYPE_BADGE[m].cls)}
+                >
+                  {m}
+                  {m === '판매'  && item.salePrice   != null && ` — ${item.salePrice.toLocaleString()}원`}
+                  {m === '대여'  && item.rentalPrice != null && ` — ${item.rentalPrice.toLocaleString()}원${item.rentalUnit ? ` / ${item.rentalUnit}` : ''}`}
+                  {m === '나눔'  && ' — 무료 나눔'}
+                </button>
+              ))}
+              <button
+                onClick={() => setTradeModeOpen(false)}
+                className="w-full py-2 mt-1 text-sm text-gray-500"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 삭제 확인 모달 */}

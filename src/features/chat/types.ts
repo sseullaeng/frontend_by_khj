@@ -6,15 +6,26 @@
 //   - imageUrls 는 배열 (NOT single imageUrl)
 //   - createdAt 은 Instant (UTC offset 포함, "...Z" 형식)
 import type { TradeType } from '@/features/item/types'
+import type { TransactionStatus } from '@/features/trade/types'
 
 // 라운드13 PR-C #6 — 채팅 시스템 카드. 첫 메시지 send 시점에 백엔드가 lazy 생성.
 //   GET /api/v1/chat-rooms/{id} 응답에만 포함, 첫 메시지 전엔 null.
+//
+// 라운드13 PR #131 — cardKind 추가. Transaction 거래 진행 중이면 transactionId/Status 포함.
+//   리뷰 버튼은 transactionStatus === '거래완료' 일 때만 노출.
+export type ChatRoomCardKind = 'Item' | 'Transaction' | 'EscrowApplication'
+
 export interface ChatRoomCard {
+  cardKind?:        ChatRoomCardKind   // 라운드13 PR #131
   tradeMode:        TradeType
   itemId:           number
   itemTitle:        string
   itemThumbnailUrl: string | null
   price:            number
+
+  // 라운드13 PR #131 — Transaction 진행 중일 때 채움
+  transactionId?:     number | null
+  transactionStatus?: TransactionStatus | null
 }
 
 export interface ChatRoom {

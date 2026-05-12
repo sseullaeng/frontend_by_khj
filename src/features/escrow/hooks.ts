@@ -191,6 +191,19 @@ export function useConfirmEscrowReceipt() {
   })
 }
 
+// 라운드13 PR #131 — 판매자 인계 마킹 (멱등). 상태 머신 영향 X, 타임스탬프만.
+export function useConfirmEscrowHandover() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      escrowApi.applications.confirmHandover(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('물품 인계 확인 완료. 배달이 진행돼요.')
+    },
+  })
+}
+
 // ── 관리자 ────────────────────────────────────────────────────────────
 
 export function useAdminEscrowApplications(params?: { status?: EscrowApplicationStatus; page?: number; size?: number }) {
