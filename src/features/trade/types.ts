@@ -6,7 +6,8 @@
 import type { TradeType } from '@/features/item/types'
 
 export type TransactionStatus = '채팅중' | '예약' | '인계완료' | '거래완료' | '취소'
-export type TransactionAction = '예약' | '인계확인' | '인수확인' | '취소'
+// 라운드13 PR #131 — '완료' 추가 (어디서든 한 번에 거래완료, 직거래 단순화)
+export type TransactionAction = '예약' | '인계확인' | '인수확인' | '완료' | '취소'
 
 export interface Transaction {
   id: number

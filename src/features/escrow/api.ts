@@ -74,6 +74,11 @@ export const escrowApi = {
 
     confirmReceipt: (id: number) =>
       api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/confirm-receipt`),
+
+    // 라운드13 PR #131 — 판매자 인계 마킹 (타임스탬프만 기록, 상태 머신 영향 X)
+    //   조건: 진행중 + seller. 멱등.
+    confirmHandover: (id: number) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/confirm-handover`),
   },
 
   // ── 관리자 ────────────────────────────────────────────────────────────

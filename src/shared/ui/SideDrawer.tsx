@@ -10,7 +10,7 @@ import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
-import { useCreateTransaction } from '@/features/trade/hooks'
+import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { useBroadcastNotification } from '@/features/admin/hooks'
@@ -189,6 +189,13 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const chatBlocked = opponentLeft || iLeft   // 입력 / 액션 버튼 모두 disable
   const { mutateAsync: leaveAsync, isPending: isLeaving } = useLeaveChatRoom()
   const { mutateAsync: createTxAsync, isPending: isCreatingTx } = useCreateTransaction()
+
+  // 라운드13 PR #131 — 거래 상태 (room.card 에서) + [거래 완료] action='완료'
+  const txId     = room?.card?.transactionId ?? null
+  const txStatus = room?.card?.transactionStatus ?? null
+  const isTxStarted   = !!txId && txStatus !== '거래완료' && txStatus !== '취소'
+  const isTxCompleted = txStatus === '거래완료'
+  const patchTx = usePatchTransaction(txId ?? 0)
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -526,23 +533,46 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 거래 진입 — 판매자만 [거래 시작] / [거래대행 신청] (라운드12), 구매자는 거래 관리 진입만 */}
+      {/* 거래 진입 — 판매자만 [거래 시작] → [거래 완료] / [거래대행 신청] (라운드12) */}
       {!isAdmin && !chatBlocked && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
           {isSeller ? (
             <>
-              <button
-                onClick={() => {
-                  if (!room) return
-                  // 대여는 시작/종료일 모달, 그 외는 즉시 생성. 사용자가 비워두면 SALE 로 추정.
-                  setRentalOpen(true)
-                }}
-                disabled={isCreatingTx}
-                className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                <Receipt size={13} />
-                거래 시작
-              </button>
+              {isTxStarted ? (
+                /* 라운드13 PR #131 — 거래 시작 후엔 [거래 완료] 단일 (action='완료') */
+                <button
+                  onClick={async () => {
+                    try {
+                      await patchTx.mutateAsync({ action: '완료' })
+                      toast.success('거래가 완료됐어요.')
+                    } catch {
+                      // hook 에서 토스트
+                    }
+                  }}
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  {patchTx.isPending ? '완료 처리 중...' : '거래 완료'}
+                </button>
+              ) : isTxCompleted ? (
+                /* 거래완료 후 — 안내만 (리뷰 버튼은 별도 영역) */
+                <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
+                  ✓ 거래가 완료됐어요
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!room) return
+                    setRentalOpen(true)
+                  }}
+                  disabled={isCreatingTx}
+                  className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  거래 시작
+                </button>
+              )}
               <button
                 onClick={() => {
                   if (!room) return
@@ -584,13 +614,13 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 거래 완료 후 리뷰 버튼 (관리자는 표시하지 않음) */}
-      {!isAdmin && alreadyReviewed && (
+      {/* 라운드13 PR #131 — 거래완료 후에만 리뷰 영역 노출 (관리자 제외) */}
+      {!isAdmin && isTxCompleted && alreadyReviewed && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
         </div>
       )}
-      {!isAdmin && !alreadyReviewed && (
+      {!isAdmin && isTxCompleted && !alreadyReviewed && (
         <div className="px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
           <button
             onClick={handleReviewNav}
