@@ -24,9 +24,12 @@ export interface ReviewCreateRequest {
 }
 
 // 작성 대기 (내가 reviewer 로 아직 작성 안 한 7일 이내 완료 거래)
+//
+// 라운드13 PR #133 — 거래대행도 paired Transaction 자동 생성되어 포함됨.
+//   거래대행(EXTERNAL) 인 경우 itemId 가 null (Item 미연결).
 export interface PendingReview {
   transactionId: number
-  itemId: number
+  itemId: number | null
   revieweeId: number          // 상대방
   tradeType: TradeType
   price: number

@@ -268,15 +268,16 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     sendMessage(content)
   }
 
+  // 라운드13 PR #133 — 거래대행도 paired Transaction 자동 생성되어 동일 흐름.
+  //   card.transactionId 는 직거래(즉시) / 거래대행(완료 시점에 채워짐) 둘 다 활용.
   const handleReviewNav = () => {
+    if (!txId || !room) return
     close()
     navigate('/reviews/write', {
       state: {
-        roomId,
-        itemId: room?.itemId,
-        itemTitle: room?.itemTitle,
-        opponentId: room?.opponentId,
-        opponentNickname: room?.opponentNickname,
+        transactionId: txId,
+        itemId: room.itemId,                    // 거래대행은 null 가능 (EXTERNAL)
+        revieweeId: room.opponentId,
       },
     })
   }

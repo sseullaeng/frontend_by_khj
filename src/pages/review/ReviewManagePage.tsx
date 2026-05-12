@@ -81,9 +81,13 @@ export default function ReviewManagePage() {
                       {p.tradeType} · {p.tradeType === '나눔' ? '무료' : `${p.price.toLocaleString()}원`}
                     </p>
                     <p className="text-sm font-medium text-gray-700">
-                      <Link to={`/items/${p.itemId}`} className="hover:underline">
-                        물품 #{p.itemId}
-                      </Link>
+                      {p.itemId != null ? (
+                        <Link to={`/items/${p.itemId}`} className="hover:underline">
+                          물품 #{p.itemId}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-500">거래대행 (외부 거래)</span>
+                      )}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       마감 {formatKst(p.deadline, 'M.d HH:mm')} (~{fromNow(p.deadline)})
