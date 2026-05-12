@@ -11,6 +11,7 @@ import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
 import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hooks'
+import { useConfirmEscrowHandover, useConfirmEscrowReceipt } from '@/features/escrow/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { useBroadcastNotification } from '@/features/admin/hooks'
@@ -196,6 +197,16 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const isTxStarted   = !!txId && txStatus !== '거래완료' && txStatus !== '취소'
   const isTxCompleted = txStatus === '거래완료'
   const patchTx = usePatchTransaction(txId ?? 0)
+
+  // 라운드13 PR #132 — 거래대행 카드 (INTERNAL 거래대행 진행 중일 때)
+  const cardKind     = room?.card?.cardKind
+  const escrowAppId  = room?.card?.escrowApplicationId ?? null
+  const escrowStatus = room?.card?.escrowStatus ?? null
+  const isEscrowCard = cardKind === 'EscrowApplication'
+  const isEscrowInProgress = isEscrowCard && escrowStatus === '진행중'
+  const isEscrowCompleted  = isEscrowCard && escrowStatus === '완료'
+  const handoverMut = useConfirmEscrowHandover()
+  const receiptMut  = useConfirmEscrowReceipt()
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -533,13 +544,50 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 거래 진입 — 판매자만 [거래 시작] → [거래 완료] / [거래대행 신청] (라운드12) */}
+      {/* 거래 진입 — cardKind 별 분기 (거래대행 우선) */}
       {!isAdmin && !chatBlocked && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
-          {isSeller ? (
+          {/* 라운드13 PR #132 — 거래대행 카드: 진행중일 때 인계/인수 버튼 */}
+          {isEscrowCard ? (
+            <>
+              {isEscrowInProgress && isSeller && escrowAppId != null && (
+                <button
+                  onClick={async () => {
+                    try { await handoverMut.mutateAsync(escrowAppId) } catch {}
+                  }}
+                  disabled={handoverMut.isPending}
+                  className="w-full py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Truck size={13} />
+                  {handoverMut.isPending ? '인계 처리 중...' : '물품 인계 완료'}
+                </button>
+              )}
+              {isEscrowInProgress && !isSeller && escrowAppId != null && (
+                <button
+                  onClick={async () => {
+                    try { await receiptMut.mutateAsync(escrowAppId) } catch {}
+                  }}
+                  disabled={receiptMut.isPending}
+                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  {receiptMut.isPending ? '인수 처리 중...' : '물품 인수 확인'}
+                </button>
+              )}
+              {isEscrowCompleted && (
+                <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
+                  ✓ 거래대행이 완료됐어요
+                </div>
+              )}
+              {!isEscrowInProgress && !isEscrowCompleted && (
+                <div className="w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] text-center">
+                  거래대행 진행 중 — {escrowStatus ?? '상태 확인'}
+                </div>
+              )}
+            </>
+          ) : isSeller ? (
             <>
               {isTxStarted ? (
-                /* 라운드13 PR #131 — 거래 시작 후엔 [거래 완료] 단일 (action='완료') */
                 <button
                   onClick={async () => {
                     try {
@@ -556,7 +604,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   {patchTx.isPending ? '완료 처리 중...' : '거래 완료'}
                 </button>
               ) : isTxCompleted ? (
-                /* 거래완료 후 — 안내만 (리뷰 버튼은 별도 영역) */
                 <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
                   ✓ 거래가 완료됐어요
                 </div>
@@ -614,13 +661,13 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 라운드13 PR #131 — 거래완료 후에만 리뷰 영역 노출 (관리자 제외) */}
-      {!isAdmin && isTxCompleted && alreadyReviewed && (
+      {/* 라운드13 PR #131/#132 — 거래완료 OR 거래대행 완료 후에만 리뷰 영역 노출 */}
+      {!isAdmin && (isTxCompleted || isEscrowCompleted) && alreadyReviewed && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
         </div>
       )}
-      {!isAdmin && isTxCompleted && !alreadyReviewed && (
+      {!isAdmin && (isTxCompleted || isEscrowCompleted) && !alreadyReviewed && (
         <div className="px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
           <button
             onClick={handleReviewNav}

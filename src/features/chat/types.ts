@@ -7,25 +7,37 @@
 //   - createdAt 은 Instant (UTC offset 포함, "...Z" 형식)
 import type { TradeType } from '@/features/item/types'
 import type { TransactionStatus } from '@/features/trade/types'
+import type { EscrowApplicationStatus } from '@/features/escrow/types'
 
 // 라운드13 PR-C #6 — 채팅 시스템 카드. 첫 메시지 send 시점에 백엔드가 lazy 생성.
 //   GET /api/v1/chat-rooms/{id} 응답에만 포함, 첫 메시지 전엔 null.
 //
-// 라운드13 PR #131 — cardKind 추가. Transaction 거래 진행 중이면 transactionId/Status 포함.
-//   리뷰 버튼은 transactionStatus === '거래완료' 일 때만 노출.
+// 라운드13 PR #131/#132 — cardKind 분기. 거래대행 우선:
+//   - cardKind='Transaction' : 직거래 진행 중. transactionId/Status 채워짐.
+//   - cardKind='EscrowApplication' : INTERNAL 거래대행 진행 중. escrowApplicationId/Status 채워짐.
+//     (INTERNAL 거래대행 있으면 Transaction 카드는 나오지 않음)
+//   - cardKind='Item' : 아직 거래 시작 전.
 export type ChatRoomCardKind = 'Item' | 'Transaction' | 'EscrowApplication'
 
+// tradeMode — '배달대행' 케이스 포함 (백엔드 spec)
+export type ChatCardTradeMode = TradeType | '배달대행'
+
 export interface ChatRoomCard {
-  cardKind?:        ChatRoomCardKind   // 라운드13 PR #131
-  tradeMode:        TradeType
+  cardKind?:        ChatRoomCardKind
+  tradeMode:        ChatCardTradeMode
   itemId:           number
   itemTitle:        string
   itemThumbnailUrl: string | null
   price:            number
 
-  // 라운드13 PR #131 — Transaction 진행 중일 때 채움
+  // cardKind='Transaction' 일 때 채워짐
   transactionId?:     number | null
   transactionStatus?: TransactionStatus | null
+
+  // cardKind='EscrowApplication' 일 때 채워짐 (INTERNAL 거래대행만)
+  escrowApplicationId?: number | null
+  escrowStatus?:        EscrowApplicationStatus | null
+  deliveryId?:          number | null
 }
 
 export interface ChatRoom {
