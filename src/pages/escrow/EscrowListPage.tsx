@@ -45,10 +45,14 @@ export default function EscrowListPage() {
             // 목록은 deliveryId 없음 → '진행중' 일 때 '매칭중' fallback
             const displayStatus = getEscrowDisplayStatus(app.status, undefined)
             const StatusIcon = DISPLAY_ICON[displayStatus]
+            // 진행중 카드는 '?track=1' 로 보내 상세에서 자동으로 배달 추적 페이지로 redirect
+            const detailHref = app.status === '진행중'
+              ? `/escrow/list/${app.id}?track=1`
+              : `/escrow/list/${app.id}`
             return (
               <li key={app.id}>
                 <button
-                  onClick={() => navigate(`/escrow/list/${app.id}`)}
+                  onClick={() => navigate(detailHref)}
                   className="w-full flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
                 >
                   <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
