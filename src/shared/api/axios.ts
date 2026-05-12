@@ -10,6 +10,7 @@
 
 import axios, { type AxiosRequestConfig } from 'axios'  // HTTP 클라이언트 라이브러리
 import { BusinessError } from '@/shared/types/api'     // 비즈니스 에러 타입
+import { useAuthStore } from '@/features/auth/store'   // 로그인 상태 확인용
 
 // 쿠키 읽기 헬퍼 함수: 지정된 이름의 쿠키 값을 반환
 function readCookie(name: string): string | undefined {
@@ -96,6 +97,20 @@ api.interceptors.response.use(
     //   AUTH_REFRESH_TOKEN_INVALID — 정지/차단 후 refresh 시도
     //   USER_BLOCKED — 차단된 사용자가 기존 AT 로 보호 endpoint 진입
     if (code === 'AUTH_REFRESH_TOKEN_INVALID' || code === 'USER_BLOCKED') {
+      window.dispatchEvent(new Event('auth:logout'))
+    }
+
+    // 쿠키 세션 종료 일반 처리 — 401 status 자체에 대한 fallback.
+    //   백엔드가 code 없이 401 만 주거나, AUTH_TOKEN_EXPIRED 외 다른 코드(예: AUTH_REQUIRED) 일 때.
+    //   refresh 가 가능한 AUTH_TOKEN_EXPIRED 는 위에서 처리. refresh endpoint 자체 401 도 제외.
+    //   user state 가 있을 때만 — 비로그인 상태에서 보호 endpoint 호출은 protected route 가 막음.
+    const isRefreshCall = typeof originalConfig.url === 'string' && originalConfig.url.includes('/api/v1/auth/refresh')
+    if (
+      error.response?.status === 401 &&
+      code !== 'AUTH_TOKEN_EXPIRED' &&
+      !isRefreshCall &&
+      useAuthStore.getState().user
+    ) {
       window.dispatchEvent(new Event('auth:logout'))
     }
 

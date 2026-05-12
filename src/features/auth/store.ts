@@ -40,10 +40,10 @@ export const useAuthStore = create<AuthState>()(
 )
 
 // 전역 로그아웃 이벤트 리스너 (axios 인터셉터에서 dispatch).
-// AT 만료 후 refresh 까지 실패하거나 USER_BLOCKED / AUTH_REFRESH_TOKEN_INVALID 시 진입.
+// AT 만료 후 refresh 까지 실패하거나 USER_BLOCKED / AUTH_REFRESH_TOKEN_INVALID / 일반 401 시 진입.
 // 이미 /login 페이지면 toast/redirect noop (가입 직전 등 자연스러운 미로그인 상태에서 시끄러움 방지).
 let logoutInProgress = false
-window.addEventListener('auth:logout', () => {
+function handleAutoLogout() {
   if (logoutInProgress) return
   logoutInProgress = true
 
@@ -54,4 +54,21 @@ window.addEventListener('auth:logout', () => {
   }
   // 다음 tick 에 플래그 풀어 다음 만료 이벤트도 정상 처리
   setTimeout(() => { logoutInProgress = false }, 1000)
+}
+
+window.addEventListener('auth:logout', handleAutoLogout)
+
+// 탭 간 동기화 — 다른 탭에서 로그아웃하면 이 탭도 자동 로그아웃.
+//   다른 탭이 auth-storage 의 user 를 null 로 비우면 이 탭도 정리.
+//   StorageEvent 는 같은 origin 의 다른 탭에서만 발생.
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'auth-storage' || !e.newValue) return
+  try {
+    const next = JSON.parse(e.newValue) as { state?: { user?: unknown } }
+    if (next?.state?.user == null && useAuthStore.getState().user != null) {
+      handleAutoLogout()
+    }
+  } catch {
+    // JSON 파싱 실패는 무시
+  }
 })
