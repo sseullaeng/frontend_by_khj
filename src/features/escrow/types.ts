@@ -86,14 +86,16 @@ export interface EscrowApplication {
   feePayer: FeePayer
   tradeMode: TradeMode
   itemPrice: number
-  appliedDeliveryFee: number
-  appliedCommissionFee: number
-  appliedTotalFee: number
-  appliedCommissionRate: number
-  appliedDistanceKm: number
-  // feePayer="both" 일 때 백엔드가 자동 계산
-  initiatorShare: number
-  receiverShare: number
+  // 라운드13 PR #126 — 정보입력대기/draft 단계는 fee 미산정 → null.
+  //   양쪽 영역 채워지면 백엔드가 계산해서 채움.
+  appliedDeliveryFee:    number | null
+  appliedCommissionFee:  number | null
+  appliedTotalFee:       number | null
+  appliedCommissionRate: number | null
+  appliedDistanceKm:     number | null
+  // feePayer="both" 일 때 백엔드가 자동 계산. draft 단계는 null.
+  initiatorShare: number | null
+  receiverShare:  number | null
   pickupAddress: string
   pickupLat: number
   pickupLng: number

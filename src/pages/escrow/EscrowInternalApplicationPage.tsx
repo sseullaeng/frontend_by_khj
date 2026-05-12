@@ -82,7 +82,8 @@ export default function EscrowInternalApplicationPage() {
       toast.error('잘못된 진입이에요. 채팅방에서 다시 시작해 주세요.')
       return
     }
-    if (!itemPrice || itemPrice <= 0)       { toast.error('물품 가격을 입력해 주세요.'); return }
+    // 라운드13 PR #128 — 나눔 거래는 0원 허용. 음수만 거부.
+    if (itemPrice < 0)                       { toast.error('물품 가격은 0원 이상이어야 해요.'); return }
     if (!itemDescription.trim())            { toast.error('물품 설명을 입력해 주세요.'); return }
     if (!pickupAddress || pickupLat == null || pickupLng == null) {
       toast.error('픽업 주소를 검색해 주세요.'); return
