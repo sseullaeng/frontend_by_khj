@@ -1,6 +1,6 @@
 // 거래대행 신청 상세 — 백엔드 hook 연동
-import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, Receipt, Package, Clock, CheckCircle, XCircle, Truck, PackageCheck } from 'lucide-react'
 import {
   useEscrowApplicationDetail,
@@ -28,7 +28,6 @@ const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
 export default function EscrowDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const applicationId = id ? parseInt(id) : undefined
   const currentUser = useAuthStore((s) => s.user)
 
@@ -38,13 +37,6 @@ export default function EscrowDetailPage() {
   const cancelMut = useCancelEscrowApplication()
   const confirmMut = useConfirmEscrowReceipt()
   const [confirmCancel, setConfirmCancel] = useState(false)
-
-  // 목록에서 '?track=1' 로 들어왔으면 deliveryId 받자마자 배달 추적 페이지로 자동 redirect
-  useEffect(() => {
-    if (searchParams.get('track') !== '1') return
-    if (!app?.deliveryId) return
-    navigate(`/delivery/${app.deliveryId}/track`, { replace: true })
-  }, [app?.deliveryId, searchParams, navigate])
 
   if (isLoading) return <div className="py-20 text-center text-gray-400">불러오는 중...</div>
   if (!app) {

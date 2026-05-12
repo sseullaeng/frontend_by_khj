@@ -1,4 +1,8 @@
 // 거래대행 신청 목록 — 본인 신청서
+//
+// 라운드13 PR #129 — listMine 응답에 deliveryId 채워짐.
+//   매칭된 항목은 카드의 [배달 추적] 버튼이 직접 /delivery/:deliveryId/track 으로 이동.
+//   sub-status 자체는 N+1 회피로 카드별 호출 안 함 → '매칭중' fallback 표시 유지.
 import { useNavigate } from 'react-router-dom'
 import { Shield, Clock, CheckCircle, XCircle, Truck, ArrowRight, PackageCheck } from 'lucide-react'
 import { useMyEscrowApplications } from '@/features/escrow/hooks'
@@ -7,8 +11,6 @@ import { getEscrowDisplayStatus, ESCROW_DISPLAY_COLOR, type EscrowDisplayStatus 
 import { formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-// 라운드13 — 통합 라벨 7단계 아이콘
-//   ⚠ 목록은 deliveryId 가 null 이라 진행중 시 sub-status 미상 → '매칭중' fallback 으로 표시
 const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
   '신청중':   Clock,
   '신청완료': CheckCircle,
@@ -45,8 +47,8 @@ export default function EscrowListPage() {
             // 목록은 deliveryId 없음 → '진행중' 일 때 '매칭중' fallback
             const displayStatus = getEscrowDisplayStatus(app.status, undefined)
             const StatusIcon = DISPLAY_ICON[displayStatus]
-            // 진행중·완료 상태에서 [배달 추적] 보조 버튼 노출 (deliveryId 는 상세에서 받음)
-            const canTrack = app.status === '진행중' || app.status === '완료'
+            // 진행중·완료 + 매칭된 deliveryId 있을 때만 [배달 추적] 버튼
+            const canTrack = !!app.deliveryId && (app.status === '진행중' || app.status === '완료')
             const goDetail = () => navigate(`/escrow/list/${app.id}`)
             return (
               <li key={app.id}>
@@ -91,13 +93,13 @@ export default function EscrowListPage() {
                       </span>
                     </div>
 
-                    {/* 진행중·완료 — [배달 추적] 단축 버튼. 카드 클릭과 분리. */}
+                    {/* 라운드13 PR #129 — deliveryId 직접 사용, 배달 추적 페이지로 직행 */}
                     {canTrack && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          navigate(`/escrow/list/${app.id}?track=1`)
+                          navigate(`/delivery/${app.deliveryId}/track`)
                         }}
                         className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
                       >
