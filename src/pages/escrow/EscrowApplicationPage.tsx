@@ -147,18 +147,19 @@ export default function EscrowApplicationPage() {
 
   const fees = preview.data ?? null
 
-  // 검증
+  // 검증 — 버튼 활성 조건은 "필수 입력 채워졌는지" 만. fees 는 submit 클릭 시점에 fresh preview 로 확보.
+  // (useEffect 자동 preview 는 FeeCalculator 표시용 — 실패해도 버튼은 잠그지 않음)
   const phoneOk = /^[0-9+\-]+$/.test(receiverPhone) && receiverPhone.length >= 9
   const buyerAreaReady  = !!deliveryAddr && phoneOk
   const sellerAreaReady = !!pickupAddr && itemPrice >= 0 && itemDescription.trim().length > 0 && !!weight && !!volume && !!fragility
 
   const isValid =
-    !!link && !!fees && agreedCancel &&
+    !!link && agreedCancel &&
     (isReceiverBuyer ? buyerAreaReady : sellerAreaReady) &&
     (isReceiverSeller ? imageFiles.length > 0 : true)   // seller 라면 이미지 1장 이상
 
   const handleSubmit = async () => {
-    if (!isValid || !link || !fees) return
+    if (!isValid || !link) return
 
     setSubmitting(true)
     try {
@@ -169,12 +170,49 @@ export default function EscrowApplicationPage() {
         imageUrls = uploaded.map(u => u.getUrl)
       }
 
+      // submit 클릭 시점에 fresh preview snapshot 확보 (백엔드 atomic 정책)
+      const previewReq = isReceiverBuyer
+        ? deliveryAddr && initiator?.pickupLat != null && initiator?.pickupLng != null
+          && initiator.weight && initiator.volume && initiator.fragility
+          ? {
+              tradeMode: link.tradeMode,
+              itemPrice: initiator.itemPrice ?? 0,
+              pickupLat: initiator.pickupLat,
+              pickupLng: initiator.pickupLng,
+              deliveryLat: deliveryAddr.lat,
+              deliveryLng: deliveryAddr.lng,
+              weight: initiator.weight,
+              volume: initiator.volume,
+              fragility: initiator.fragility,
+              feePayer: link.feePayer,
+            }
+          : null
+        : pickupAddr && weight && volume && fragility
+          && initiator?.deliveryLat != null && initiator?.deliveryLng != null
+          ? {
+              tradeMode: link.tradeMode,
+              itemPrice,
+              pickupLat: pickupAddr.lat,
+              pickupLng: pickupAddr.lng,
+              deliveryLat: initiator.deliveryLat,
+              deliveryLng: initiator.deliveryLng,
+              weight, volume, fragility,
+              feePayer: link.feePayer,
+            }
+          : null
+
+      if (!previewReq) {
+        toast.error('상대방 정보가 부족해 수수료를 계산할 수 없어요.')
+        return
+      }
+      const freshFees = await preview.mutateAsync(previewReq)
+
       const body: EscrowByLinkRequest = {
         linkToken,
-        deliveryFee:   fees.deliveryFee,
-        commissionFee: fees.commissionFee,
-        totalFee:      fees.totalFee,
-        distanceKm:    fees.distanceKm,
+        deliveryFee:   freshFees.deliveryFee,
+        commissionFee: freshFees.commissionFee,
+        totalFee:      freshFees.totalFee,
+        distanceKm:    freshFees.distanceKm,
         ...(isReceiverBuyer && deliveryAddr ? {
           deliveryAddress: deliveryAddr.address,
           deliveryLat:     deliveryAddr.lat,
@@ -451,8 +489,8 @@ export default function EscrowApplicationPage() {
         <Button type="button" fullWidth disabled={!isValid || submitting} isLoading={submitting} onClick={handleSubmit}>
           신청하기
         </Button>
-        {!fees && previewBody && (
-          <p className="text-xs text-gray-400 text-center mt-2">예상 수수료 계산 중... 잠시만 기다려 주세요.</p>
+        {!fees && previewBody && !submitting && (
+          <p className="text-xs text-gray-400 text-center mt-2">예상 수수료 계산 중...</p>
         )}
       </div>
 
