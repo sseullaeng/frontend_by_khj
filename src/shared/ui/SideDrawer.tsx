@@ -579,9 +579,27 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                 </div>
               )}
             </>
-          ) : isSeller ? (
+          ) : (
             <>
-              {isTxStarted ? (
+              {/* 거래완료 안내 — 양쪽 당사자 모두 노출 */}
+              {isTxCompleted && (
+                <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
+                  ✓ 거래가 완료됐어요
+                </div>
+              )}
+              {/* 리뷰 작성 — 양쪽 당사자 모두 노출 (각자 1건씩 작성 가능) */}
+              {isTxCompleted && !alreadyReviewed && (
+                <button
+                  onClick={handleReviewNav}
+                  className="w-full py-2 rounded-lg bg-white border border-green-500 text-green-600 hover:bg-green-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Star size={13} />
+                  리뷰 작성
+                </button>
+              )}
+
+              {/* 판매자만 — 거래 시작/완료 액션 */}
+              {isSeller && isTxStarted && (
                 <button
                   onClick={async () => {
                     try {
@@ -597,11 +615,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   <Receipt size={13} />
                   {patchTx.isPending ? '완료 처리 중...' : '거래 완료'}
                 </button>
-              ) : isTxCompleted ? (
-                <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
-                  ✓ 거래가 완료됐어요
-                </div>
-              ) : (
+              )}
+              {isSeller && !isTxStarted && !isTxCompleted && (
                 <button
                   onClick={() => {
                     if (!room) return
@@ -614,18 +629,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   거래 시작
                 </button>
               )}
-              {/* 거래완료 후엔 [거래대행 신청] 자리를 [리뷰 작성] 으로 변신 */}
-              {isTxCompleted ? (
-                !alreadyReviewed && (
-                  <button
-                    onClick={handleReviewNav}
-                    className="w-full py-2 rounded-lg bg-white border border-green-500 text-green-600 hover:bg-green-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Star size={13} />
-                    리뷰 작성
-                  </button>
-                )
-              ) : (
+              {/* 판매자만 — 거래대행 신청 (거래 완료된 후엔 의미 없음) */}
+              {isSeller && !isTxCompleted && (
                 <button
                   onClick={() => {
                     if (!room) return
@@ -639,7 +644,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                 </button>
               )}
             </>
-          ) : null /* 구매자 — 채팅방 안에 거래 액션 없음 (거래 시작은 판매자 권한) */}
+          )}
           <button
             onClick={() => setLeaveConfirmOpen(true)}
             disabled={isLeaving}
@@ -660,12 +665,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 거래대행 완료 후 리뷰 영역 (직거래는 위쪽 [거래대행 신청] 자리에 변신해서 노출) */}
-      {!isAdmin && isEscrowCompleted && alreadyReviewed && (
-        <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
-          <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
-        </div>
-      )}
+      {/* 거래대행 완료 후 리뷰 영역 (직거래는 위쪽 영역에서 처리) */}
       {!isAdmin && isEscrowCompleted && !alreadyReviewed && (
         <div className="px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
           <button
@@ -676,8 +676,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </button>
         </div>
       )}
-      {/* 직거래 완료 + 이미 리뷰 작성됨 — 위 [리뷰 작성] 자리가 사라지므로 안내 */}
-      {!isAdmin && isTxCompleted && alreadyReviewed && (
+      {/* 이미 작성됨 안내 — 직거래/거래대행 모두 */}
+      {!isAdmin && (isTxCompleted || isEscrowCompleted) && alreadyReviewed && (
         <div className="px-4 py-2.5 bg-green-50 border-b border-green-100 shrink-0">
           <p className="text-center text-xs text-green-600 font-medium py-1">리뷰를 남겼어요 ✓</p>
         </div>
