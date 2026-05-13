@@ -28,6 +28,7 @@ const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
   '채팅중':   { color: 'text-amber-700 bg-amber-100' },
   '예약':     { color: 'text-yellow-700 bg-yellow-100' },
   '인계완료': { color: 'text-indigo-700 bg-indigo-100' },
+  '반납요청': { color: 'text-orange-700 bg-orange-100' },
   '거래완료': { color: 'text-blue-700 bg-blue-100' },
   '취소':     { color: 'text-red-600 bg-red-100' },
 }
@@ -76,10 +77,12 @@ export default function TradeDetailPage() {
   const status   = STATUS_BADGE[tx.status]
   const typeColor = TYPE_COLOR[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
 
-  // 라운드 11 권한 매트릭스
+  // 라운드 11 권한 매트릭스 + 라운드14 4-D 반납 흐름
   const canReserve  = isSeller && tx.status === '채팅중'
   const canHandover = isSeller && tx.status === '예약'
-  const canReceive  = isBuyer  && tx.status === '인계완료'
+  const canReceive  = isBuyer  && tx.status === '인계완료' && tx.tradeType !== '대여'
+  const canReturn   = isBuyer  && tx.status === '인계완료' && tx.tradeType === '대여'   // 대여만
+  const canConfirmReturn = isSeller && tx.status === '반납요청'
   const canCancel   = (isSeller || isBuyer) && (tx.status === '채팅중' || tx.status === '예약')
 
   // buyer 본인 잔액이 가격보다 적으면 충전 유도 (채팅중 단계)
@@ -194,6 +197,9 @@ export default function TradeDetailPage() {
           {tx.receiveConfirmedAt && (
             <Row icon={<Truck size={16} />} label="인수 확인" value={fromNow(tx.receiveConfirmedAt)} />
           )}
+          {tx.returnRequestedAt && (
+            <Row icon={<PackageCheck size={16} />} label="반납 요청" value={fromNow(tx.returnRequestedAt)} />
+          )}
           {tx.completedAt && (
             <Row icon={<Calendar size={16} />} label="완료" value={fromNow(tx.completedAt)} />
           )}
@@ -259,7 +265,7 @@ export default function TradeDetailPage() {
       )}
 
       {/* 액션 버튼 */}
-      {(canReserve || canHandover || canReceive || canCancel) && (
+      {(canReserve || canHandover || canReceive || canReturn || canConfirmReturn || canCancel) && (
         <div className="flex gap-2 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 lg:static lg:border-0 lg:px-0">
           {canCancel && (
             <Button
@@ -292,6 +298,24 @@ export default function TradeDetailPage() {
               onClick={() => patch({ action: '인수확인' })}
             >
               인수 확인
+            </Button>
+          )}
+          {canReturn && (
+            <Button
+              fullWidth
+              isLoading={isPatching}
+              onClick={() => patch({ action: '반납요청' })}
+            >
+              반납하기
+            </Button>
+          )}
+          {canConfirmReturn && (
+            <Button
+              fullWidth
+              isLoading={isPatching}
+              onClick={() => patch({ action: '회신확인' })}
+            >
+              회신 확인 (거래 완료)
             </Button>
           )}
         </div>
@@ -369,7 +393,7 @@ export default function TradeDetailPage() {
 function StatusBanner({
   tx, isSeller, isBuyer,
 }: {
-  tx: { status: TransactionStatus; escrowHoldAmount: number; price: number }
+  tx: { status: TransactionStatus; escrowHoldAmount: number; price: number; tradeType: string; returnRequestedAt: string | null }
   isSeller: boolean
   isBuyer:  boolean
 }) {
@@ -390,28 +414,61 @@ function StatusBanner({
     }
   }
   if (tx.status === '인계완료') {
+    const isRental = tx.tradeType === '대여'
     if (isSeller) {
       return (
         <Banner tone="indigo" icon={<Truck size={18} />}
-          title="구매자의 인수 확인 대기 중"
-          desc="구매자가 인수를 확인하면 자동으로 정산되어 포인트가 입금돼요." />
+          title={isRental ? '구매자의 반납 대기 중' : '구매자의 인수 확인 대기 중'}
+          desc={isRental
+            ? '대여 기간이 끝나면 구매자가 [반납하기] 를 눌러요. 그 후 [회신 확인]을 눌러 거래를 마무리해 주세요.'
+            : '구매자가 인수를 확인하면 자동으로 정산되어 포인트가 입금돼요.'} />
       )
     }
     if (isBuyer) {
       return (
         <Banner tone="emerald" icon={<PackageCheck size={18} />}
-          title="물품을 받으셨나요?"
-          desc="물품 확인 후 [인수 확인]을 눌러 주세요. 거래가 완료되고 보관된 포인트가 판매자에게 전달돼요." />
+          title={isRental ? '물품을 사용 중이에요' : '물품을 받으셨나요?'}
+          desc={isRental
+            ? '대여 기간이 끝났으면 [반납하기]를 눌러 판매자에게 알려 주세요. 판매자 회신 확인 시 거래가 마무리돼요.'
+            : '물품 확인 후 [인수 확인]을 눌러 주세요. 거래가 완료되고 보관된 포인트가 판매자에게 전달돼요.'} />
+      )
+    }
+  }
+  if (tx.status === '반납요청' && tx.returnRequestedAt) {
+    const remain = remainUntilAutoComplete(tx.returnRequestedAt)
+    if (isSeller) {
+      return (
+        <Banner tone="orange" icon={<PackageCheck size={18} />}
+          title="구매자가 반납을 알렸어요"
+          desc={`물품 상태 확인 후 [회신 확인] 을 눌러 거래를 마무리해 주세요. ${remain} 후 자동 거래완료 처리돼요.`} />
+      )
+    }
+    if (isBuyer) {
+      return (
+        <Banner tone="orange" icon={<ShieldCheck size={18} />}
+          title="판매자 회신 대기 중"
+          desc={`판매자가 [회신 확인] 을 누르면 거래가 완료돼요. ${remain} 후엔 자동으로 완료 처리돼요.`} />
       )
     }
   }
   return null
 }
 
+/** 반납요청 후 자동완료까지 남은 시간 텍스트 */
+function remainUntilAutoComplete(returnRequestedAt: string): string {
+  const deadline = new Date(returnRequestedAt).getTime() + 7 * 24 * 60 * 60 * 1000
+  const diff = deadline - Date.now()
+  if (diff <= 0) return '곧'
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  if (days >= 1) return `${days}일`
+  const hours = Math.max(1, Math.floor(diff / (60 * 60 * 1000)))
+  return `${hours}시간`
+}
+
 function Banner({
   tone, icon, title, desc,
 }: {
-  tone: 'amber' | 'indigo' | 'emerald'
+  tone: 'amber' | 'indigo' | 'emerald' | 'orange'
   icon: React.ReactNode
   title: string
   desc: string
@@ -420,6 +477,7 @@ function Banner({
     amber:   'bg-amber-50 border-amber-200 text-amber-700',
     indigo:  'bg-indigo-50 border-indigo-200 text-indigo-700',
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    orange:  'bg-orange-50 border-orange-200 text-orange-700',
   }[tone]
   return (
     <div className={cn('flex items-start gap-2 px-4 py-3 mb-4 border rounded-xl', palette)}>

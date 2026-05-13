@@ -48,6 +48,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   TRANSACTION_HANDOVER_NOT_ALLOWED:     '판매자만 인계 확인할 수 있어요.',
   TRANSACTION_RECEIVE_NOT_ALLOWED:      '구매자만 인수 확인할 수 있어요. 판매자가 먼저 인계 확인해야 해요.',
   TRANSACTION_HOLD_FAILED:              '포인트가 부족해서 예약할 수 없어요. 충전 후 다시 시도해 주세요.',
+  // 라운드14 — buyer 가 대여 신청 시 발생 가능 (4-C)
+  TRANSACTION_RENTAL_OVERLAP:           '선택한 기간에 이미 예약된 거래가 있어요. 다른 기간을 선택해 주세요.',
+  TRANSACTION_RENTAL_INVALID_PERIOD:    '대여 기간이 올바르지 않아요. 시작·종료일을 확인해 주세요.',
   // 라운드12 — 거래 시작은 채팅방 안에서만, 판매자만
   TX_CHATROOM_REQUIRED:                 '채팅방에서 거래를 시작해 주세요.',
   TX_CHATROOM_ITEM_MISMATCH:            '채팅방의 물품과 거래 물품이 일치하지 않아요.',
@@ -65,6 +68,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   // ── 리뷰 ──────────────────────────────────────────────────
   REVIEW_DUPLICATED:           '이미 작성한 리뷰가 있어요.',
   REVIEW_PERIOD_EXPIRED:       '리뷰 작성 기간(7일)이 지났어요.',
+  REVIEW_NOT_FOUND:            '리뷰를 찾을 수 없어요.',
+  REVIEW_FORBIDDEN:            '이 리뷰에 대한 권한이 없어요.',
 
   // ── 거래대행 (Escrow) ────────────────────────────────────
   ESCROW_LINK_NOT_FOUND:        '거래대행 링크를 찾을 수 없어요.',

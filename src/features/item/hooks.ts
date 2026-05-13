@@ -101,6 +101,28 @@ export function useWishList(params?: { page?: number; size?: number }) {
   })
 }
 
+// 라운드14 4-C — 대여 가능 기간 (공개). 활성 거래의 [rentalStart, rentalEnd] 페어.
+export function useRentalBlocks(itemId: number | undefined) {
+  return useQuery({
+    queryKey: itemKeys.rentalBlocks(itemId ?? 0),
+    queryFn: () => itemApi.getRentalBlocks(itemId!).then((r) => r.data),
+    enabled: !!itemId,
+    staleTime: 30_000,
+  })
+}
+
+// 라운드14 4-C — 대여 신청 (buyer). 응답으로 채팅중 transactionId.
+export function useRequestRental(itemId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { rentalStart: string; rentalEnd: string; chatRoomId?: number }) =>
+      itemApi.postRentalRequest(itemId, body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: itemKeys.rentalBlocks(itemId) })
+    },
+  })
+}
+
 // 내 물품 — 마이페이지 탭 (status 별)
 export function useMyItems(params?: { status?: MyItemStatus; page?: number; size?: number }) {
   return useQuery({
