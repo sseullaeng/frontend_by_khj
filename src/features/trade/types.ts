@@ -5,9 +5,24 @@
 //                              └─ 단계별 취소 (인계완료 이후 차단)
 import type { TradeType } from '@/features/item/types'
 
-export type TransactionStatus = '채팅중' | '예약' | '인계완료' | '거래완료' | '취소'
-// 라운드13 PR #131 — '완료' 추가 (어디서든 한 번에 거래완료, 직거래 단순화)
-export type TransactionAction = '예약' | '인계확인' | '인수확인' | '완료' | '취소'
+// 라운드14 4-D — '반납요청' 추가: 대여 반납 후 회신 대기 (buyer가 [반납] 호출)
+export type TransactionStatus =
+  | '채팅중'
+  | '예약'
+  | '인계완료'
+  | '반납요청'
+  | '거래완료'
+  | '취소'
+// 라운드13 PR #131 — '완료' (직거래 단순화).
+// 라운드14 4-D — '반납요청' (buyer가 반납) / '회신확인' (seller가 확인 → 거래완료)
+export type TransactionAction =
+  | '예약'
+  | '인계확인'
+  | '인수확인'
+  | '완료'
+  | '취소'
+  | '반납요청'
+  | '회신확인'
 
 export interface Transaction {
   id: number
@@ -23,6 +38,8 @@ export interface Transaction {
   reservedAt: string | null
   handoverConfirmedAt: string | null   // 라운드11: seller 인계확인 시각
   receiveConfirmedAt:  string | null   // 라운드11: buyer 인수확인 시각
+  // 라운드14 4-D — buyer 가 [반납요청] 누른 시각. 7일 후 스케줄러가 자동 거래완료.
+  returnRequestedAt: string | null
   completedAt: string | null
   canceledAt: string | null
   cancelReason: string | null
@@ -52,7 +69,9 @@ export type TransactionRole = 'buyer' | 'seller'
 
 export interface TransactionListParams {
   role?: TransactionRole
-  status?: TransactionStatus
+  // 라운드14 4-B — CSV 다중 status 지원. 단일 값도 호환.
+  //   배열을 전달하면 호출 시 CSV 문자열로 변환됨 (api.ts).
+  status?: TransactionStatus | TransactionStatus[]
   page?: number
   size?: number
 }

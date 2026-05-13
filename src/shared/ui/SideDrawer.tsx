@@ -852,7 +852,8 @@ function NotificationPanel() {
     const path = (() => {
       switch (n.linkType) {
         case 'TRANSACTION': return `/trades/${n.linkId}`
-        case 'ESCROW':      return `/escrow/list/${n.linkId}`   // 거래대행 신청
+        // 라운드14 3-D — buyer-info 로 직접 분기 (페이지에 안전 redirect 가드 있음)
+        case 'ESCROW':      return `/escrow/${n.linkId}/buyer-info`
         case 'DELIVERY':    return `/delivery/${n.linkId}/track`
         case 'ITEM':        return `/items/${n.linkId}`
         case 'REVIEW':      return '/reviews'

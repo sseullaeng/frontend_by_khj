@@ -5,11 +5,17 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Star, MessageSquare, Clock } from 'lucide-react'
+import { Star, MessageSquare, Clock, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store'
-import { usePendingReviews, useUserReviews } from '@/features/review/hooks'
+import {
+  usePendingReviews,
+  useUserReviews,
+  useUpdateReviewVisibility,
+} from '@/features/review/hooks'
+import { commentToDisplay } from '@/features/review/comment'
 import { cn } from '@/shared/lib/cn'
 import { formatKst, fromNow } from '@/shared/lib/date'
+import type { Review } from '@/features/review/types'
 
 function StarRow({ rating }: { rating: number }) {
   return (
@@ -118,31 +124,52 @@ export default function ReviewManagePage() {
           ) : (
             <ul className="flex flex-col gap-3">
               {receivedItems.map((review) => (
-                <li
-                  key={review.id}
-                  className="p-4 bg-white border border-gray-200 rounded-xl"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-gray-400">
-                      거래 #{review.transactionId} · 상대방 #{review.reviewerId}
-                    </p>
-                    <StarRow rating={review.rating} />
-                  </div>
-                  {review.comment && (
-                    <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-lg px-3 py-2">
-                      {review.comment}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-2 text-right">
-                    {formatKst(review.createdAt, 'yyyy.MM.dd')}
-                  </p>
-                </li>
+                <ReceivedReviewRow key={review.id} review={review} />
               ))}
             </ul>
           )}
         </>
       )}
     </div>
+  )
+}
+
+function ReceivedReviewRow({ review }: { review: Review }) {
+  const { mutate: toggle, isPending } = useUpdateReviewVisibility()
+  // 본인(대상자) view 라 comment 는 항상 원본. 표시는 commentToDisplay 로 디폴트 합성 처리.
+  const display = commentToDisplay(review)
+
+  return (
+    <li className="p-4 bg-white border border-gray-200 rounded-xl">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-gray-400">
+          거래 #{review.transactionId} · 상대방 #{review.reviewerId}
+        </p>
+        <StarRow rating={review.rating} />
+      </div>
+      {display.kind === 'text' && (
+        <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-lg px-3 py-2">
+          {display.text}
+        </p>
+      )}
+      <div className="flex items-center justify-between mt-2">
+        <button
+          type="button"
+          onClick={() =>
+            toggle({ id: review.id, body: { contentVisible: !review.contentVisible } })
+          }
+          disabled={isPending}
+          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-primary-500 disabled:opacity-50"
+          aria-label={review.contentVisible ? '한줄평 비공개로' : '한줄평 공개로'}
+        >
+          {review.contentVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+          {review.contentVisible ? '한줄평 공개 중' : '한줄평 비공개'}
+        </button>
+        <p className="text-xs text-gray-400">
+          {formatKst(review.createdAt, 'yyyy.MM.dd')}
+        </p>
+      </div>
+    </li>
   )
 }
 
