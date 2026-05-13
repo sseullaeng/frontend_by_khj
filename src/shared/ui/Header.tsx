@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '@/features/auth/store'
 import { useLogout } from '@/features/auth/hooks'
 import { useAdminMe } from '@/features/admin/hooks'
+import { useUnreadCount } from '@/features/notification/hooks'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { cn } from '@/shared/lib/cn'
 
@@ -25,6 +26,8 @@ export default function Header() {
   const { mutate: logout, isPending: isLogoutPending } = useLogout()
   const { toggleOpen, activeTab } = useDrawerStore()
   const { data: admin } = useAdminMe({ enabled: !user })
+  const unreadCount = useUnreadCount()
+  const hasUnread = unreadCount > 0
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
@@ -81,7 +84,9 @@ export default function Header() {
                 >
                   <span className="relative">
                     <Bell size={20} />
-                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                    {hasUnread && (
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                    )}
                   </span>
                   <span className="text-sm font-medium hidden md:block">채팅/알림</span>
                 </button>

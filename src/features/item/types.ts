@@ -112,7 +112,7 @@ export const itemCreateSchema = z.object({
   categoryId:  z.number().int().positive().optional(),
   region:      z.string().max(100, '지역은 100자 이하예요.').optional(),
   hashtags:    z.array(z.string()).max(5, '해시태그는 5개까지 가능해요.').optional(),
-  imageUrls:   z.array(z.string()).max(5, '사진은 최대 5장이에요.').optional(),
+  imageUrls:   z.array(z.string()).max(10, '사진은 최대 10장이에요.').optional(),
 
   // 라운드13 PR #118 — 모드별 가격
   salePrice:   z.number().int().min(0).optional(),

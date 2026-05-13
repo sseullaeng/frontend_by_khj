@@ -11,6 +11,7 @@ import type { ItemSort, TradeType } from '@/features/item/types'
 import CategoryPicker from '@/features/category/CategoryPicker'
 import ItemCard from '@/features/item/components/ItemCard'
 import ItemListItem from '@/features/item/components/ItemListItem'
+import { sortCompletedLast } from '@/features/item/sort'
 import { Grid, List, X } from 'lucide-react'
 
 const TRADE_TYPES: { value: '' | TradeType; label: string }[] = [
@@ -45,7 +46,8 @@ export default function ItemListPage() {
     enabled: hasNextPage,
   })
 
-  const items = data?.pages.flatMap((p) => p.content) ?? []
+  // 거래완료는 후순위로 (한 페이지 단위 안정 정렬 — 페이지 경계는 백엔드 정렬에 의존)
+  const items = sortCompletedLast(data?.pages.flatMap((p) => p.content) ?? [])
   const totalCount = data?.pages[0]?.totalElements ?? 0
 
   const resetFilters = () => {

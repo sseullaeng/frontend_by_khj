@@ -17,13 +17,20 @@ const ERROR_MESSAGES: Record<string, string> = {
   AUTH_VERIFICATION_TOKEN_EXPIRED:                  '만료된 인증 링크예요. 메일을 다시 받아 주세요.',
   AUTH_VERIFICATION_RESEND_TOO_SOON:                '잠시 후 다시 시도해 주세요.',
   AUTH_EMAIL_ALREADY_LINKED_TO_DIFFERENT_PROVIDER:  '다른 SNS로 이미 가입된 이메일이에요.',
+  // 회원가입 중복 이메일 — 백엔드 코드 변형 모두 방어적으로 매핑
+  AUTH_EMAIL_DUPLICATED:                            '이미 가입된 이메일이에요.',
+  AUTH_EMAIL_ALREADY_EXISTS:                        '이미 가입된 이메일이에요.',
+  USER_EMAIL_DUPLICATED:                            '이미 가입된 이메일이에요.',
+  USER_EMAIL_ALREADY_EXISTS:                        '이미 가입된 이메일이에요.',
+  EMAIL_ALREADY_EXISTS:                             '이미 가입된 이메일이에요.',
+  DUPLICATE_EMAIL:                                  '이미 가입된 이메일이에요.',
   USER_BLOCKED:                                     '차단된 계정이에요.',
 
   // ── 물품 ──────────────────────────────────────────────────
   ITEM_NOT_FOUND:               '상품을 찾을 수 없어요.',
   ITEM_FORBIDDEN:               '본인 물품에서만 가능한 동작이에요.',
   ITEM_INVALID_STATE:           '현재 상태에서는 가능한 동작이 아니에요.',
-  ITEM_IMAGE_LIMIT_EXCEEDED:    '이미지는 최대 5장까지 등록할 수 있어요.',
+  ITEM_IMAGE_LIMIT_EXCEEDED:    '이미지 등록 한도를 초과했어요.',
   ITEM_IMAGE_NOT_FOUND:         '해당 이미지를 찾을 수 없어요.',
   ITEM_IMAGE_ORDER_MISMATCH:    '이미지 순서가 기존 목록과 일치하지 않아요.',
 
@@ -94,8 +101,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 /**
  * 에러 코드를 한국어 메시지로 변환.
- * 매핑 없으면 generic fallback. 호출부에서는 BusinessError.message 우선 사용 권장.
+ * 매핑이 있으면 매핑값, 없으면 fallback(보통 BusinessError.message — 백엔드가 한글 제공),
+ * 그것도 없으면 generic 메시지.
  */
-export function getErrorMessage(code: string): string {
-  return ERROR_MESSAGES[code] ?? '알 수 없는 오류가 발생했어요.'
+export function getErrorMessage(code: string, fallback?: string): string {
+  return ERROR_MESSAGES[code] ?? fallback ?? '알 수 없는 오류가 발생했어요.'
 }

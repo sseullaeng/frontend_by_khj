@@ -84,8 +84,9 @@ export default function EscrowStartPage() {
 
   const phoneOk = /^[0-9+\-]+$/.test(receiverPhone) && receiverPhone.length >= 9
 
-  // 발급자 본인 영역 — role 별 입력 완성 검증
-  const sellerAreaReady = !!pickupAddr && itemPrice >= 0 && itemDescription.trim().length > 0
+  // 발급자 본인 영역 — role 별 입력 완성 검증 (외부 판매 신청은 사진 1장 이상 필수)
+  const sellerAreaReady =
+    !!pickupAddr && itemPrice >= 0 && itemDescription.trim().length > 0 && imageFiles.length > 0
   const buyerAreaReady  = !!deliveryAddr && phoneOk
 
   const canSubmit =
@@ -95,7 +96,11 @@ export default function EscrowStartPage() {
   const handleSubmit = async () => {
     if (!role || !feePayer) return
     if (role === 'seller' && !sellerAreaReady) {
-      toast.error('판매자 영역 (픽업 주소·물품 정보) 을 입력해 주세요.')
+      if (imageFiles.length === 0) {
+        toast.error('물품 사진을 1장 이상 첨부해 주세요.')
+      } else {
+        toast.error('판매자 영역 (픽업 주소·물품 정보) 을 입력해 주세요.')
+      }
       return
     }
     if (role === 'buyer' && !buyerAreaReady) {
@@ -283,7 +288,7 @@ export default function EscrowStartPage() {
               />
             </Section>
 
-            <Section title={`물품 사진 (${imageFiles.length}/${MAX_IMAGES}, 선택)`}>
+            <Section title={`물품 사진 (${imageFiles.length}/${MAX_IMAGES}) *`}>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {imageFiles.map((file, index) => (
                   <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
@@ -359,6 +364,9 @@ export default function EscrowStartPage() {
 
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
           <div className="max-w-lg mx-auto">
+            <p className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+              ⚠ 한 번 신청한 거래대행은 수정할 수 없어요. 내용을 한 번 더 확인해 주세요.
+            </p>
             <Button type="button" onClick={handleSubmit} fullWidth disabled={!canSubmit || submitting} isLoading={submitting}>
               링크 생성하기
             </Button>
