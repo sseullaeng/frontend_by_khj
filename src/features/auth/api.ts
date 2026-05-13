@@ -6,6 +6,9 @@ import type {
   LoginResponse,
   UpdateProfileRequest,
   OAuthLoginRequest,
+  SocialLinkPreviewRequest,
+  SocialLinkPreviewResponse,
+  SocialLinkConfirmRequest,
 } from './types'  // 인증 관련 타입
 import type { User } from '@/shared/types'  // 사용자 타입
 
@@ -49,4 +52,15 @@ export const authApi = {
   // 인증 메일 재발송 (인증 필수, 60초 cooldown)
   resendVerification: () =>
     api.post<void>('/api/v1/auth/resend-verification'),
+
+  // 라운드14: LOCAL ↔ OAuth 명시 연결 (2-step preview / confirm)
+  socialLinkPreview: (req: SocialLinkPreviewRequest) => {
+    const { provider, ...body } = req
+    return api.post<SocialLinkPreviewResponse>(
+      `/api/v1/auth/social-link/${provider}/preview`,
+      body,
+    )
+  },
+  socialLinkConfirm: (body: SocialLinkConfirmRequest) =>
+    api.post<User>('/api/v1/auth/social-link/confirm', body),
 }

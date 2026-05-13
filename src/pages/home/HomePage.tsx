@@ -5,7 +5,6 @@ import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
 import { itemKeys } from '@/features/item/keys'
-import { sortCompletedLast, sortHotMultiKey } from '@/features/item/sort'
 import type { Item } from '@/features/item/types'
 import { bannerApi } from '@/features/banner/api'
 import { bannerKeys } from '@/features/banner/keys'
@@ -29,36 +28,39 @@ export default function HomePage() {
 
   // ⚠ queryKey 는 itemKeys.lists() prefix 아래에 둬야 useToggleWish 의
   //   optimistic update (setQueriesData on itemKeys.lists()) 가 잡아서 갱신함
+  //
+  // 정렬은 라운드14 백엔드 CSV multi-key sort 위임. 마지막에 id desc 자동 tiebreak.
 
-  // HOT — 관심 수 → 조회 수 → 최근 등록 (백엔드 wishlist_desc + 클라이언트 다중키 보정)
+  // HOT — 관심 수 → 조회 수 → 최근 등록 (거래완료는 자연스럽게 뒤로 — 핫이라 굳이 partition 안 함)
   const hotQuery = useQuery({
     queryKey: [...itemKeys.lists(), 'home-hot'],
     queryFn: () =>
-      itemApi.getList({ page: 0, size: FETCH_SIZE, sort: 'wishlist_desc' }).then((r) => r.data),
+      itemApi
+        .getList({ page: 0, size: FETCH_SIZE, sort: 'wishlist_desc,view_desc,latest' })
+        .then((r) => r.data),
   })
 
-  // 대여 — 최근 등록 순
+  // 대여 — 거래완료 후순위 + 최근 등록 순
   const rentalQuery = useQuery({
     queryKey: [...itemKeys.lists(), 'home-rental'],
     queryFn: () =>
       itemApi
-        .getList({ page: 0, size: FETCH_SIZE, sort: 'latest', tradeType: '대여' })
+        .getList({ page: 0, size: FETCH_SIZE, sort: 'completed_last,latest', tradeType: '대여' })
         .then((r) => r.data),
   })
 
-  // 판매 — 최근 등록 순
+  // 판매 — 거래완료 후순위 + 최근 등록 순
   const saleQuery = useQuery({
     queryKey: [...itemKeys.lists(), 'home-sale'],
     queryFn: () =>
       itemApi
-        .getList({ page: 0, size: FETCH_SIZE, sort: 'latest', tradeType: '판매' })
+        .getList({ page: 0, size: FETCH_SIZE, sort: 'completed_last,latest', tradeType: '판매' })
         .then((r) => r.data),
   })
 
-  // 거래완료는 항상 후순위로 (모든 섹션 공통)
-  const hotItems = sortCompletedLast(sortHotMultiKey(hotQuery.data?.content ?? []))
-  const rentalItems = sortCompletedLast(rentalQuery.data?.content ?? [])
-  const saleItems = sortCompletedLast(saleQuery.data?.content ?? [])
+  const hotItems    = hotQuery.data?.content    ?? []
+  const rentalItems = rentalQuery.data?.content ?? []
+  const saleItems   = saleQuery.data?.content   ?? []
 
   return (
     <div className="space-y-10">

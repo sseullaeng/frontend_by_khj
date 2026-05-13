@@ -70,3 +70,36 @@ export interface UpdateProfileRequest {
   nickname?: string | null
   profileImage?: string | null
 }
+
+// ── 라운드14: LOCAL ↔ OAuth 2-step 명시 연결 ────────────────────────────
+//
+//  (1) Preview — provider OAuth code 받은 직후, LOCAL 로그인 상태에서 호출
+//      POST /api/v1/auth/social-link/{provider}/preview  body { code, redirectUri }
+//      → 200 { linkKey, provider, providerEmail, expiresInSeconds }
+//      → 409 AUTH_OAUTH_LINK_NOT_LOCAL — 이미 소셜 연결된 계정
+//      → 400 AUTH_OAUTH_LINK_EMAIL_MISMATCH — 로그인 email ≠ provider email
+//      → 401 AUTH_OAUTH_FAILED — OAuth 토큰 교환 실패
+//
+//  (2) Confirm — 사용자 확인 후
+//      POST /api/v1/auth/social-link/confirm  body { linkKey }
+//      → 200 MeResponse (갱신된 user)
+//      → 400 AUTH_OAUTH_LINK_KEY_INVALID — 5분 TTL 만료 / 무효 / 다른 user
+//
+//  연결 후 LOCAL password 유지. socialProvider 가 provider 로 갱신되지만
+//  hasPassword=true 가 함께 와서 양쪽 로그인 모두 가능함.
+export interface SocialLinkPreviewRequest {
+  provider: OAuthProvider
+  code: string
+  redirectUri: string
+}
+
+export interface SocialLinkPreviewResponse {
+  linkKey: string
+  provider: OAuthProvider | string   // 백엔드 표기 (KAKAO/GOOGLE) 가능성 대비
+  providerEmail: string
+  expiresInSeconds: number           // 보통 300 (5분)
+}
+
+export interface SocialLinkConfirmRequest {
+  linkKey: string
+}

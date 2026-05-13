@@ -10,7 +10,13 @@ export interface User {
   email: string                    // 이메일
   nickname: string                 // 닉네임
   profileImage: string | null      // 프로필 이미지 URL
-  socialProvider: SocialProvider   // 가입 경로 (LOCAL / KAKAO / GOOGLE)
+  socialProvider: SocialProvider   // 마지막 연결/가입된 provider
+  // 라운드14 — LOCAL ↔ OAuth 다중 연결 지원. socialProvider 단독으로 LOCAL 가능 여부를
+  //   판단 불가하므로 hasPassword 와 조합해서 사용:
+  //     canLocalLogin  = hasPassword
+  //     canSocialLogin = socialProvider !== 'LOCAL'
+  //   (구버전 응답 호환을 위해 optional. 부재 시 socialProvider === 'LOCAL' 와 동치로 fallback)
+  hasPassword?: boolean
   emailVerified: boolean           // 이메일 인증 여부
   pointBalance: number             // 포인트 잔액
   trustScore: number | null        // 신뢰도 점수 (없을 수 있음)

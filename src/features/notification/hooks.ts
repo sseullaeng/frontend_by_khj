@@ -3,10 +3,11 @@
 // 실시간: /user/queue/notifications 구독 (Spring 자동 라우팅, 본인 한정)
 // 안 읽은 개수 / 모두 읽음 — 백엔드 endpoint 미제공 → 클라이언트 derive
 
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import type { InfiniteData } from '@tanstack/react-query'
@@ -14,13 +15,15 @@ import { toast } from 'sonner'
 import { notificationApi } from './api'
 import type { Notification } from './types'
 import type { PageResponse } from '@/shared/types'
+import { useAuthStore } from '@/features/auth/store'
 import { subscribeStomp } from '@/shared/lib/stomp'
 
 const NOTI_QUEUE = '/user/queue/notifications'
 
 export const notificationKeys = {
-  all:  ()                       => ['notifications'] as const,
-  list: ()                       => [...notificationKeys.all(), 'list'] as const,
+  all:         ()                       => ['notifications'] as const,
+  list:        ()                       => [...notificationKeys.all(), 'list'] as const,
+  unreadCount: ()                       => [...notificationKeys.all(), 'unread-count'] as const,
 }
 
 // 알림 목록 (페이지네이션)
@@ -35,17 +38,19 @@ export function useNotifications() {
 }
 
 /**
- * 안 읽은 개수 — 백엔드 endpoint 없음 → 첫 페이지 알림에서 derive.
- * 첫 페이지(20개) 외 미반영 가능 — 정확도 보다 UX 표시용.
+ * 안 읽은 개수 — 라운드14 백엔드 전용 endpoint 사용.
+ *   GET /api/v1/notifications/unread-count → { unread: N }
+ *   비로그인 시 호출 안 함 (401 방지). 새 알림 STOMP 도착·읽음 처리 시 invalidate.
  */
-export function useUnreadCount() {
-  const { data } = useNotifications()
-  return useMemo(() => {
-    if (!data) return 0
-    return (data as InfiniteData<PageResponse<Notification>>).pages
-      .flatMap((p) => p.content)
-      .filter((n) => !n.read).length
-  }, [data])
+export function useUnreadCount(): number {
+  const isLoggedIn = useAuthStore((s) => !!s.user)
+  const { data } = useQuery({
+    queryKey: notificationKeys.unreadCount(),
+    queryFn: () => notificationApi.getUnreadCount().then((r) => r.data),
+    enabled: isLoggedIn,
+    staleTime: 30_000,
+  })
+  return data?.unread ?? 0
 }
 
 // 단건 읽음 처리
@@ -55,8 +60,9 @@ export function useMarkRead() {
   return useMutation({
     mutationFn: (id: string) => notificationApi.markRead(id),
     onMutate: async (id) => {
-      // optimistic — 캐시에서 read=true 로 표시
+      // optimistic — 캐시에서 read=true 로 표시 + unread-count 감소
       await qc.cancelQueries({ queryKey: notificationKeys.list() })
+      let wasUnread = false
       qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
         notificationKeys.list(),
         (old) => {
@@ -65,11 +71,25 @@ export function useMarkRead() {
             ...old,
             pages: old.pages.map((p) => ({
               ...p,
-              content: p.content.map((n) => (n.id === id ? { ...n, read: true } : n)),
+              content: p.content.map((n) => {
+                if (n.id !== id) return n
+                if (!n.read) wasUnread = true
+                return { ...n, read: true }
+              }),
             })),
           }
         },
       )
+      if (wasUnread) {
+        qc.setQueryData<{ unread: number } | undefined>(
+          notificationKeys.unreadCount(),
+          (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev),
+        )
+      }
+    },
+    onSettled: () => {
+      // 서버 정합 확정 (silent miss 케이스 포함)
+      qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
     },
   })
 }
@@ -83,6 +103,9 @@ export function useMarkAllRead() {
     mutationFn: () => notificationApi.markAllRead().then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: notificationKeys.list() })
+      // unread-count 즉시 0으로 + 서버 정합
+      qc.setQueryData<{ unread: number }>(notificationKeys.unreadCount(), { unread: 0 })
+      qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
     },
   })
 }
@@ -114,6 +137,13 @@ export function useNotificationStream() {
             }
           },
         )
+        // unread-count 도 +1 (서버 STOMP delta 미발행 — 클라가 직접 갱신)
+        if (!noti.read) {
+          qc.setQueryData<{ unread: number } | undefined>(
+            notificationKeys.unreadCount(),
+            (prev) => ({ unread: (prev?.unread ?? 0) + 1 }),
+          )
+        }
       } catch (err) {
         console.error('notification parse error', err)
       }

@@ -47,8 +47,10 @@ export default function MyItemsPage() {
   const [tabKey, setTabKey] = useState<TabKey>('ALL')
 
   // buyer/seller 두 측면 전체 — 탭별 필터는 클라이언트에서
-  const buyerQ  = useMyTransactions({ role: 'buyer' })
-  const sellerQ = useMyTransactions({ role: 'seller' })
+  //   백엔드 size 기본 20 / 최대 100. 한 페이지에서 누락 최소화 위해 100 사용.
+  //   (무한 스크롤 도입은 후속 — 백엔드 multi-status CSV 적용 시 호출 수도 줄일 수 있음)
+  const buyerQ  = useMyTransactions({ role: 'buyer',  size: 100 })
+  const sellerQ = useMyTransactions({ role: 'seller', size: 100 })
   const isLoading = buyerQ.isLoading || sellerQ.isLoading
 
   const buyerTxs  = buyerQ.data?.content  ?? []

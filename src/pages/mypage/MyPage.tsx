@@ -1,9 +1,11 @@
 // 마이페이지: 일반 유저는 프로필·포인트·메뉴, 관리자는 통계 대시보드(lazy 로드)
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Wallet, MailCheck, MailWarning } from 'lucide-react'
+import { ChevronRight, Wallet, MailCheck, MailWarning, Link2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/features/auth/store'
 import { useLogout, useResendVerification } from '@/features/auth/hooks'
+import { loginWithKakao, loginWithGoogle } from '@/features/auth/oauth'
 import { usePointBalance } from '@/features/payment/hooks'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/shared/lib/cn'
@@ -59,6 +61,9 @@ export default function MyPage() {
           {/* 포인트 카드 — 3분할 + 충전/출금 */}
           <PointCard />
 
+          {/* SNS 연결 — LOCAL 가입자 한정 (라운드14) */}
+          <SocialLinkCard />
+
           {/* 메뉴 */}
           <ul className="divide-y divide-gray-100">
             {MENU_ITEMS.map((item) => (
@@ -111,6 +116,57 @@ function EmailVerificationCard() {
       >
         {isPending ? '전송 중' : '재전송'}
       </button>
+    </div>
+  )
+}
+
+function SocialLinkCard() {
+  const user = useAuthStore((s) => s.user)
+  const [pending, setPending] = useState<'kakao' | 'google' | null>(null)
+
+  // 이미 소셜 계정과 연결된 경우 (provider !== LOCAL) 는 연결 작업 불필요
+  if (!user || user.socialProvider !== 'LOCAL') return null
+
+  const start = async (provider: 'kakao' | 'google') => {
+    setPending(provider)
+    try {
+      if (provider === 'kakao') await loginWithKakao('link')
+      else await loginWithGoogle('link')
+      // 두 함수 모두 페이지 redirect — 이후 코드 실행 X
+    } catch (err) {
+      setPending(null)
+      const msg = err instanceof Error ? err.message : '연결을 시작하지 못했어요.'
+      toast.error(msg)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-200 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Link2 size={16} className="text-primary-500" />
+        <p className="text-sm font-semibold text-gray-900">SNS 계정 연결</p>
+      </div>
+      <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+        연결하면 카카오/구글 로그인으로도 이 계정에 들어올 수 있어요. 기존 비밀번호 로그인은 그대로 유지됩니다.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => start('kakao')}
+          disabled={pending !== null}
+          className="py-2 rounded-lg bg-yellow-300 hover:bg-yellow-400 text-gray-900 text-sm font-semibold disabled:opacity-50"
+        >
+          {pending === 'kakao' ? '연결 중...' : '카카오 연결'}
+        </button>
+        <button
+          type="button"
+          onClick={() => start('google')}
+          disabled={pending !== null}
+          className="py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-semibold disabled:opacity-50"
+        >
+          {pending === 'google' ? '연결 중...' : '구글 연결'}
+        </button>
+      </div>
     </div>
   )
 }

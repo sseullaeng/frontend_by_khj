@@ -12,6 +12,8 @@ import type {
   SignupForm,
   UpdateProfileRequest,
   OAuthLoginRequest,
+  SocialLinkPreviewRequest,
+  SocialLinkConfirmRequest,
 } from './types'  // 인증 관련 타입
 
 /**
@@ -131,6 +133,33 @@ export function useResendVerification() {
     onError: (err) => {
       if (err instanceof BusinessError) toast.error(getErrorMessage(err.code))
       else toast.error('인증 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.')
+    },
+  })
+}
+
+// ── 라운드14: LOCAL ↔ OAuth 2-step 명시 연결 ────────────────────────────
+
+/** (1) Preview — provider 토큰 교환 + 연결 가능 여부 검증, linkKey 발급 (5분 TTL) */
+export function useSocialLinkPreview() {
+  return useMutation({
+    mutationFn: (req: SocialLinkPreviewRequest) =>
+      authApi.socialLinkPreview(req).then((r) => r.data),
+  })
+}
+
+/** (2) Confirm — linkKey 로 실제 연결 + 갱신된 user 반환 */
+export function useSocialLinkConfirm() {
+  const setUser = useAuthStore((s) => s.setUser)
+  return useMutation({
+    mutationFn: (body: SocialLinkConfirmRequest) =>
+      authApi.socialLinkConfirm(body).then((r) => r.data),
+    onSuccess: (user) => {
+      setUser(user)
+      toast.success('소셜 계정이 연결됐어요.')
+    },
+    onError: (err) => {
+      if (err instanceof BusinessError) toast.error(getErrorMessage(err.code, err.message))
+      else toast.error('소셜 계정 연결에 실패했어요.')
     },
   })
 }
