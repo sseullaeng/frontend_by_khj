@@ -14,7 +14,6 @@ import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hook
 import { useConfirmEscrowHandover, useConfirmEscrowReceipt } from '@/features/escrow/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
-import { useBroadcastNotification } from '@/features/admin/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
@@ -836,20 +835,15 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
 /* ── 알림 패널 ── */
 function NotificationPanel() {
-  const currentUser = useAuthStore(s => s.user)
-  const isAdmin = currentUser?.role === 'ADMIN'
   const navigate = useNavigate()
   const close = useDrawerStore(s => s.close)
 
-  // 관리자 전체 발송 폼 (라운드9 — POST /admin/notifications/broadcast)
-  const [broadcastTitle, setBroadcastTitle] = useState('')
-  const [broadcastBody,  setBroadcastBody]  = useState('')
-  const [sent, setSent] = useState(false)
-  const broadcast = useBroadcastNotification()
-
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
-  const items = data?.pages[0]?.content ?? []
+  // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 목록에서는 제외
+  const items = (data?.pages[0]?.content ?? []).filter(
+    (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE',
+  )
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
   const handleNotificationClick = (n: typeof items[number]) => {
@@ -858,6 +852,7 @@ function NotificationPanel() {
     const path = (() => {
       switch (n.linkType) {
         case 'TRANSACTION': return `/trades/${n.linkId}`
+        case 'ESCROW':      return `/escrow/list/${n.linkId}`   // 거래대행 신청
         case 'DELIVERY':    return `/delivery/${n.linkId}/track`
         case 'ITEM':        return `/items/${n.linkId}`
         case 'REVIEW':      return '/reviews'
@@ -869,59 +864,8 @@ function NotificationPanel() {
     if (path) navigate(path)
   }
 
-  /** 전체 발송 — 라운드9: POST /admin/notifications/broadcast */
-  const handleBroadcast = async () => {
-    if (!broadcastTitle.trim() || !broadcastBody.trim()) return
-    try {
-      await broadcast.mutateAsync({
-        title: broadcastTitle.trim(),
-        content: broadcastBody.trim(),
-      })
-      setSent(true)
-      setBroadcastTitle('')
-      setBroadcastBody('')
-      window.setTimeout(() => setSent(false), 3000)
-    } catch {
-      // hook 에서 토스트
-    }
-  }
-
   return (
     <div className="flex flex-col h-full">
-
-      {/* 관리자 전용 — 전체 알림 발송 폼 */}
-      {isAdmin && (
-        <div className="px-4 py-3 border-b border-indigo-100 bg-indigo-50 shrink-0">
-          <p className="text-xs font-semibold text-indigo-700 mb-2">전체 유저 알림 발송</p>
-          <input
-            type="text"
-            value={broadcastTitle}
-            onChange={e => setBroadcastTitle(e.target.value)}
-            placeholder="제목"
-            className="w-full mb-1.5 px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 bg-white"
-          />
-          <textarea
-            value={broadcastBody}
-            onChange={e => setBroadcastBody(e.target.value)}
-            placeholder="내용을 입력하세요"
-            rows={2}
-            className="w-full px-3 py-1.5 text-sm border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 resize-none bg-white"
-          />
-          {sent ? (
-            // 발송 완료 피드백
-            <p className="mt-1.5 text-xs text-emerald-600 font-medium text-center">✓ 전체 발송 완료</p>
-          ) : (
-            <button
-              onClick={handleBroadcast}
-              disabled={!broadcastTitle.trim() || !broadcastBody.trim()}
-              className="mt-1.5 w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1"
-            >
-              <Send size={12} />
-              전체 발송
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
         <span className="text-xs text-gray-500">{items.length}개의 알림</span>
@@ -981,6 +925,10 @@ function NotificationBadge({
   }
   if (type === 'TRANSACTION') {
     return <span className="text-[11px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">거래</span>
+  }
+  // ESCROW (linkType 도 동일) — '거래 신청' 으로 명시
+  if (type === 'ESCROW' || linkType === 'ESCROW') {
+    return <span className="text-[11px] font-medium bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">거래 신청</span>
   }
   if (type === 'DELIVERY') {
     return <span className="text-[11px] font-medium bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">배달</span>

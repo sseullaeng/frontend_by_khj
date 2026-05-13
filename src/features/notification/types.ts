@@ -4,12 +4,13 @@
 // ⚠️ createdAt 은 Instant (UTC offset 포함)
 
 // 알림 타입 (영문 enum) — 라운드9 백엔드는 한글 enum, api.ts 에서 매핑
-//   백엔드: 메시지/거래/리뷰/공지/시스템
-//   프론트: MESSAGE/TRANSACTION/REVIEW/NOTICE/SYSTEM (+ 기존 CHAT/DELIVERY/POINT 호환)
+//   백엔드: 메시지/거래/거래대행/리뷰/공지/시스템
+//   프론트: MESSAGE/TRANSACTION/ESCROW/REVIEW/NOTICE/SYSTEM (+ 기존 CHAT/DELIVERY/POINT 호환)
 export type NotificationType =
   | 'CHAT'
   | 'MESSAGE'
   | 'TRANSACTION'
+  | 'ESCROW'         // 거래대행 신청 — 라운드13
   | 'DELIVERY'
   | 'REVIEW'
   | 'POINT'
@@ -20,6 +21,7 @@ export type NotificationType =
 export type NotificationLinkType =
   | 'CHAT_ROOM'
   | 'TRANSACTION'
+  | 'ESCROW'         // 거래대행 신청 row — /escrow/list/{id} 로 라우팅
   | 'DELIVERY'
   | 'ITEM'
   | 'REVIEW'

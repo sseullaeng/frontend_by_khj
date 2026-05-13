@@ -14,16 +14,19 @@ const normalizeCategory = (c: string | undefined | null): NotificationCategory =
   c && CATEGORY_SET.has(c as NotificationCategory) ? (c as NotificationCategory) : 'USER'
 
 const TYPE_MAP: Record<string, NotificationType> = {
-  '시스템': 'SYSTEM',
-  '메시지': 'MESSAGE',
-  '거래':   'TRANSACTION',
-  '리뷰':   'REVIEW',
-  '공지':   'NOTICE',
+  '시스템':     'SYSTEM',
+  '메시지':     'MESSAGE',
+  '거래':       'TRANSACTION',
+  '거래대행':   'ESCROW',
+  '거래 신청':  'ESCROW',
+  '리뷰':       'REVIEW',
+  '공지':       'NOTICE',
   // 영문도 통과 (defensive)
   'SYSTEM':      'SYSTEM',
   'MESSAGE':     'MESSAGE',
   'CHAT':        'CHAT',
   'TRANSACTION': 'TRANSACTION',
+  'ESCROW':      'ESCROW',
   'REVIEW':      'REVIEW',
   'DELIVERY':    'DELIVERY',
   'POINT':       'POINT',
@@ -31,15 +34,18 @@ const TYPE_MAP: Record<string, NotificationType> = {
 }
 
 const LINK_TYPE_MAP: Record<string, NotificationLinkType> = {
-  'chat-room':   'CHAT_ROOM',
-  'transaction': 'TRANSACTION',
-  'delivery':    'DELIVERY',
-  'item':        'ITEM',
-  'review':      'REVIEW',
-  'payment':     'PAYMENT',
-  'inquiry':     'INQUIRY',
+  'chat-room':           'CHAT_ROOM',
+  'transaction':         'TRANSACTION',
+  'escrow':              'ESCROW',
+  'escrow-application':  'ESCROW',
+  'delivery':            'DELIVERY',
+  'item':                'ITEM',
+  'review':              'REVIEW',
+  'payment':             'PAYMENT',
+  'inquiry':             'INQUIRY',
   // 영문도 통과
   'CHAT_ROOM':   'CHAT_ROOM',
+  'ESCROW':      'ESCROW',
   'ITEM':        'ITEM',
   'PAYMENT':     'PAYMENT',
   'INQUIRY':     'INQUIRY',

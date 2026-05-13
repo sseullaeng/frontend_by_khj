@@ -22,6 +22,7 @@ function notificationToHref(noti: Notification): string {
   const map: Record<NotificationLinkType, string> = {
     CHAT_ROOM:   `/notifications`,                  // 채팅 드로워 진입은 별도 트리거
     TRANSACTION: `/trades/${noti.linkId}`,
+    ESCROW:      `/escrow/list/${noti.linkId}`,      // 거래대행 신청
     DELIVERY:    `/delivery/${noti.linkId}/track`,
     ITEM:        `/items/${noti.linkId}`,
     REVIEW:      `/reviews`,
@@ -39,7 +40,10 @@ export default function NotificationPage() {
 
   const [tab, setTab] = useState<TabKey>('ALL')
 
-  const all: Notification[] = data?.pages.flatMap((p) => p.content) ?? []
+  // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 페이지에서는 제외
+  const all: Notification[] = (data?.pages.flatMap((p) => p.content) ?? []).filter(
+    (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE',
+  )
   const items = tab === 'ALL' ? all : all.filter((n) => n.category === tab)
   const unreadCountByTab = (key: TabKey) =>
     (key === 'ALL' ? all : all.filter((n) => n.category === key)).filter((n) => !n.read).length
