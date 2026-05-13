@@ -29,7 +29,7 @@ import { cn } from '@/shared/lib/cn'
 
 const TRADE_TYPES: TradeType[] = ['판매', '대여', '나눔']
 const RENTAL_UNITS: RentalUnit[] = ['시간', '일', '주', '월']
-const MAX_IMAGES = 5
+const MAX_IMAGES = 10
 
 interface FormValues {
   title: string

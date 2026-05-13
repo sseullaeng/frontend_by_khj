@@ -48,10 +48,17 @@ export default function NotificationPage() {
   const unreadCountByTab = (key: TabKey) =>
     (key === 'ALL' ? all : all.filter((n) => n.category === key)).filter((n) => !n.read).length
 
+  // 라우팅 가능한 알림은 그 페이지로, 그 외(채팅방·연결 없음 등) 는 본문 펼치기
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
   const handleClick = (noti: Notification) => {
     if (!noti.read) markRead(noti.id)
     const href = notificationToHref(noti)
-    if (href !== '/notifications') navigate(href)
+    if (href !== '/notifications') {
+      navigate(href)
+      return
+    }
+    setExpandedId((prev) => (prev === noti.id ? null : noti.id))
   }
 
   return (
@@ -108,21 +115,31 @@ export default function NotificationPage() {
         </div>
       ) : (
         <ul className="divide-y divide-gray-100">
-          {items.map((n) => (
-            <li key={n.id}>
-              <button
-                onClick={() => handleClick(n)}
-                className={cn(
-                  'w-full flex flex-col gap-0.5 px-2 py-3 hover:bg-gray-50 transition-colors text-left',
-                  !n.read && 'bg-primary-50',
-                )}
-              >
-                <span className="text-sm font-medium text-gray-900">{n.title}</span>
-                <span className="text-xs text-gray-500 line-clamp-2">{n.content}</span>
-                <span className="text-xs text-gray-400 mt-0.5">{fromNow(n.createdAt)}</span>
-              </button>
-            </li>
-          ))}
+          {items.map((n) => {
+            const expanded = expandedId === n.id
+            return (
+              <li key={n.id}>
+                <button
+                  onClick={() => handleClick(n)}
+                  className={cn(
+                    'w-full flex flex-col gap-0.5 px-2 py-3 hover:bg-gray-50 transition-colors text-left',
+                    !n.read && 'bg-primary-50',
+                  )}
+                >
+                  <span className="text-sm font-medium text-gray-900">{n.title}</span>
+                  <span
+                    className={cn(
+                      'text-xs text-gray-500 whitespace-pre-wrap',
+                      !expanded && 'line-clamp-2',
+                    )}
+                  >
+                    {n.content}
+                  </span>
+                  <span className="text-xs text-gray-400 mt-0.5">{fromNow(n.createdAt)}</span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
 

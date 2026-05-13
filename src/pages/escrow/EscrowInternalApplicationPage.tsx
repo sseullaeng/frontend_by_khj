@@ -322,6 +322,9 @@ export default function EscrowInternalApplicationPage() {
       </div>
 
       <div className="mt-6">
+        <p className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+          ⚠ 한 번 신청한 거래대행은 수정할 수 없어요. 내용을 한 번 더 확인해 주세요.
+        </p>
         <Button onClick={handleSubmit} isLoading={create.isPending} fullWidth>
           신청 접수 (구매자에게 알림 전송)
         </Button>

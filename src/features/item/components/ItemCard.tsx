@@ -22,16 +22,17 @@ const tradeTypeColor: Record<TradeType, string> = {
   '나눔': 'bg-purple-100 text-purple-800',
 }
 
-// 상태 배지 (판매중은 미표시)
+// 상태 배지 (판매중은 미표시) — '예약' 은 사용자 노출명 '거래중'
 const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>> = {
-  '예약':     { label: '예약중',  color: 'bg-yellow-100 text-yellow-800' },
-  '거래완료': { label: '거래완료', color: 'bg-gray-100 text-gray-800' },
+  '예약':     { label: '거래중',  color: 'bg-yellow-100 text-yellow-800' },
+  '거래완료': { label: '거래완료', color: 'bg-gray-700 text-white' },
   '비공개':   { label: '비공개',  color: 'bg-red-100 text-red-800' },
 }
 
 export default function ItemCard({ item, className }: ItemCardProps) {
   const { mutate: toggleWish } = useToggleWish(item.id)
   const status = statusBadge[item.status]
+  const isCompleted = item.status === '거래완료'
 
   // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
   const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
@@ -45,13 +46,18 @@ export default function ItemCard({ item, className }: ItemCardProps) {
             <img
               src={item.thumbnailUrl}
               alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              className={cn(
+                'w-full h-full object-cover transition-transform duration-200',
+                isCompleted ? 'grayscale opacity-70' : 'group-hover:scale-105',
+              )}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
               <div className="w-12 h-12 bg-gray-200 rounded-full" />
             </div>
           )}
+          {/* 거래완료 — 회색 커버 */}
+          {isCompleted && <div className="absolute inset-0 bg-gray-900/30 pointer-events-none" />}
 
           {/* 거래 유형 태그 — 다중 등록이면 여러 개 */}
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
@@ -94,10 +100,17 @@ export default function ItemCard({ item, className }: ItemCardProps) {
         </div>
 
         {/* 정보 — 영역별 고정 높이로 카드 전체 크기 통일 */}
-        <div className="p-3 h-[7.25rem] flex flex-col">
+        <div className="p-3 h-[8.5rem] flex flex-col">
           <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 h-[2.5rem] group-hover:text-primary-600 transition-colors">
             {item.title}
           </h3>
+
+          {/* 해시태그 — 한 줄 고정 (없으면 빈 자리로 layout 유지) */}
+          <p className="text-[11px] text-primary-600 truncate mb-1 h-[1rem] leading-4">
+            {item.hashtags && item.hashtags.length > 0
+              ? item.hashtags.slice(0, 5).map((t) => `#${t}`).join(' ')
+              : ''}
+          </p>
 
           {/* 가격 영역 — 모드별 한 줄씩, 2 줄 고정 높이 */}
           <div className="mb-1.5 h-[2.5rem] flex flex-col justify-center gap-0.5">

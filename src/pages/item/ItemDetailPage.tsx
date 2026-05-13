@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Heart, MapPin, Eye, Clock, ChevronLeft, Flag,
+  Heart, MapPin, Eye, Clock, ChevronLeft, ChevronRight, Flag,
   Pencil, Trash2, MessageCircle,
 } from 'lucide-react'
 import { useItemDetail, useToggleWish, useDeleteItem, useAdminDeleteItem } from '@/features/item/hooks'
@@ -52,6 +52,7 @@ export default function ItemDetailPage() {
   const [reportOpen, setReportOpen] = useState(false)
   const [profileFloatOpen, setProfileFloatOpen] = useState(false)
   const [tradeModeOpen, setTradeModeOpen] = useState(false)   // 라운드13 #5 — 채팅 시작 시 거래방식 모달
+  const [imageIndex, setImageIndex] = useState(0)
 
   // 로딩/에러 가드
   if (isLoading) {
@@ -73,8 +74,13 @@ export default function ItemDetailPage() {
   // admin 은 본인 아닌 물품도 삭제 가능 (백엔드 가드 별도). 수정은 본인만.
   const showAdminActions = isAdmin && !isOwner
   const status = STATUS_BADGE[item.status]
-  const mainImage = item.images.find((img) => img.thumbnail)?.imageUrl ?? item.images[0]?.imageUrl
-  const otherImages = item.images.filter((img) => img.imageUrl !== mainImage)
+  // 썸네일 우선 정렬 (대표 이미지가 [0] 에 오도록)
+  const orderedImages = [...item.images].sort((a, b) => Number(b.thumbnail) - Number(a.thumbnail))
+  const safeIndex = Math.min(imageIndex, Math.max(orderedImages.length - 1, 0))
+  const currentImage = orderedImages[safeIndex]?.imageUrl
+  const hasMultiple = orderedImages.length > 1
+  const goPrev = () => setImageIndex((i) => (i - 1 + orderedImages.length) % orderedImages.length)
+  const goNext = () => setImageIndex((i) => (i + 1) % orderedImages.length)
 
   const handleDelete = () => {
     // 본인: 일반 endpoint / admin (본인 아닌 물품): admin endpoint
@@ -133,25 +139,54 @@ export default function ItemDetailPage() {
       </div>
 
       <div className="lg:grid lg:grid-cols-2 lg:gap-10">
-        {/* 이미지 영역 */}
+        {/* 이미지 영역 — 캐러셀 (좌/우 버튼 + 인덱스 + 썸네일 클릭 전환) */}
         <div className="mb-6 lg:mb-0">
-          <div className="aspect-square rounded-2xl bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
-            {mainImage ? (
-              <img src={mainImage} alt={item.title} className="w-full h-full object-cover" />
+          <div className="relative aspect-square rounded-2xl bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
+            {currentImage ? (
+              <img src={currentImage} alt={item.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gray-200" />
             )}
+            {hasMultiple && (
+              <>
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  aria-label="이전 사진"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white rounded-full shadow text-gray-700"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  aria-label="다음 사진"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 hover:bg-white rounded-full shadow text-gray-700"
+                >
+                  <ChevronRight size={18} />
+                </button>
+                <div className="absolute right-3 bottom-3 px-2 py-0.5 rounded-full bg-black/55 text-white text-xs font-medium">
+                  {safeIndex + 1} / {orderedImages.length}
+                </div>
+              </>
+            )}
           </div>
 
-          {otherImages.length > 0 && (
+          {hasMultiple && (
             <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-              {otherImages.map((img, i) => (
-                <div
+              {orderedImages.map((img, i) => (
+                <button
                   key={i}
-                  className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200"
+                  type="button"
+                  onClick={() => setImageIndex(i)}
+                  aria-label={`사진 ${i + 1}`}
+                  className={cn(
+                    'w-16 h-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border-2 transition-colors',
+                    i === safeIndex ? 'border-primary-500' : 'border-gray-200 hover:border-gray-300',
+                  )}
                 >
-                  <img src={img.imageUrl} alt={`이미지 ${i + 2}`} className="w-full h-full object-cover" />
-                </div>
+                  <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                </button>
               ))}
             </div>
           )}

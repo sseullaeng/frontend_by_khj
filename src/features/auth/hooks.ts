@@ -84,11 +84,12 @@ export function useSignup() {
       navigate('/login')
     },
     onError: (err) => {
-      const msg =
-        err instanceof BusinessError
-          ? getErrorMessage(err.code)
-          : '회원가입에 실패했어요.'
-      toast.error(msg)
+      // 중복 이메일 등 — 특정 코드 매핑 우선, 없으면 백엔드 한글 메시지(err.message) 노출
+      if (err instanceof BusinessError) {
+        toast.error(getErrorMessage(err.code, err.message))
+        return
+      }
+      toast.error('회원가입에 실패했어요.')
     },
   })
 }

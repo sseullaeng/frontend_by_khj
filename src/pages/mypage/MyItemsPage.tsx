@@ -1,30 +1,30 @@
-// 내 거래 목록 페이지 — 거래(Transaction) 기반 (백엔드 spec 정합)
+// 내 거래 목록 페이지 — 거래(Transaction) 기반
 //
-// 탭별로 role + status 필터로 GET /users/me/transactions 호출.
-// 거래 응답에는 item title 이 없어 row 에서 itemId 만 표시 — 클릭 시 상세 페이지로.
+// 탭: 전체 / 거래완료 / 판매중 / 대여제공(내가 빌려준) / 대여현황(내가 빌린)
+// 백엔드는 role + status 단건 필터만 → buyer 전체 / seller 전체 두 번 호출 후 클라에서 분기.
+//
+// 완료된 거래도 상세 페이지(/trades/:id) 진입 가능.
 
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShoppingBag, ChevronLeft } from 'lucide-react'
 import { useMyTransactions } from '@/features/trade/hooks'
-import type { Transaction, TransactionRole, TransactionStatus } from '@/features/trade/types'
+import { useAuthStore } from '@/features/auth/store'
+import type { Transaction, TransactionStatus } from '@/features/trade/types'
 import { fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-type TabKey = 'BUYING' | 'BOUGHT' | 'SELLING' | 'SOLD'
+type TabKey = 'ALL' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
 
-const TABS: {
-  key: TabKey
-  label: string
-  role: TransactionRole
-  // 진행중 탭은 채팅중 + 예약 + 인계완료 (라운드 11) 묶음
-  statuses: TransactionStatus[]
-}[] = [
-  { key: 'BUYING',  label: '구매중',   role: 'buyer',  statuses: ['채팅중', '예약', '인계완료'] },
-  { key: 'BOUGHT',  label: '구매완료', role: 'buyer',  statuses: ['거래완료'] },
-  { key: 'SELLING', label: '판매중',   role: 'seller', statuses: ['채팅중', '예약', '인계완료'] },
-  { key: 'SOLD',    label: '판매완료', role: 'seller', statuses: ['거래완료'] },
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'ALL',        label: '전체' },
+  { key: 'DONE',       label: '거래완료' },
+  { key: 'SELLING',    label: '판매중' },
+  { key: 'RENTAL_OUT', label: '대여제공' },
+  { key: 'RENTAL_IN',  label: '대여현황' },
 ]
+
+const ACTIVE_STATUSES: TransactionStatus[] = ['채팅중', '예약', '인계완료']
 
 const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
   '채팅중':   { color: 'bg-amber-100 text-amber-700' },
@@ -42,20 +42,42 @@ const TYPE_BADGE: Record<string, string> = {
 
 export default function MyItemsPage() {
   const navigate = useNavigate()
-  const [tabKey, setTabKey] = useState<TabKey>('BUYING')
-  const tab = TABS.find((t) => t.key === tabKey)!
+  const currentUser = useAuthStore((s) => s.user)
+  const myId = currentUser?.id ?? null
+  const [tabKey, setTabKey] = useState<TabKey>('ALL')
 
-  // 단일 status 만 backend 가 받음 → 묶음 탭(진행중 = 채팅중·예약·인계완료) 은 N 번 호출 후 merge.
-  // 훅 규칙상 호출 수는 고정 — 최대 3개 분기 + enabled 로 비활성.
-  const q1 = useMyTransactions({ role: tab.role, status: tab.statuses[0] })
-  const q2 = useMyTransactions(tab.statuses[1] ? { role: tab.role, status: tab.statuses[1] } : undefined)
-  const q3 = useMyTransactions(tab.statuses[2] ? { role: tab.role, status: tab.statuses[2] } : undefined)
+  // buyer/seller 두 측면 전체 — 탭별 필터는 클라이언트에서
+  const buyerQ  = useMyTransactions({ role: 'buyer' })
+  const sellerQ = useMyTransactions({ role: 'seller' })
+  const isLoading = buyerQ.isLoading || sellerQ.isLoading
 
-  const queries = [q1, ...(tab.statuses[1] ? [q2] : []), ...(tab.statuses[2] ? [q3] : [])]
-  const isLoading = queries.some((q) => q.isLoading)
-  const transactions: Transaction[] = queries
-    .flatMap((q) => q.data?.content ?? [])
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  const buyerTxs  = buyerQ.data?.content  ?? []
+  const sellerTxs = sellerQ.data?.content ?? []
+
+  const transactions: Transaction[] = (() => {
+    switch (tabKey) {
+      case 'ALL': {
+        const merged = [...buyerTxs, ...sellerTxs]
+        return dedupeByCreatedDesc(merged)
+      }
+      case 'DONE': {
+        const merged = [...buyerTxs, ...sellerTxs].filter((t) => t.status === '거래완료')
+        return dedupeByCreatedDesc(merged)
+      }
+      case 'SELLING':
+        return sortByCreatedDesc(sellerTxs.filter((t) => ACTIVE_STATUSES.includes(t.status)))
+      case 'RENTAL_OUT':
+        return sortByCreatedDesc(
+          sellerTxs.filter((t) => t.tradeType === '대여' && ACTIVE_STATUSES.includes(t.status)),
+        )
+      case 'RENTAL_IN':
+        return sortByCreatedDesc(
+          buyerTxs.filter((t) => t.tradeType === '대여' && ACTIVE_STATUSES.includes(t.status)),
+        )
+    }
+  })()
+
+  const totalLabel = TABS.find((t) => t.key === tabKey)!.label
 
   return (
     <div className="pb-10">
@@ -97,12 +119,12 @@ export default function MyItemsPage() {
       ) : transactions.length === 0 ? (
         <div className="text-center py-8">
           <ShoppingBag size={48} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">{tab.label} 내역이 없습니다</p>
+          <p className="text-gray-500">{totalLabel} 내역이 없습니다</p>
         </div>
       ) : (
         <ul className="space-y-3">
           {transactions.map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} role={tab.role} />
+            <TransactionRow key={tx.id} tx={tx} myId={myId} />
           ))}
         </ul>
       )}
@@ -110,7 +132,23 @@ export default function MyItemsPage() {
   )
 }
 
-function TransactionRow({ tx, role }: { tx: Transaction; role: TransactionRole }) {
+function dedupeByCreatedDesc(list: Transaction[]): Transaction[] {
+  const seen = new Set<number>()
+  const out: Transaction[] = []
+  for (const t of list) {
+    if (seen.has(t.id)) continue
+    seen.add(t.id)
+    out.push(t)
+  }
+  return sortByCreatedDesc(out)
+}
+
+function sortByCreatedDesc(list: Transaction[]): Transaction[] {
+  return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
+function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) {
+  const role: 'buyer' | 'seller' = myId != null && tx.sellerId === myId ? 'seller' : 'buyer'
   const status = STATUS_BADGE[tx.status]
   const typeColor = TYPE_BADGE[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
   const counterpartId = role === 'buyer' ? tx.sellerId : tx.buyerId

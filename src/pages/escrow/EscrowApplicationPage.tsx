@@ -221,6 +221,8 @@ export default function EscrowApplicationPage() {
           deliveryLat:     deliveryAddr.lat,
           deliveryLng:     deliveryAddr.lng,
           receiverPhone,
+          // 구매자도 배달기사 요청사항 전달 가능
+          deliveryNotes:   deliveryNotes.trim() || undefined,
         } : {}),
         ...(isReceiverSeller && pickupAddr && weight && volume && fragility ? {
           pickupAddress:   pickupAddr.address,
@@ -340,6 +342,17 @@ export default function EscrowApplicationPage() {
                 {receiverPhone && !phoneOk && (
                   <p className="text-[11px] text-red-500 mt-1">숫자와 - / + 만 입력 가능, 9자 이상.</p>
                 )}
+              </section>
+              <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+                <label className="text-sm font-semibold text-gray-900 mb-2 block">배달기사 요청사항 (선택)</label>
+                <textarea
+                  value={deliveryNotes}
+                  onChange={(e) => setDeliveryNotes(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="예: 부재 시 경비실에 맡겨 주세요"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
+                />
               </section>
             </>
           )}
@@ -488,7 +501,12 @@ export default function EscrowApplicationPage() {
         </label>
       </section>
 
-      <div className="mt-4">
+      {/* 신청 후 수정 불가 안내 */}
+      <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+        ⚠ 한 번 신청한 거래대행은 수정할 수 없어요. 입력 내용을 다시 한 번 확인해 주세요.
+      </p>
+
+      <div className="mt-3">
         <Button type="button" fullWidth disabled={!isValid || submitting} isLoading={submitting} onClick={handleSubmit}>
           신청하기
         </Button>
