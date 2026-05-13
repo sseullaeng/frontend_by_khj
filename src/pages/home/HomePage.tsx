@@ -1,18 +1,17 @@
-// 메인 홈페이지 — 배너 슬라이더 + HOT ITEM 그리드 (찜 많은 순)
-import { useState } from 'react'
+// 메인 홈페이지 — 배너 슬라이더 + HOT ITEM (5x2 그리드 + 좌우 드래그 오버플로)
+import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
+import { itemKeys } from '@/features/item/keys'
 import { bannerApi } from '@/features/banner/api'
 import { bannerKeys } from '@/features/banner/keys'
 
-const PAGE_SIZE = 6
-const FETCH_SIZE = 24  // 한 번에 받아둘 추천 풀
+const FETCH_SIZE = 24
+const GRID_COUNT = 10  // 한 줄 5개 × 2줄
 
 export default function HomePage() {
-  const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
-
   // 배너 — 백엔드가 활성/윈도우 필터링 + sortOrder 정렬해서 반환 (§10.8)
   const { data: bannerList } = useQuery({
     queryKey: bannerKeys.active(),
@@ -26,15 +25,17 @@ export default function HomePage() {
     linkUrl: b.linkUrl ?? undefined,
   }))
 
+  // ⚠ queryKey 는 itemKeys.lists() prefix 아래에 둬야 useToggleWish 의
+  //   optimistic update (setQueriesData on itemKeys.lists()) 가 잡아서 갱신함
   const { data, isLoading } = useQuery({
-    queryKey: ['items', 'home-hot'],
+    queryKey: [...itemKeys.lists(), 'home-hot'],
     queryFn: () =>
       itemApi.getList({ page: 0, size: FETCH_SIZE, sort: 'wishlist_desc' }).then((r) => r.data),
   })
 
   const allItems = data?.content ?? []
-  const displayItems = allItems.slice(0, displayCount)
-  const hasMore = displayCount < allItems.length
+  const gridItems = allItems.slice(0, GRID_COUNT)
+  const overflowItems = allItems.slice(GRID_COUNT)
 
   return (
     <div className="space-y-8">
@@ -63,25 +64,79 @@ export default function HomePage() {
           <p className="text-center text-sm text-gray-400 py-12">등록된 물품이 없어요.</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {displayItems.map((item) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              {gridItems.map((item) => (
                 <ItemCard key={item.id} item={item} />
               ))}
             </div>
 
-            {hasMore && (
-              <div className="flex justify-center mt-8">
-                <button
-                  onClick={() => setDisplayCount((c) => c + PAGE_SIZE)}
-                  className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-                >
-                  더보기
-                </button>
-              </div>
+            {overflowItems.length > 0 && (
+              <DragScrollRow>
+                {overflowItems.map((item) => (
+                  <ItemCard key={item.id} item={item} className="w-40 sm:w-44 md:w-48 shrink-0" />
+                ))}
+              </DragScrollRow>
             )}
           </>
         )}
       </section>
+    </div>
+  )
+}
+
+/** 좌우 드래그 가로 스크롤 — 터치는 native, 데스크탑은 pointer drag */
+function DragScrollRow({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const startXRef = useRef(0)
+  const scrollLeftRef = useRef(0)
+  const movedRef = useRef(false)
+  const draggingRef = useRef(false)
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!ref.current) return
+    // 터치는 native scroll 그대로 (관성/스냅 유지). 마우스만 잡아서 drag scroll.
+    if (e.pointerType === 'touch') return
+    draggingRef.current = true
+    movedRef.current = false
+    startXRef.current = e.clientX
+    scrollLeftRef.current = ref.current.scrollLeft
+    ref.current.setPointerCapture(e.pointerId)
+  }
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current || !ref.current) return
+    const dx = e.clientX - startXRef.current
+    if (Math.abs(dx) > 4) movedRef.current = true
+    ref.current.scrollLeft = scrollLeftRef.current - dx
+  }
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    draggingRef.current = false
+    if (ref.current?.hasPointerCapture(e.pointerId)) {
+      ref.current.releasePointerCapture(e.pointerId)
+    }
+  }
+
+  // drag 중에 카드(Link) 클릭이 발생하지 않도록 capture 단계에서 차단
+  const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (movedRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      movedRef.current = false
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClickCapture={onClickCapture}
+      className="mt-6 flex gap-4 overflow-x-auto pb-2 select-none cursor-grab active:cursor-grabbing [scrollbar-width:thin]"
+    >
+      {children}
     </div>
   )
 }

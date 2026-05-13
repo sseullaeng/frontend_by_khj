@@ -45,8 +45,8 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* 로고 */}
-          <Link to="/" className="text-2xl font-bold text-primary-600 shrink-0">
-            쓸랭
+          <Link to="/" aria-label="쓸랭 홈" className="flex items-center shrink-0">
+            <img src="/logo.png" alt="쓸랭" className="h-9 sm:h-10 w-auto select-none" draggable={false} />
           </Link>
 
           {/* 데스크톱 nav (md+) */}

@@ -14,6 +14,7 @@ function notificationToHref(noti: Notification): string {
   const map: Record<NotificationLinkType, string> = {
     CHAT_ROOM:   `/notifications`,                  // 채팅 드로워 진입은 별도 트리거
     TRANSACTION: `/trades/${noti.linkId}`,
+    ESCROW:      `/escrow/list/${noti.linkId}`,      // 거래대행 신청
     DELIVERY:    `/delivery/${noti.linkId}/track`,
     ITEM:        `/items/${noti.linkId}`,
     REVIEW:      `/reviews`,
@@ -26,7 +27,11 @@ function notificationToHref(noti: Notification): string {
 export default function NotificationDropdown({ onClose }: Props) {
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
-  const recent = data?.pages[0]?.content?.slice(0, 10) ?? []
+  // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 드롭다운에서는 제외
+  const recent =
+    data?.pages[0]?.content
+      ?.filter((n) => n.type !== 'CHAT' && n.type !== 'MESSAGE')
+      .slice(0, 10) ?? []
 
   return (
     <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
