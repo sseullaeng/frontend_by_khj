@@ -26,6 +26,7 @@ const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>>
 export default function ItemListItem({ item, className }: ItemListItemProps) {
   const { mutate: toggleWish } = useToggleWish(item.id)
   const status = statusBadge[item.status]
+  const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
 
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
@@ -62,14 +63,30 @@ export default function ItemListItem({ item, className }: ItemListItemProps) {
               {item.title}
             </h3>
 
-            <p
-              className={cn(
-                'font-semibold text-sm mb-3',
-                item.price === 0 ? 'text-green-600' : 'text-gray-900',
+            <div className="mb-3 space-y-0.5">
+              {modes.includes('나눔') ? (
+                <p className="font-semibold text-sm text-green-600">무료 나눔</p>
+              ) : (
+                <>
+                  {modes.includes('판매') && (
+                    <p className="text-sm">
+                      <span className="text-xs text-gray-400 mr-1">판매</span>
+                      <span className="font-semibold text-gray-900">
+                        {(item.salePrice ?? item.price).toLocaleString()}원
+                      </span>
+                    </p>
+                  )}
+                  {modes.includes('대여') && (
+                    <p className="text-sm">
+                      <span className="text-xs text-gray-400 mr-1">대여</span>
+                      <span className="font-semibold text-gray-900">
+                        {(item.rentalPrice ?? item.price).toLocaleString()}원
+                      </span>
+                    </p>
+                  )}
+                </>
               )}
-            >
-              {item.price === 0 ? '무료' : `${item.price.toLocaleString()}원`}
-            </p>
+            </div>
 
             <div className="flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center gap-1 min-w-0">
@@ -97,15 +114,18 @@ export default function ItemListItem({ item, className }: ItemListItemProps) {
           </div>
 
           {/* 거래 유형 태그 */}
-          <div className="flex flex-col gap-2 items-end">
-            <span
-              className={cn(
-                'px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap',
-                tradeTypeColor[item.tradeType],
-              )}
-            >
-              {item.tradeType}
-            </span>
+          <div className="flex flex-col gap-1.5 items-end">
+            {modes.map((mode) => (
+              <span
+                key={mode}
+                className={cn(
+                  'px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap',
+                  tradeTypeColor[mode],
+                )}
+              >
+                {mode}
+              </span>
+            ))}
           </div>
         </div>
       </div>

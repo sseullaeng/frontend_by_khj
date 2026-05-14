@@ -186,6 +186,14 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
   const role: 'buyer' | 'seller' = myId != null && tx.sellerId === myId ? 'seller' : 'buyer'
   const status = STATUS_BADGE[tx.status]
   const typeColor = TYPE_BADGE[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
+  const roleLabel =
+    tx.tradeType === '대여'
+      ? role === 'buyer'
+        ? '대여중'
+        : '대여제공'
+      : role === 'buyer'
+        ? '구매'
+        : '판매'
   const counterpartId = role === 'buyer' ? tx.sellerId : tx.buyerId
   const thumbnailUrl =
     item?.thumbnailUrl ??
@@ -221,7 +229,7 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
                 role === 'buyer' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
               )}
             >
-              {role === 'buyer' ? '구매' : '판매'}
+              {roleLabel}
             </span>
           </div>
 
