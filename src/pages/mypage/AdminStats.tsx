@@ -7,12 +7,13 @@
 //   TradeStatus: '진행중' | '완료' | '취소'  (백엔드에서 5단계 → 3분류 그룹핑)
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import { useAdminDashboardCharts, useAdminMe } from '@/features/admin/hooks'
+import { useAdminOverdueList } from '@/features/overdue/hooks'
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
 
@@ -114,6 +115,9 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
           onClick={() => navigate('/admin/reports')}
         />
       </div>
+
+      {/* 연체 위젯 — 라운드14. 진행 중 / 위험(PHASE_4) totalElements 만 사용. */}
+      <OverdueSummary />
 
       {/* 신고 위젯 — 라운드12 PR #106. 응답에 있을 때만 노출 (백엔드 배포 후 자동 활성화) */}
       {reportsSummary && (
@@ -259,6 +263,44 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
 }
 
 // ── 보조 컴포넌트/유틸 ─────────────────────────────────────────────────────
+
+// 라운드14 — 연체 현황 위젯. 백엔드 dashboard 응답에 합산 필드가 없어,
+//   목록 endpoint 의 totalElements 만 가볍게(size=1) 끌어와 카운트 표시.
+function OverdueSummary() {
+  const navigate = useNavigate()
+  const active = useAdminOverdueList({ status: '진행중', size: 1 })
+  const danger = useAdminOverdueList({ phase: 'PHASE_4', size: 1 })
+
+  const activeCount = active.data?.totalElements ?? 0
+  const dangerCount = danger.data?.totalElements ?? 0
+  const loading = active.isLoading || danger.isLoading
+
+  return (
+    <button
+      onClick={() => navigate('/admin/overdue')}
+      className="bg-white border border-gray-200 rounded-2xl p-4 text-left hover:shadow-md transition-shadow"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-gray-900 inline-flex items-center gap-1.5">
+          <AlertTriangle size={14} className="text-red-500" /> 연체 현황
+        </p>
+        <ChevronRight size={14} className="text-gray-300" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <ReportStat
+          label="진행 중"
+          value={loading ? 0 : activeCount}
+          tone={activeCount > 0 ? 'red' : 'gray'}
+        />
+        <ReportStat
+          label="위험 (4단계)"
+          value={loading ? 0 : dangerCount}
+          tone={dangerCount > 0 ? 'red' : 'gray'}
+        />
+      </div>
+    </button>
+  )
+}
 
 function ReportStat({
   label, value, tone,
