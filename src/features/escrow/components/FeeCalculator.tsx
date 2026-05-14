@@ -9,7 +9,6 @@ import type {
   FragilityKey,
   VolumeKey,
   WeightKey,
-  EscrowFeeSettings,
   EscrowPreviewResponse,
 } from '@/features/escrow/types'
 import { cn } from '@/shared/lib/cn'
@@ -54,8 +53,6 @@ interface Props {
   fees: EscrowPreviewResponse | null
   /** preview 진행 중 표시용 */
   isLoadingFees?: boolean
-  /** 관리자 설정 (요율 카드 표시용) */
-  settings: EscrowFeeSettings | undefined
   /** preview 호출 불가 안내 (내부 draft 흐름) */
   showPreviewUnavailableHint?: boolean
 }
@@ -63,7 +60,7 @@ interface Props {
 export default function FeeCalculator({
   weight, volume, fragility,
   onWeightChange, onVolumeChange, onFragilityChange,
-  itemPrice, fees, isLoadingFees, settings,
+  itemPrice, fees, isLoadingFees,
   showPreviewUnavailableHint,
 }: Props) {
   const wOpt = WEIGHT_OPTIONS.find(o => o.value === weight)
@@ -81,30 +78,9 @@ export default function FeeCalculator({
           <p className="text-sm font-semibold text-gray-900">수수료 · 배달료 계산기</p>
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <Info size={12} />
-            <span>관리자 설정 요율</span>
+            <span>예상 수수료 미리보기</span>
           </div>
         </div>
-
-        {settings && (
-          <div className="bg-white rounded-lg p-3 border border-gray-200 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-gray-600">
-            <div className="flex justify-between col-span-2 sm:col-span-1">
-              <span>대행 수수료율</span>
-              <span className="font-medium text-gray-900">{(settings.commissionRate * 100).toFixed(0)}%</span>
-            </div>
-            <div className="flex justify-between col-span-2 sm:col-span-1">
-              <span>유류비</span>
-              <span className="font-medium text-gray-900">{settings.fuelPricePerL.toLocaleString()}원/L</span>
-            </div>
-            <div className="flex justify-between col-span-2 sm:col-span-1">
-              <span>기본료 (오토바이)</span>
-              <span className="font-medium text-gray-900">{settings.baseDeliveryFee.toLocaleString()}원</span>
-            </div>
-            <div className="flex justify-between col-span-2 sm:col-span-1">
-              <span>기본료 (용달차)</span>
-              <span className="font-medium text-gray-900">{settings.truckBaseDeliveryFee.toLocaleString()}원</span>
-            </div>
-          </div>
-        )}
 
         {/* 예상 거리 — preview 결과 있을 때만 */}
         <div className="flex justify-between items-center px-3 py-2.5 bg-white rounded-lg border border-gray-200 text-sm">

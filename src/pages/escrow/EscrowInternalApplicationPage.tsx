@@ -6,12 +6,12 @@
 //   - 구매자 delivery 좌표는 PATCH /buyer-info (EscrowBuyerInfoPage)
 //   - 제출: POST /escrow/applications/internal/draft → status="정보입력대기"
 //
-// 좌우 2칸 + 공통 FeeCalculator. delivery 좌표 없어 preview 호출 불가 → fees=null.
+// 좌우 2칸 + 공통 FeeCalculator. draft 단계는 구매자 수령지 입력 전이라 preview 는 buyer-info 단계에서 계산.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarClock, ChevronLeft, MapPin, Plus, X, AlertTriangle, Info } from 'lucide-react'
 import { toast } from 'sonner'
-import { useCreateEscrowDraft, useEscrowFeeSettings } from '@/features/escrow/hooks'
+import { useCreateEscrowDraft } from '@/features/escrow/hooks'
 import { useItemDetail } from '@/features/item/hooks'
 import { useChatRoom } from '@/features/chat/hooks'
 import type {
@@ -63,7 +63,6 @@ export default function EscrowInternalApplicationPage() {
   const [keepImageUrls, setKeepImageUrls] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { data: feeSettings } = useEscrowFeeSettings()
   const create = useCreateEscrowDraft()
 
   // 라운드13 — 채팅방의 거래 모드 + Item 정보로 폼 prefill (판매/대여 자동 분기)
@@ -508,8 +507,7 @@ export default function EscrowInternalApplicationPage() {
           onVolumeChange={setVolume}
           onFragilityChange={setFragility}
           itemPrice={itemPrice}
-          fees={null} // draft 단계엔 delivery 없어 preview 호출 불가
-          settings={feeSettings}
+          fees={null}
           showPreviewUnavailableHint
         />
       </div>

@@ -20,7 +20,6 @@ import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateEscrowByLink,
   useEscrowLink,
-  useEscrowFeeSettings,
   useEscrowPreview,
 } from '@/features/escrow/hooks'
 import type {
@@ -54,7 +53,6 @@ export default function EscrowApplicationPage() {
   const { data: fetchedLink } = useEscrowLink(stateLink ? undefined : linkToken)
   const link = stateLink ?? fetchedLink
 
-  const { data: feeSettings } = useEscrowFeeSettings()
   const preview = useEscrowPreview()
   const create = useCreateEscrowByLink()
 
@@ -111,9 +109,7 @@ export default function EscrowApplicationPage() {
   }, [link, isReceiverBuyer])
 
   // ── preview 호출 — 양쪽 좌표/옵션/가격 모두 모이면 ──
-  // ⚠️ feeSettings 는 표시용(요율 카드)일 뿐 preview 호출에는 필요 X.
-  //    /admin/.../fee-settings 는 관리자 전용이라 일반 사용자는 401/403 → undefined.
-  //    여기서 feeSettings 로 게이팅하면 일반 사용자는 preview 가 영영 안 돌아 배달료가 "—" 로 남는다.
+  // 사용자 수수료 계산은 POST /escrow/applications/preview 응답만 사용한다.
   const previewBody = useMemo(() => {
     if (!link) return null
 
@@ -490,7 +486,6 @@ export default function EscrowApplicationPage() {
           itemPrice={isReceiverSeller ? itemPrice : (initiator?.itemPrice ?? 0)}
           fees={fees}
           isLoadingFees={preview.isPending}
-          settings={feeSettings}
         />
       </div>
 
