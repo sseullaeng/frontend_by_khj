@@ -81,7 +81,7 @@ export default function MyItemsPage() {
       case 'DONE':
         return dedupeByCreatedDesc([...buyerDone, ...sellerDone])
       case 'SELLING':
-        return sortByCreatedDesc(sellerActive)
+        return sortByCreatedDesc(sellerActive.filter((t) => t.tradeType === '판매'))
       case 'RENTAL_OUT':
         return sortByCreatedDesc(sellerActive.filter((t) => t.tradeType === '대여'))
       case 'RENTAL_IN':
