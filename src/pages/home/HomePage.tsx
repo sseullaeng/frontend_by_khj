@@ -1,6 +1,7 @@
-// 메인 홈페이지 — 배너 + HOT/대여/판매 섹션 (각 5×2 그리드 + 좌우 드래그 오버플로)
-import { useRef } from 'react'
+// 메인 홈페이지 — 배너 + HOT/대여/판매 섹션 (각 5×2 그리드 + 좌우 화살표 캐러셀)
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
@@ -162,7 +163,7 @@ function ItemSectionBody({
       {overflowItems.length > 0 && (
         <DragScrollRow>
           {overflowItems.map((item) => (
-            <ItemCard key={item.id} item={item} className="w-40 sm:w-44 md:w-48 shrink-0" />
+            <ItemCard key={item.id} item={item} className="w-40 sm:w-44 md:w-48 shrink-0 snap-start" />
           ))}
         </DragScrollRow>
       )}
@@ -170,13 +171,39 @@ function ItemSectionBody({
   )
 }
 
-/** 좌우 드래그 가로 스크롤 — 터치는 native, 데스크탑은 pointer drag */
+/** 좌우 화살표 캐러셀 — 터치는 native, 데스크탑은 pointer drag + 좌우 화살표 + snap. */
 function DragScrollRow({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const startXRef = useRef(0)
   const scrollLeftRef = useRef(0)
   const movedRef = useRef(false)
   const draggingRef = useRef(false)
+
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd]     = useState(true)   // 콘텐츠 폭 < viewport 이면 화살표 둘 다 hide
+
+  const updateEdges = () => {
+    const el = ref.current
+    if (!el) return
+    setAtStart(el.scrollLeft <= 0)
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+  }
+
+  useEffect(() => {
+    updateEdges()
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(updateEdges)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const scrollByDir = (dir: 1 | -1) => {
+    if (!ref.current) return
+    // viewport 의 80% 만큼 이동 — snap-mandatory 가 가까운 카드 시작점으로 정착시킴
+    const amount = Math.max(160, ref.current.clientWidth * 0.8)
+    ref.current.scrollBy({ left: dir * amount, behavior: 'smooth' })
+  }
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!ref.current) return
@@ -213,16 +240,42 @@ function DragScrollRow({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div
-      ref={ref}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onClickCapture={onClickCapture}
-      className="mt-6 flex gap-4 overflow-x-auto pb-2 select-none cursor-grab active:cursor-grabbing [scrollbar-width:thin]"
-    >
-      {children}
+    <div className="relative mt-6 group">
+      {/* 좌측 화살표 — 시작점이 아닐 때만 노출. 카드 위에 띄움 */}
+      {!atStart && (
+        <button
+          type="button"
+          onClick={() => scrollByDir(-1)}
+          aria-label="이전"
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 flex items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+      {/* 우측 화살표 — 끝점이 아닐 때만 노출 */}
+      {!atEnd && (
+        <button
+          type="button"
+          onClick={() => scrollByDir(1)}
+          aria-label="다음"
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 flex items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
+
+      <div
+        ref={ref}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+        onScroll={updateEdges}
+        className="flex gap-4 overflow-x-auto pb-2 select-none cursor-grab active:cursor-grabbing snap-x snap-mandatory scroll-smooth [scrollbar-width:thin]"
+      >
+        {children}
+      </div>
     </div>
   )
 }
