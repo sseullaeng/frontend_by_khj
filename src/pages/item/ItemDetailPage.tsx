@@ -57,7 +57,11 @@ export default function ItemDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [profileFloatOpen, setProfileFloatOpen] = useState(false)
-  const [tradeModeOpen, setTradeModeOpen] = useState(false)   // 라운드13 #5 — 채팅 시작 시 거래방식 모달
+  // 라운드14 — 채팅 시작 모달 2-step 통합
+  //   step='mode'       : 거래 유형 선택 (다중 모드 물품 한정)
+  //   step='rentalDate' : 대여 선택 후 기간 입력
+  const [chatModalOpen, setChatModalOpen] = useState(false)
+  const [chatModalStep, setChatModalStep] = useState<'mode' | 'rentalDate'>('mode')
   const [imageIndex, setImageIndex] = useState(0)
 
   // 라운드14 4-C — 대여 달력 + 신청
@@ -109,50 +113,64 @@ export default function ItemDetailPage() {
   const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
   const isShare = modes.includes('나눔')
 
-  // 라운드13 #5 — 채팅 시작 시 거래방식 선택
-  //   다중 모드(판매+대여) 면 선택 모달 → 선택된 mode 로 채팅방 생성
-  //   단일 모드면 바로 채팅방 (모달 X)
-  const startChatWithMode = async (mode: TradeType) => {
+  // 라운드13 #5 + 라운드14 — 채팅 시작 시 거래유형 선택 + (대여면) 기간 입력
+  //   - 단일 모드 '판매' / '나눔'  → 바로 채팅방 생성
+  //   - 단일 모드 '대여'           → 모달 step='rentalDate' (기간 입력)
+  //   - 다중 모드 (판매+대여)      → 모달 step='mode' (유형 선택 → 대여면 'rentalDate')
+  const closeChatModal = () => {
+    setChatModalOpen(false)
+    setChatModalStep('mode')
+    setRentalRange(null)
+  }
+
+  const startChatWithSale = async (mode: TradeType) => {
     try {
       const room = await chatApi.createRoom(item.id, mode)
       openChatRoom(room.data.id)
       open('chat')
+      closeChatModal()
     } catch {
       toast.error('채팅을 시작하지 못했어요.')
     }
   }
 
+  const startChatWithRental = async () => {
+    if (!rentalRange || !rentalRange.start || !rentalRange.end) {
+      toast.error('대여 기간(시작·종료)을 모두 선택해 주세요.')
+      return
+    }
+    try {
+      const room = await chatApi.createRoom(item.id, '대여')
+      await requestRental.mutateAsync({
+        rentalStart: `${rentalRange.start}T00:00:00`,
+        rentalEnd:   `${rentalRange.end}T23:59:59`,
+        chatRoomId:  room.data.id,
+      })
+      openChatRoom(room.data.id)
+      open('chat')
+      closeChatModal()
+      toast.success('대여 신청을 보냈어요. 판매자가 확인 후 예약돼요.')
+    } catch (err) {
+      if (err instanceof BusinessError) toast.error(getErrorMessage(err.code, err.message))
+      else toast.error('대여 신청에 실패했어요.')
+    }
+  }
+
   const handleChat = () =>
     requireVerified(async () => {
+      // 단일 모드 — 바로 분기
       if (modes.length === 1) {
-        await startChatWithMode(modes[0])
-      } else {
-        setTradeModeOpen(true)   // 모달 열기
-      }
-    })
-
-  // 라운드14 4-C — 대여 신청: 채팅방 만들고 그 위에 rental-request 전송
-  const handleRentalRequest = () =>
-    requireVerified(async () => {
-      if (!rentalRange || !rentalRange.start || !rentalRange.end) {
-        toast.error('대여 기간(시작·종료)을 모두 선택해 주세요.')
+        if (modes[0] === '대여') {
+          setChatModalStep('rentalDate')
+          setChatModalOpen(true)
+        } else {
+          await startChatWithSale(modes[0])
+        }
         return
       }
-      try {
-        const room = await chatApi.createRoom(item.id, '대여')
-        await requestRental.mutateAsync({
-          rentalStart: `${rentalRange.start}T00:00:00`,
-          rentalEnd:   `${rentalRange.end}T23:59:59`,
-          chatRoomId:  room.data.id,
-        })
-        openChatRoom(room.data.id)
-        open('chat')
-        setRentalRange(null)
-        toast.success('대여 신청을 보냈어요. 판매자가 확인 후 예약돼요.')
-      } catch (err) {
-        if (err instanceof BusinessError) toast.error(getErrorMessage(err.code, err.message))
-        else toast.error('대여 신청에 실패했어요.')
-      }
+      // 다중 모드 — 유형 선택부터
+      setChatModalStep('mode')
+      setChatModalOpen(true)
     })
 
   return (
@@ -324,30 +342,18 @@ export default function ItemDetailPage() {
 
           <hr className="border-gray-100" />
 
-          {/* 라운드14 4-C — 대여 가능 기간 + 신청 (대여 모드 + 본인 아님 한정) */}
-          {modes.includes('대여') && !isOwner && (
+          {/* 라운드14 4-C — 대여 가능 기간 안내 (읽기 전용, 시각화)
+             실제 기간 선택·신청은 [채팅하기] 모달에서 처리. */}
+          {modes.includes('대여') && (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">대여 기간 선택</h3>
+              <h3 className="text-sm font-semibold text-gray-700">대여 가능 기간</h3>
               <RentalDatePicker
                 blocks={rentalBlocksQ.data?.blocks ?? []}
-                value={rentalRange}
-                onChange={setRentalRange}
+                value={null}
+                onChange={() => {/* 읽기 전용 */}}
               />
-              {rentalRange?.start && rentalRange?.end && (
-                <p className="text-xs text-gray-500">
-                  선택 기간: <span className="font-medium text-gray-900">{rentalRange.start} ~ {rentalRange.end}</span>
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={handleRentalRequest}
-                disabled={!rentalRange?.start || !rentalRange?.end || requestRental.isPending}
-                className="w-full mt-1 py-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-semibold transition-colors"
-              >
-                {requestRental.isPending ? '신청 중...' : '대여 신청'}
-              </button>
               <p className="text-[11px] text-gray-400 leading-relaxed">
-                회색 날짜는 이미 다른 사용자가 예약한 기간이에요. 판매자가 신청을 확인하면 예약으로 전환됩니다.
+                회색 날짜는 이미 다른 사용자가 예약한 기간이에요. [채팅하기] 를 누르면 기간을 정해 신청할 수 있어요.
               </p>
             </div>
           )}
@@ -525,36 +531,94 @@ export default function ItemDetailPage() {
         />
       )}
 
-      {/* 라운드13 #5 — 채팅 시작 시 거래방식 선택 모달 (다중 모드 물품) */}
-      {tradeModeOpen && (
+      {/* 라운드14 — 채팅 시작 모달 (2-step: 거래 유형 → 대여면 기간) */}
+      {chatModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="font-bold text-gray-900 mb-1">어떤 거래로 채팅하시겠어요?</h3>
-            <p className="text-sm text-gray-500 mb-4">이 물품은 여러 거래 방식으로 등록되어 있어요. 채팅방은 거래 방식별로 분리됩니다.</p>
-            <div className="flex flex-col gap-2">
-              {modes.map((m) => (
-                <button
-                  key={m}
-                  onClick={async () => {
-                    setTradeModeOpen(false)
-                    await startChatWithMode(m)
-                  }}
-                  className={cn('w-full py-3 rounded-xl text-sm font-semibold border-2 transition-colors text-left px-4',
-                    TRADE_TYPE_BADGE[m].cls)}
-                >
-                  {m}
-                  {m === '판매'  && item.salePrice   != null && ` — ${item.salePrice.toLocaleString()}원`}
-                  {m === '대여'  && item.rentalPrice != null && ` — ${item.rentalPrice.toLocaleString()}원${item.rentalUnit ? ` / ${item.rentalUnit}` : ''}`}
-                  {m === '나눔'  && ' — 무료 나눔'}
-                </button>
-              ))}
-              <button
-                onClick={() => setTradeModeOpen(false)}
-                className="w-full py-2 mt-1 text-sm text-gray-500"
-              >
-                취소
-              </button>
-            </div>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+
+            {chatModalStep === 'mode' && (
+              <>
+                <h3 className="font-bold text-gray-900 mb-1">어떤 거래로 채팅하시겠어요?</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  이 물품은 여러 거래 방식으로 등록되어 있어요. 채팅방은 거래 방식별로 분리됩니다.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {modes.map((m) => (
+                    <button
+                      key={m}
+                      onClick={async () => {
+                        if (m === '대여') {
+                          setChatModalStep('rentalDate')
+                        } else {
+                          await startChatWithSale(m)
+                        }
+                      }}
+                      className={cn('w-full py-3 rounded-xl text-sm font-semibold border-2 transition-colors text-left px-4',
+                        TRADE_TYPE_BADGE[m].cls)}
+                    >
+                      {m}
+                      {m === '판매'  && item.salePrice   != null && ` — ${item.salePrice.toLocaleString()}원`}
+                      {m === '대여'  && item.rentalPrice != null && ` — ${item.rentalPrice.toLocaleString()}원${item.rentalUnit ? ` / ${item.rentalUnit}` : ''}`}
+                      {m === '나눔'  && ' — 무료 나눔'}
+                    </button>
+                  ))}
+                  <button onClick={closeChatModal} className="w-full py-2 mt-1 text-sm text-gray-500">
+                    취소
+                  </button>
+                </div>
+              </>
+            )}
+
+            {chatModalStep === 'rentalDate' && (
+              <>
+                <h3 className="font-bold text-gray-900 mb-1">대여 기간을 선택해 주세요</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  회색 날짜는 이미 예약된 기간이에요. 시작일·종료일을 차례로 눌러 주세요.
+                </p>
+                <RentalDatePicker
+                  blocks={rentalBlocksQ.data?.blocks ?? []}
+                  value={rentalRange}
+                  onChange={setRentalRange}
+                />
+                {rentalRange?.start && rentalRange?.end && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    선택 기간: <span className="font-medium text-gray-900">{rentalRange.start} ~ {rentalRange.end}</span>
+                  </p>
+                )}
+                {item.deposit != null && item.deposit > 0 && (
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    보증금: {item.depositType === 'PERCENT'
+                      ? `${item.deposit}% (거래 시 자동 환산)`
+                      : `${item.deposit.toLocaleString()}원`}
+                  </p>
+                )}
+                <div className="flex gap-2 mt-4">
+                  {modes.length > 1 && (
+                    <button
+                      onClick={() => setChatModalStep('mode')}
+                      disabled={requestRental.isPending}
+                      className="flex-1 py-2.5 rounded-xl text-sm text-gray-600 border border-gray-200 disabled:opacity-50"
+                    >
+                      이전
+                    </button>
+                  )}
+                  <button
+                    onClick={closeChatModal}
+                    disabled={requestRental.isPending}
+                    className="flex-1 py-2.5 rounded-xl text-sm text-gray-500 border border-gray-200 disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={startChatWithRental}
+                    disabled={!rentalRange?.start || !rentalRange?.end || requestRental.isPending}
+                    className="flex-1 py-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-semibold"
+                  >
+                    {requestRental.isPending ? '신청 중...' : '신청 후 채팅 시작'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
