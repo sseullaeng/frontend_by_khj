@@ -10,6 +10,7 @@ import {
   useAdminEscrowApplicationDetail,
   useAdminEscrowApplications,
 } from '@/features/escrow/hooks'
+import { useAdminUserDetail } from '@/features/admin/hooks'
 import type { EscrowApplication, EscrowApplicationStatus } from '@/features/escrow/types'
 import { ESCROW_DISPLAY_COLOR, getEscrowDisplayStatus } from '@/features/escrow/displayStatus'
 import { cn } from '@/shared/lib/cn'
@@ -164,10 +165,10 @@ function EscrowRow({ app, onOpen }: { app: EscrowApplication; onOpen: () => void
             </p>
             <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
               <span className="inline-flex items-center gap-1">
-                <User size={11} /> 구매자 #{app.buyerId}
+                <User size={11} /> 구매자 <AdminUserName userId={app.buyerId} />
               </span>
               <span className="inline-flex items-center gap-1">
-                <User size={11} /> 판매자 #{app.sellerId}
+                <User size={11} /> 판매자 <AdminUserName userId={app.sellerId} />
               </span>
               {app.deliveryId != null && <span>배송 #{app.deliveryId}</span>}
             </div>
@@ -230,8 +231,16 @@ function EscrowDetailContent({ app }: { app: EscrowApplication }) {
       <section className="mb-4">
         <p className="text-xs font-semibold text-gray-700 mb-2">당사자</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-          <InfoBox icon={<User size={13} />} label="구매자" value={`#${app.buyerId}`} />
-          <InfoBox icon={<User size={13} />} label="판매자" value={`#${app.sellerId}`} />
+          <InfoBox
+            icon={<User size={13} />}
+            label="구매자"
+            value={<AdminUserName userId={app.buyerId} />}
+          />
+          <InfoBox
+            icon={<User size={13} />}
+            label="판매자"
+            value={<AdminUserName userId={app.sellerId} />}
+          />
         </div>
       </section>
 
@@ -317,7 +326,8 @@ function EscrowDetailContent({ app }: { app: EscrowApplication }) {
         <section className="mb-4 border border-red-100 bg-red-50 rounded-xl p-3">
           <p className="text-xs font-semibold text-red-700 mb-1">취소 요청</p>
           <p className="text-xs text-red-600">
-            요청자 #{app.cancelRequestedBy ?? '-'} ·{' '}
+            요청자{' '}
+            {app.cancelRequestedBy ? <AdminUserName userId={app.cancelRequestedBy} /> : '-'} ·{' '}
             {formatKst(app.cancelRequestedAt, 'yyyy.MM.dd HH:mm')}
           </p>
           {app.cancelReason && <p className="text-sm text-red-700 mt-1">{app.cancelReason}</p>}
@@ -370,7 +380,12 @@ function DetailStat({
   )
 }
 
-function InfoBox({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function AdminUserName({ userId }: { userId: number }) {
+  const { data } = useAdminUserDetail(userId)
+  return <span>{data?.nickname ?? `사용자 #${userId}`}</span>
+}
+
+function InfoBox({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
       <span className="mt-0.5 text-gray-400 shrink-0">{icon}</span>
