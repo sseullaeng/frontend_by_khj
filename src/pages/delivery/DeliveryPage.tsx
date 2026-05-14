@@ -170,6 +170,13 @@ function DeliveryRow({ delivery }: { delivery: Delivery }) {
         </div>
       )}
 
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <span>요청자 {delivery.requesterNickname ?? `#${delivery.requesterId}`}</span>
+        {delivery.riderId != null && (
+          <span>라이더 {delivery.riderNickname ?? `#${delivery.riderId}`}</span>
+        )}
+      </div>
+
       <p className="mt-2 text-sm font-semibold text-primary-600">{delivery.fee.toLocaleString()}원</p>
     </Link>
   )

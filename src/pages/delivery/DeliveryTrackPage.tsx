@@ -213,11 +213,13 @@ export default function DeliveryTrackPage() {
         <ParticipantCard
           label="요청자"
           userId={delivery.requesterId}
+          nickname={delivery.requesterNickname}
           profile={requesterProfile.data}
         />
         <ParticipantCard
           label="라이더"
           userId={delivery.riderId}
+          nickname={delivery.riderNickname}
           profile={riderProfile.data}
         />
       </div>
@@ -326,12 +328,15 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
 function ParticipantCard({
   label,
   userId,
+  nickname,
   profile,
 }: {
   label: string
   userId: number | null
+  nickname?: string | null
   profile: { nickname: string; profileImage: string | null } | undefined
 }) {
+  const displayName = profile?.nickname ?? nickname
   return (
     <div className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-lg">
       <p className="text-xs text-gray-500 mb-2">{label}</p>
@@ -345,7 +350,7 @@ function ParticipantCard({
             )}
           </div>
           <p className="text-sm font-medium text-gray-900 truncate max-w-full">
-            {profile?.nickname ?? `사용자 #${userId}`}
+            {displayName ?? `사용자 #${userId}`}
           </p>
         </Link>
       ) : (

@@ -14,7 +14,9 @@ export type DeliveryStatus =
 export interface Delivery {
   id: number
   requesterId: number
+  requesterNickname: string | null
   riderId: number | null         // 수락 후 채워짐
+  riderNickname: string | null
   pickupAddress: string
   dropoffAddress: string
   itemDescription: string         // 자유 텍스트
