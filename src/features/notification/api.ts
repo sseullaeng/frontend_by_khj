@@ -43,12 +43,14 @@ const LINK_TYPE_MAP: Record<string, NotificationLinkType> = {
   'review':              'REVIEW',
   'payment':             'PAYMENT',
   'inquiry':             'INQUIRY',
+  'overdue':             'OVERDUE',
   // 영문도 통과
   'CHAT_ROOM':   'CHAT_ROOM',
   'ESCROW':      'ESCROW',
   'ITEM':        'ITEM',
   'PAYMENT':     'PAYMENT',
   'INQUIRY':     'INQUIRY',
+  'OVERDUE':     'OVERDUE',
 }
 
 interface RawNotification {

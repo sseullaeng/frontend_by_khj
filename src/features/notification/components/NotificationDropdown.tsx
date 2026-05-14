@@ -22,6 +22,7 @@ function notificationToHref(noti: Notification): string {
     REVIEW:      `/reviews`,
     PAYMENT:     `/point`,
     INQUIRY:     `/mypage/inquiries/${noti.linkId}`,  // 라운드8
+    OVERDUE:     `/mypage/overdue`,                   // 라운드14 — record 목록 화면. linkId 는 페이지 내부에서 강조용으로 사용
   }
   return map[noti.linkType] ?? '/notifications'
 }

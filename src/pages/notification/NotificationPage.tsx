@@ -30,6 +30,7 @@ function notificationToHref(noti: Notification): string {
     REVIEW:      `/reviews`,
     PAYMENT:     `/point`,
     INQUIRY:     `/mypage/inquiries/${noti.linkId}`,  // 라운드8: 고객지원 답변 알림
+    OVERDUE:     `/mypage/overdue`,                   // 라운드14: 연체 안내/단계 진입/계정 정지
   }
   return map[noti.linkType] ?? '/notifications'
 }

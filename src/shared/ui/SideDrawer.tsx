@@ -980,6 +980,7 @@ function NotificationPanel() {
         case 'REVIEW':      return '/reviews'
         case 'PAYMENT':     return '/point'
         case 'INQUIRY':     return `/mypage/inquiries/${n.linkId}`
+        case 'OVERDUE':     return '/mypage/overdue'
         default:            return null
       }
     })()

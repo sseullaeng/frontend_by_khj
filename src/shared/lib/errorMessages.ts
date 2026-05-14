@@ -71,6 +71,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   REVIEW_NOT_FOUND:            '리뷰를 찾을 수 없어요.',
   REVIEW_FORBIDDEN:            '이 리뷰에 대한 권한이 없어요.',
 
+  // ── 연체 (Overdue, 라운드14) ─────────────────────────────
+  OVERDUE_NOT_FOUND:            '연체 기록을 찾을 수 없어요.',
+  OVERDUE_ALREADY_RESOLVED:     '이미 정산이 종료된 건이에요.',
+
   // ── 거래대행 (Escrow) ────────────────────────────────────
   ESCROW_LINK_NOT_FOUND:        '거래대행 링크를 찾을 수 없어요.',
   ESCROW_LINK_EXPIRED:          '링크가 만료됐어요. 새 링크를 받아 주세요.',
