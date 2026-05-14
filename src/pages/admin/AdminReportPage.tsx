@@ -13,6 +13,7 @@ import {
   Hash,
   Package,
   ShieldOff,
+  Trash2,
   User,
   UserX,
   XCircle,
@@ -27,6 +28,7 @@ import {
   useWithdrawUser,
 } from '@/features/admin/hooks'
 import type { AdminReport, AdminReportStatus, AdminReportAction } from '@/features/admin/types'
+import { useAdminDeleteItem } from '@/features/item/hooks'
 import { Button } from '@/shared/ui/Button'
 import { formatKst, fromNow } from '@/shared/lib/date'
 import { toast } from 'sonner'
@@ -282,6 +284,7 @@ const ACTION_OPTIONS: {
 ]
 
 type ReportSanction = 'NONE' | 'SUSPEND' | 'BLOCK' | 'WITHDRAW'
+type ReportedItemAction = 'NONE' | 'DELETE'
 
 const SANCTION_OPTIONS: {
   value: ReportSanction
@@ -320,18 +323,43 @@ const SANCTION_OPTIONS: {
   },
 ]
 
+const ITEM_ACTION_OPTIONS: {
+  value: ReportedItemAction
+  label: string
+  desc: string
+  icon: typeof Package
+  activeCls: string
+}[] = [
+  {
+    value: 'NONE',
+    label: '물품 조치 없음',
+    desc: '신고 상태만 처리하고 물품은 유지',
+    icon: Package,
+    activeCls: 'border-gray-500 bg-gray-50',
+  },
+  {
+    value: 'DELETE',
+    label: '신고 물품 강제 삭제',
+    desc: '관리자 권한으로 물품을 soft-delete 처리하고 감사 추적은 유지',
+    icon: Trash2,
+    activeCls: 'border-red-500 bg-red-50',
+  },
+]
+
 function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: () => void }) {
   const { data: detail } = useAdminReportDetail(report.id)
   const current = detail ?? report
   const [action, setAction] = useState<AdminReportAction>('COMPLETE')
   const [memo, setMemo] = useState('')
   const [sanction, setSanction] = useState<ReportSanction>('NONE')
+  const [itemAction, setItemAction] = useState<ReportedItemAction>('NONE')
   const [suspendDays, setSuspendDays] = useState(7)
   const [withdrawReason, setWithdrawReason] = useState('')
   const { mutateAsync, isPending } = usePatchAdminReport()
   const suspendMut = useSuspendUser()
   const blockMut = useSetUserBlocked()
   const withdrawMut = useWithdrawUser()
+  const deleteItemMut = useAdminDeleteItem()
 
   // PENDING 일 때만 MARK_IN_PROGRESS 가능
   const normalizedStatus = normalizeReportStatus(current.status as string)
@@ -339,7 +367,9 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
     normalizedStatus === 'PENDING' ? true : o.value !== 'MARK_IN_PROGRESS'
   )
   const canSanction = action === 'COMPLETE'
-  const isSanctioning = suspendMut.isPending || blockMut.isPending || withdrawMut.isPending
+  const hasReportedItem = current.itemId != null
+  const isSanctioning =
+    suspendMut.isPending || blockMut.isPending || withdrawMut.isPending || deleteItemMut.isPending
 
   const runSanction = async () => {
     if (!canSanction || sanction === 'NONE') return
@@ -357,9 +387,15 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
     })
   }
 
+  const runItemAction = async () => {
+    if (!canSanction || itemAction === 'NONE' || current.itemId == null) return
+    await deleteItemMut.mutateAsync(current.itemId)
+  }
+
   const handleSubmit = async () => {
     try {
       await runSanction()
+      await runItemAction()
       await mutateAsync({ id: current.id, body: { action, memo: memo.trim() || undefined } })
       onClose()
     } catch (err) {
@@ -370,105 +406,156 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
-        <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{current.id} 처리</h3>
-        <p className="text-xs text-gray-500 mb-1 line-clamp-2">{current.reason}</p>
-        <p className="text-[11px] text-gray-400 mb-4">피신고자 #{current.reportedId}</p>
-
-        <p className="text-xs font-semibold text-gray-700 mb-2">처리 방식</p>
-        <div className="flex flex-col gap-2 mb-4">
-          {availableActions.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => setAction(o.value)}
-              className={cn(
-                'p-3 rounded-xl border-2 text-left transition-colors',
-                action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50'
-              )}
-            >
-              <p className="text-sm font-medium text-gray-900">{o.label}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
-            </button>
-          ))}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[calc(100vh-3rem)] shadow-xl flex flex-col">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{current.id} 처리</h3>
+          <p className="text-xs text-gray-500 mb-1 line-clamp-2">{current.reason}</p>
+          <div className="flex flex-wrap gap-3 text-[11px] text-gray-400">
+            <span>피신고자 #{current.reportedId}</span>
+            {current.itemId != null && (
+              <Link to={`/items/${current.itemId}`} className="text-primary-600 hover:underline">
+                신고 물품 #{current.itemId}
+              </Link>
+            )}
+          </div>
         </div>
 
-        {canSanction && (
-          <>
-            <p className="text-xs font-semibold text-gray-700 mb-2">피신고자 제재</p>
-            <div className="flex flex-col gap-2 mb-4">
-              {SANCTION_OPTIONS.map((o) => {
-                const Icon = o.icon
-                return (
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section>
+              <p className="text-xs font-semibold text-gray-700 mb-2">처리 방식</p>
+              <div className="flex flex-col gap-2">
+                {availableActions.map((o) => (
                   <button
                     key={o.value}
                     type="button"
-                    onClick={() => setSanction(o.value)}
+                    onClick={() => setAction(o.value)}
                     className={cn(
                       'p-3 rounded-xl border-2 text-left transition-colors',
-                      sanction === o.value
-                        ? o.activeCls
-                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                      action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50'
                     )}
                   >
-                    <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                      <Icon size={14} />
-                      {o.label}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900">{o.label}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
                   </button>
-                )
-              })}
-            </div>
-
-            {sanction === 'SUSPEND' && (
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  정지 기간
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={suspendDays}
-                  onChange={(e) => setSuspendDays(Number(e.target.value))}
-                  className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
-                />
+                ))}
               </div>
-            )}
+            </section>
 
-            {sanction === 'WITHDRAW' && (
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  강제 탈퇴 사유
-                </label>
-                <textarea
-                  value={withdrawReason}
-                  onChange={(e) => setWithdrawReason(e.target.value)}
-                  maxLength={500}
-                  rows={2}
-                  placeholder="다중 신고 누적 + 관리자 검토"
-                  className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm outline-none focus:border-red-400 resize-none"
-                />
+            {canSanction && (
+              <section>
+                <p className="text-xs font-semibold text-gray-700 mb-2">신고 물품 조치</p>
+                {hasReportedItem ? (
+                  <div className="flex flex-col gap-2">
+                    {ITEM_ACTION_OPTIONS.map((o) => {
+                      const Icon = o.icon
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => setItemAction(o.value)}
+                          className={cn(
+                            'p-3 rounded-xl border-2 text-left transition-colors',
+                            itemAction === o.value
+                              ? o.activeCls
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                          )}
+                        >
+                          <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                            <Icon size={14} />
+                            {o.label}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-500">
+                    이 신고에는 연결된 물품이 없습니다.
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {canSanction && (
+            <section className="mt-6">
+              <p className="text-xs font-semibold text-gray-700 mb-2">피신고자 제재</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                {SANCTION_OPTIONS.map((o) => {
+                  const Icon = o.icon
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setSanction(o.value)}
+                      className={cn(
+                        'p-3 rounded-xl border-2 text-left transition-colors',
+                        sanction === o.value
+                          ? o.activeCls
+                          : 'border-gray-200 bg-white hover:bg-gray-50'
+                      )}
+                    >
+                      <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                        <Icon size={14} />
+                        {o.label}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
+                    </button>
+                  )
+                })}
               </div>
-            )}
-          </>
-        )}
 
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-          관리자 메모 (선택)
-        </label>
-        <textarea
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          maxLength={500}
-          rows={3}
-          placeholder="처리 사유 / 내부 메모 (≤500)"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none mb-4"
-        />
+              {sanction === 'SUSPEND' && (
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    정지 기간
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={suspendDays}
+                    onChange={(e) => setSuspendDays(Number(e.target.value))}
+                    className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
+                  />
+                </div>
+              )}
 
-        <div className="flex gap-2">
+              {sanction === 'WITHDRAW' && (
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    강제 탈퇴 사유
+                  </label>
+                  <textarea
+                    value={withdrawReason}
+                    onChange={(e) => setWithdrawReason(e.target.value)}
+                    maxLength={500}
+                    rows={2}
+                    placeholder="다중 신고 누적 + 관리자 검토"
+                    className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm outline-none focus:border-red-400 resize-none"
+                  />
+                </div>
+              )}
+            </section>
+          )}
+
+          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+            관리자 메모 (선택)
+          </label>
+          <textarea
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            maxLength={500}
+            rows={3}
+            placeholder="처리 사유 / 내부 메모 (≤500)"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
+          />
+        </div>
+
+        <div className="flex gap-2 px-6 py-4 border-t border-gray-100">
           <button
             onClick={onClose}
             disabled={isPending || isSanctioning}
