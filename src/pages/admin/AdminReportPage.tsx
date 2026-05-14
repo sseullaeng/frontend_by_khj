@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom'
 import {
   useAdminReportDetail,
   useAdminReports,
+  useAdminUserDetail,
   usePatchAdminReport,
   useSetUserBlocked,
   useSuspendUser,
@@ -139,89 +140,13 @@ export default function AdminReportPage() {
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
-          {data!.content.map((r) => {
-            const badge = STATUS_BADGE[r.status as string] ?? FALLBACK_BADGE
-            const Icon = badge.icon
-            return (
-              <li
-                key={r.id}
-                className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
-                        badge.cls
-                      )}
-                    >
-                      <Icon size={11} />
-                      {badge.label}
-                    </span>
-                    <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
-                      <Hash size={10} />
-                      {r.id}
-                    </span>
-                    <span className="text-[11px] text-gray-400">{fromNow(r.createdAt)}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 mb-1">{r.reason}</p>
-                  {r.detail && (
-                    <p className="text-xs text-gray-600 line-clamp-2 mb-2">{r.detail}</p>
-                  )}
-                  <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
-                    <span className="inline-flex items-center gap-1">
-                      <User size={11} /> 신고자{' '}
-                      <Link
-                        to={`/users/${r.reporterId}`}
-                        className="text-primary-600 hover:underline"
-                      >
-                        #{r.reporterId}
-                      </Link>
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <User size={11} /> 피신고자{' '}
-                      <Link
-                        to={`/users/${r.reportedId}`}
-                        className="text-primary-600 hover:underline"
-                      >
-                        #{r.reportedId}
-                      </Link>
-                    </span>
-                    {r.itemId != null && (
-                      <span className="inline-flex items-center gap-1">
-                        <Package size={11} />{' '}
-                        <Link
-                          to={`/items/${r.itemId}`}
-                          className="text-primary-600 hover:underline"
-                        >
-                          물품 #{r.itemId}
-                        </Link>
-                      </span>
-                    )}
-                  </div>
-                  {r.processedAt && (
-                    <p className="text-[11px] text-gray-400 mt-2">
-                      처리: {formatKst(r.processedAt, 'yyyy.MM.dd HH:mm')}
-                      {r.adminId && ` (admin #${r.adminId})`}
-                      {r.adminMemo && ` — ${r.adminMemo}`}
-                    </p>
-                  )}
-                </div>
-
-                {/* 액션 */}
-                {(() => {
-                  const normalized = normalizeReportStatus(r.status as string)
-                  return normalized === 'PENDING' || normalized === 'IN_PROGRESS'
-                })() && (
-                  <div className="flex sm:flex-col gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => setActioningReport(r)}>
-                      처리
-                    </Button>
-                  </div>
-                )}
-              </li>
-            )
-          })}
+          {data!.content.map((r) => (
+            <ReportListItem
+              key={r.id}
+              report={r}
+              onAction={() => setActioningReport(r)}
+            />
+          ))}
         </ul>
       )}
 
@@ -252,6 +177,81 @@ export default function AdminReportPage() {
         <ReportActionModal report={actioningReport} onClose={() => setActioningReport(null)} />
       )}
     </div>
+  )
+}
+
+function ReportListItem({ report: r, onAction }: { report: AdminReport; onAction: () => void }) {
+  const reporterQ = useAdminUserDetail(r.reporterId)
+  const reportedQ = useAdminUserDetail(r.reportedId)
+  const reporterName = reporterQ.data?.nickname ?? `사용자 #${r.reporterId}`
+  const reportedName = reportedQ.data?.nickname ?? `사용자 #${r.reportedId}`
+  const badge = STATUS_BADGE[r.status as string] ?? FALLBACK_BADGE
+  const Icon = badge.icon
+  const normalized = normalizeReportStatus(r.status as string)
+  const canAction = normalized === 'PENDING' || normalized === 'IN_PROGRESS'
+
+  return (
+    <li className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
+              badge.cls
+            )}
+          >
+            <Icon size={11} />
+            {badge.label}
+          </span>
+          <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
+            <Hash size={10} />
+            {r.id}
+          </span>
+          <span className="text-[11px] text-gray-400">{fromNow(r.createdAt)}</span>
+        </div>
+        <p className="text-sm font-semibold text-gray-900 mb-1">{r.reason}</p>
+        {r.detail && (
+          <p className="text-xs text-gray-600 line-clamp-2 mb-2">{r.detail}</p>
+        )}
+        <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+          <span className="inline-flex items-center gap-1">
+            <User size={11} /> 신고자{' '}
+            <Link to={`/users/${r.reporterId}`} className="text-primary-600 hover:underline">
+              {reporterName}
+            </Link>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <User size={11} /> 피신고자{' '}
+            <Link to={`/users/${r.reportedId}`} className="text-primary-600 hover:underline">
+              {reportedName}
+            </Link>
+          </span>
+          {r.itemId != null && (
+            <span className="inline-flex items-center gap-1">
+              <Package size={11} />{' '}
+              <Link to={`/items/${r.itemId}`} className="text-primary-600 hover:underline">
+                물품 #{r.itemId}
+              </Link>
+            </span>
+          )}
+        </div>
+        {r.processedAt && (
+          <p className="text-[11px] text-gray-400 mt-2">
+            처리: {formatKst(r.processedAt, 'yyyy.MM.dd HH:mm')}
+            {r.adminId && ` (admin #${r.adminId})`}
+            {r.adminMemo && ` — ${r.adminMemo}`}
+          </p>
+        )}
+      </div>
+
+      {canAction && (
+        <div className="flex sm:flex-col gap-1.5 shrink-0">
+          <Button size="sm" variant="outline" onClick={onAction}>
+            처리
+          </Button>
+        </div>
+      )}
+    </li>
   )
 }
 
@@ -349,6 +349,8 @@ const ITEM_ACTION_OPTIONS: {
 function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: () => void }) {
   const { data: detail } = useAdminReportDetail(report.id)
   const current = detail ?? report
+  const { data: reportedUser } = useAdminUserDetail(current.reportedId)
+  const reportedName = reportedUser?.nickname ?? `사용자 #${current.reportedId}`
   const [action, setAction] = useState<AdminReportAction>('COMPLETE')
   const [memo, setMemo] = useState('')
   const [sanction, setSanction] = useState<ReportSanction>('NONE')
@@ -412,7 +414,7 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
           <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{current.id} 처리</h3>
           <p className="text-xs text-gray-500 mb-1 line-clamp-2">{current.reason}</p>
           <div className="flex flex-wrap gap-3 text-[11px] text-gray-400">
-            <span>피신고자 #{current.reportedId}</span>
+            <span>피신고자 {reportedName}</span>
             {current.itemId != null && (
               <Link to={`/items/${current.itemId}`} className="text-primary-600 hover:underline">
                 신고 물품 #{current.itemId}
