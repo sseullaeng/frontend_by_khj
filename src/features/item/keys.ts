@@ -15,9 +15,10 @@ import type { ItemFilter } from './types'  // 물품 필터 타입
  * - 필터링된 목록은 필터를 키에 포함
  */
 export const itemKeys = {
-  all:    ()               => ['items'] as const,  // 모든 물품 키
-  lists:  ()               => [...itemKeys.all(), 'list'] as const,  // 목록 키들
-  list:   (filter: ItemFilter) => [...itemKeys.lists(), filter] as const,  // 필터링된 목록 키
-  detail: (id: number)     => [...itemKeys.all(), 'detail', id] as const,  // 상세 정보 키
-  wished: ()               => [...itemKeys.all(), 'wished'] as const,  // 찜 목록 키
+  all:           ()               => ['items'] as const,  // 모든 물품 키
+  lists:         ()               => [...itemKeys.all(), 'list'] as const,  // 목록 키들
+  list:          (filter: ItemFilter) => [...itemKeys.lists(), filter] as const,  // 필터링된 목록 키
+  detail:        (id: number)     => [...itemKeys.all(), 'detail', id] as const,  // 상세 정보 키
+  wished:        ()               => [...itemKeys.all(), 'wished'] as const,  // 찜 목록 키
+  rentalBlocks:  (id: number)     => [...itemKeys.all(), 'rental-blocks', id] as const,  // 라운드14 4-C
 }

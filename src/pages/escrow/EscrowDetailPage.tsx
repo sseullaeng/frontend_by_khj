@@ -1,12 +1,18 @@
 // 거래대행 신청 상세 — 백엔드 hook 연동
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Receipt, Package, Clock, CheckCircle, XCircle, Truck, PackageCheck } from 'lucide-react'
+import { ArrowLeft, MapPin, Receipt, Package, Clock, CheckCircle, XCircle, Truck, PackageCheck, RotateCcw, Handshake } from 'lucide-react'
 import {
   useEscrowApplicationDetail,
   useCancelEscrowApplication,
   useConfirmEscrowReceipt,
   useEscrowPaymentPreview,
+  useConfirmEscrowHandover,
+  useRequestEscrowReturn,
+  useConfirmEscrowReturn,
+  useRequestEscrowCancel,
+  useConfirmEscrowCancel,
+  useWithdrawEscrowCancel,
 } from '@/features/escrow/hooks'
 import { useDeliveryDetail } from '@/features/delivery/hooks'
 import { getEscrowDisplayStatus, ESCROW_DISPLAY_COLOR, type EscrowDisplayStatus } from '@/features/escrow/displayStatus'
@@ -22,8 +28,56 @@ const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
   '매칭중':   Clock,
   '픽업중':   PackageCheck,
   '배달중':   Truck,
-  '배달완료': CheckCircle,
+  '사용중':   PackageCheck,
+  '반납중':   Truck,
+  '취소대기': Clock,
+  '완료':     CheckCircle,
   '취소':     XCircle,
+}
+
+type DetailAction =
+  | 'immediate-cancel'
+  | 'request-return'
+  | 'confirm-return'
+  | 'request-cancel'
+  | 'confirm-cancel'
+  | 'withdraw-cancel'
+
+const ACTION_COPY: Record<DetailAction, { title: string; desc: string; confirm: string; danger?: boolean; needsReason?: boolean }> = {
+  'immediate-cancel': {
+    title: '신청을 취소할까요?',
+    desc: '결제대기 상태의 신청은 즉시 취소됩니다.',
+    confirm: '취소하기',
+    danger: true,
+  },
+  'request-return': {
+    title: '반납을 요청할까요?',
+    desc: '반납 배송이 시작되고 반납 배송비가 차감될 수 있어요.',
+    confirm: '반납 요청',
+  },
+  'confirm-return': {
+    title: '반납을 확인할까요?',
+    desc: '반납 확인 후 물품 금액 정산, 라이더 수수료 지급, 보증금 반환이 처리됩니다.',
+    confirm: '반납 확인',
+  },
+  'request-cancel': {
+    title: '취소 합의를 요청할까요?',
+    desc: '상대방이 승인하면 거래대행이 취소됩니다.',
+    confirm: '요청 보내기',
+    danger: true,
+    needsReason: true,
+  },
+  'confirm-cancel': {
+    title: '취소 요청을 승인할까요?',
+    desc: '승인 후 거래대행이 취소되고 정산/환불 정책이 적용됩니다.',
+    confirm: '승인하기',
+    danger: true,
+  },
+  'withdraw-cancel': {
+    title: '취소 요청을 철회할까요?',
+    desc: '철회하면 거래대행은 사용중 상태로 유지됩니다.',
+    confirm: '철회하기',
+  },
 }
 
 export default function EscrowDetailPage() {
@@ -41,7 +95,14 @@ export default function EscrowDetailPage() {
   )
   const cancelMut = useCancelEscrowApplication()
   const confirmMut = useConfirmEscrowReceipt()
-  const [confirmCancel, setConfirmCancel] = useState(false)
+  const handoverMut = useConfirmEscrowHandover()
+  const requestReturnMut = useRequestEscrowReturn()
+  const confirmReturnMut = useConfirmEscrowReturn()
+  const requestCancelMut = useRequestEscrowCancel()
+  const confirmCancelMut = useConfirmEscrowCancel()
+  const withdrawCancelMut = useWithdrawEscrowCancel()
+  const [confirmAction, setConfirmAction] = useState<DetailAction | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   if (isLoading) return <div className="py-20 text-center text-gray-400">불러오는 중...</div>
   if (!app) {
@@ -54,12 +115,21 @@ export default function EscrowDetailPage() {
   }
 
   const isBuyer = currentUser?.id === app.buyerId
+  const isSeller = currentUser?.id === app.sellerId
   const displayStatus = getEscrowDisplayStatus(app.status, delivery?.status)
   const StatusIcon = DISPLAY_ICON[displayStatus]
   // 결제대기 상태에서만 본인 취소 가능 (백엔드 정책: 매칭 후 차단)
   const canCancel = app.status === '결제대기'
   // Mode B (INTERNAL) buyer 만 진행중에 수령 확인 가능
   const canConfirm = app.tradeMode === 'INTERNAL' && isBuyer && app.status === '진행중'
+  const canConfirmHandover = app.tradeMode === 'INTERNAL' && isSeller && app.status === '진행중' && !app.handoverConfirmedBySellerAt
+  const canRequestReturn = isBuyer && app.status === '사용중'
+  const canConfirmReturn = isSeller && app.status === '반납중'
+  const hasCancelRequest = app.cancelRequestedBy != null || app.status === '취소대기'
+  const cancelRequestedByMe = app.cancelRequestedBy != null && currentUser?.id === app.cancelRequestedBy
+  const canRequestCancel = (isBuyer || isSeller) && app.status === '사용중' && !hasCancelRequest
+  const canWithdrawCancel = (isBuyer || isSeller) && (app.status === '사용중' || app.status === '취소대기') && cancelRequestedByMe
+  const canConfirmCancel = (isBuyer || isSeller) && (app.status === '사용중' || app.status === '취소대기') && app.cancelRequestedBy != null && !cancelRequestedByMe
   // PR-B-4: buyer 가 정보입력대기 상태에서 본인 수령지 미입력이면 진입 유도
   const needsBuyerInfo = isBuyer && app.status === '정보입력대기' && !app.buyerInfoFilled
   // PR-B-5: 결제대기 + 본인 결제 부담 + 본인 미결제 시에만 결제 진입 노출
@@ -71,16 +141,34 @@ export default function EscrowDetailPage() {
   const needsPay = hasMyShare && !payPreview?.alreadyPaid
   const myShareWaitingOther = hasMyShare && !!payPreview?.alreadyPaid
   // 라운드13 — 매칭된 배달이 있으면 추적 페이지로 진입 (진행중·완료 모두 노출)
-  const canTrackDelivery = !!app.deliveryId && (app.status === '진행중' || app.status === '완료')
+  const canTrackDelivery = !!app.deliveryId && ['진행중', '사용중', '반납중', '완료'].includes(app.status)
+  const isActionPending =
+    cancelMut.isPending ||
+    confirmMut.isPending ||
+    handoverMut.isPending ||
+    requestReturnMut.isPending ||
+    confirmReturnMut.isPending ||
+    requestCancelMut.isPending ||
+    confirmCancelMut.isPending ||
+    withdrawCancelMut.isPending
+  const hasActions =
+    canCancel ||
+    canConfirm ||
+    canConfirmHandover ||
+    canRequestReturn ||
+    canConfirmReturn ||
+    canRequestCancel ||
+    canWithdrawCancel ||
+    canConfirmCancel
 
   const handleCancel = async () => {
     if (!applicationId) return
     try {
       await cancelMut.mutateAsync({ id: applicationId, body: { reason: '단순 변심' } })
-      setConfirmCancel(false)
+      setConfirmAction(null)
       navigate('/escrow/list')
     } catch {
-      setConfirmCancel(false)
+      setConfirmAction(null)
     }
   }
 
@@ -88,6 +176,39 @@ export default function EscrowDetailPage() {
     if (!applicationId) return
     try {
       await confirmMut.mutateAsync(applicationId)
+    } catch {
+      // hook 에서 토스트
+    }
+  }
+
+  const runAction = async () => {
+    if (!applicationId || !confirmAction) return
+    try {
+      switch (confirmAction) {
+        case 'immediate-cancel':
+          await handleCancel()
+          return
+        case 'request-return':
+          await requestReturnMut.mutateAsync(applicationId)
+          break
+        case 'confirm-return':
+          await confirmReturnMut.mutateAsync(applicationId)
+          break
+        case 'request-cancel':
+          await requestCancelMut.mutateAsync({
+            id: applicationId,
+            body: { reason: cancelReason.trim() || '취소 요청' },
+          })
+          break
+        case 'confirm-cancel':
+          await confirmCancelMut.mutateAsync(applicationId)
+          break
+        case 'withdraw-cancel':
+          await withdrawCancelMut.mutateAsync(applicationId)
+          break
+      }
+      setConfirmAction(null)
+      setCancelReason('')
     } catch {
       // hook 에서 토스트
     }
@@ -216,6 +337,22 @@ export default function EscrowDetailPage() {
         )}
       </div>
 
+      {/* 대여 거래대행 정보 */}
+      {(app.rentalEndAt || app.depositAmount != null || app.usingStartedAt || app.returnRequestedAt || app.returnConfirmedAt) && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <RotateCcw size={16} className="text-gray-500" /> 대여·반납
+          </h2>
+          <dl className="text-sm space-y-1.5">
+            {app.rentalEndAt && <DetailRow label="반납 예정" value={formatKst(app.rentalEndAt, 'yyyy.MM.dd HH:mm')} />}
+            {app.depositAmount != null && <DetailRow label="보증금" value={`${app.depositAmount.toLocaleString()}원`} />}
+            {app.usingStartedAt && <DetailRow label="사용 시작" value={formatKst(app.usingStartedAt, 'yyyy.MM.dd HH:mm')} />}
+            {app.returnRequestedAt && <DetailRow label="반납 요청" value={formatKst(app.returnRequestedAt, 'yyyy.MM.dd HH:mm')} />}
+            {app.returnConfirmedAt && <DetailRow label="반납 확인" value={formatKst(app.returnConfirmedAt, 'yyyy.MM.dd HH:mm')} />}
+          </dl>
+        </div>
+      )}
+
       {/* PR-B-4: buyer 수령지 입력 유도 안내 + 진입 */}
       {needsBuyerInfo && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -250,6 +387,24 @@ export default function EscrowDetailPage() {
         </div>
       )}
 
+      {hasCancelRequest && app.cancelRequestedBy != null && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="font-semibold text-red-700 mb-1 text-sm inline-flex items-center gap-1.5">
+            <Handshake size={14} /> 취소 합의 요청 중
+          </p>
+          <p className="text-xs text-red-700/90">
+            {cancelRequestedByMe
+              ? '내가 취소를 요청했어요. 상대방 승인 전까지 철회할 수 있습니다.'
+              : '상대방이 취소를 요청했어요. 승인하면 거래대행이 취소됩니다.'}
+          </p>
+          {app.cancelReason && (
+            <p className="mt-2 text-xs text-red-700/80 bg-white/60 rounded-lg px-2 py-1">
+              사유: {app.cancelReason}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* 라운드13 — 매칭된 배달 추적 진입 */}
       {canTrackDelivery && (
         <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
@@ -266,10 +421,15 @@ export default function EscrowDetailPage() {
       )}
 
       {/* 액션 */}
-      <div className="flex gap-2">
+      {hasActions && <div className="flex flex-col gap-2">
         {canCancel && (
-          <Button variant="outline" fullWidth onClick={() => setConfirmCancel(true)} disabled={cancelMut.isPending}>
+          <Button variant="outline" fullWidth onClick={() => setConfirmAction('immediate-cancel')} disabled={isActionPending}>
             취소하기
+          </Button>
+        )}
+        {canConfirmHandover && (
+          <Button variant="outline" fullWidth onClick={() => handoverMut.mutateAsync(applicationId!)} disabled={isActionPending} isLoading={handoverMut.isPending}>
+            인계 확인
           </Button>
         )}
         {canConfirm && (
@@ -277,37 +437,86 @@ export default function EscrowDetailPage() {
             수령 확인
           </Button>
         )}
-      </div>
+        {canRequestReturn && (
+          <Button fullWidth onClick={() => setConfirmAction('request-return')} disabled={isActionPending}>
+            반납 요청
+          </Button>
+        )}
+        {canConfirmReturn && (
+          <Button fullWidth onClick={() => setConfirmAction('confirm-return')} disabled={isActionPending}>
+            반납 확인
+          </Button>
+        )}
+        {canRequestCancel && (
+          <Button variant="outline" fullWidth onClick={() => setConfirmAction('request-cancel')} disabled={isActionPending}>
+            취소 합의 요청
+          </Button>
+        )}
+        {canWithdrawCancel && (
+          <Button variant="outline" fullWidth onClick={() => setConfirmAction('withdraw-cancel')} disabled={isActionPending}>
+            취소 요청 철회
+          </Button>
+        )}
+        {canConfirmCancel && (
+          <Button variant="outline" fullWidth onClick={() => setConfirmAction('confirm-cancel')} disabled={isActionPending}>
+            취소 요청 승인
+          </Button>
+        )}
+      </div>}
 
       <p className="text-xs text-gray-400 text-center">
         신청 {formatKst(app.createdAt, 'yyyy.MM.dd HH:mm')} · 갱신 {formatKst(app.updatedAt, 'yyyy.MM.dd HH:mm')}
       </p>
 
-      {/* 취소 확인 모달 */}
-      {confirmCancel && (
+      {/* 액션 확인 모달 */}
+      {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-1">신청을 취소할까요?</h3>
-            <p className="text-sm text-gray-500 mb-5">취소된 신청은 되돌릴 수 없어요.</p>
+            <h3 className="text-base font-bold text-gray-900 mb-1">{ACTION_COPY[confirmAction].title}</h3>
+            <p className="text-sm text-gray-500 mb-4">{ACTION_COPY[confirmAction].desc}</p>
+            {ACTION_COPY[confirmAction].needsReason && (
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="취소 요청 사유"
+                maxLength={200}
+                className="mb-4 h-20 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-500"
+              />
+            )}
             <div className="flex gap-2">
               <button
-                onClick={() => setConfirmCancel(false)}
-                disabled={cancelMut.isPending}
+                onClick={() => {
+                  setConfirmAction(null)
+                  setCancelReason('')
+                }}
+                disabled={isActionPending}
                 className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
               >
                 돌아가기
               </button>
               <button
-                onClick={handleCancel}
-                disabled={cancelMut.isPending}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
+                onClick={runAction}
+                disabled={isActionPending}
+                className={cn(
+                  'flex-1 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors',
+                  ACTION_COPY[confirmAction].danger ? 'bg-red-500 hover:bg-red-600' : 'bg-primary-500 hover:bg-primary-600',
+                )}
               >
-                취소
+                {ACTION_COPY[confirmAction].confirm}
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-gray-500">{label}</dt>
+      <dd className="text-right font-medium text-gray-900">{value}</dd>
     </div>
   )
 }

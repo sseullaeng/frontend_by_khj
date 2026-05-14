@@ -85,6 +85,24 @@ export const escrowApi = {
     //   조건: 진행중 + seller. 멱등.
     confirmHandover: (id: number) =>
       api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/confirm-handover`),
+
+    // 대여 거래대행 — 구매자 반납요청. 수동 호출 또는 백엔드 스케줄러 자동 전환.
+    requestReturn: (id: number) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/request-return`),
+
+    // 대여 거래대행 — 판매자 반납확인. 최종 정산/보증금 반환.
+    confirmReturn: (id: number) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/confirm-return`),
+
+    // 사용중 취소 합의 — 요청/상대 승인/요청자 철회.
+    requestCancel: (id: number, body: EscrowCancelRequest) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/cancel-request`, body),
+
+    confirmCancel: (id: number) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/cancel-confirm`),
+
+    withdrawCancel: (id: number) =>
+      api.post<EscrowApplication>(`/api/v1/escrow/applications/${id}/cancel-withdraw`),
   },
 
   // ── 관리자 ────────────────────────────────────────────────────────────

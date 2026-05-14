@@ -9,7 +9,7 @@
 // 좌우 2칸 + 공통 FeeCalculator. delivery 좌표 없어 preview 호출 불가 → fees=null.
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, MapPin, Plus, X, AlertTriangle } from 'lucide-react'
+import { CalendarClock, ChevronLeft, MapPin, Plus, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateEscrowDraft, useEscrowFeeSettings } from '@/features/escrow/hooks'
 import { useItemDetail } from '@/features/item/hooks'
@@ -44,6 +44,7 @@ export default function EscrowInternalApplicationPage() {
 
   const [itemPrice,       setItemPrice]       = useState<number>(0)
   const [itemDescription, setItemDescription] = useState('')
+  const [rentalEndAt,     setRentalEndAt]     = useState('')
   const [feePayer,        setFeePayer]        = useState<FeePayer>('both')
 
   const [pickupAddr,  setPickupAddr]  = useState<AddressResult | null>(null)
@@ -66,6 +67,7 @@ export default function EscrowInternalApplicationPage() {
   const { data: chatRoom } = useChatRoom(chatRoomId || 0)
   const { data: item } = useItemDetail(itemId || 0)
   const [prefilled, setPrefilled] = useState(false)
+  const isRentalEscrow = chatRoom?.tradeMode === '대여'
 
   useEffect(() => {
     if (prefilled) return
@@ -99,6 +101,7 @@ export default function EscrowInternalApplicationPage() {
     // 라운드13 PR #128 — 나눔 거래는 0원 허용. 음수만 거부.
     if (itemPrice < 0)                       { toast.error('물품 가격은 0원 이상이어야 해요.'); return }
     if (!itemDescription.trim())              { toast.error('물품 설명을 입력해 주세요.'); return }
+    if (isRentalEscrow && !rentalEndAt)       { toast.error('대여 거래대행은 반납 예정일시를 입력해 주세요.'); return }
     if (!pickupAddr)                          { toast.error('픽업 주소를 검색해 주세요.'); return }
     if (!weight || !volume || !fragility)     { toast.error('옵션을 모두 선택해 주세요.'); return }
 
@@ -116,6 +119,7 @@ export default function EscrowInternalApplicationPage() {
         feePayer,
         itemPrice,
         itemDescription: itemDescription.trim(),
+        rentalEndAt: isRentalEscrow ? toApiLocalDateTime(rentalEndAt) : undefined,
         pickupAddress: pickupAddr.address,
         pickupLat:     pickupAddr.lat,
         pickupLng:     pickupAddr.lng,
@@ -214,6 +218,31 @@ export default function EscrowInternalApplicationPage() {
               />
             </div>
           </section>
+
+          {/* 대여 반납 예정 */}
+          {isRentalEscrow && (
+            <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+              <p className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
+                <CalendarClock size={15} className="text-gray-500" />
+                반납 예정일시 <span className="text-red-500">*</span>
+              </p>
+              <p className="text-xs text-gray-500 mb-2">
+                이 시각 이후 구매자가 반납 요청을 하지 않으면 백엔드가 자동으로 반납중 상태로 전환합니다.
+              </p>
+              <input
+                type="datetime-local"
+                min={nowLocalInputValue()}
+                value={rentalEndAt}
+                onChange={(e) => setRentalEndAt(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
+              />
+              {item?.deposit != null && item.deposit > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  물품 보증금: {item.deposit.toLocaleString()}{item.depositType === 'PERCENT' ? '%' : '원'}
+                </p>
+              )}
+            </section>
+          )}
 
           {/* 픽업 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
@@ -337,4 +366,14 @@ export default function EscrowInternalApplicationPage() {
       />
     </div>
   )
+}
+
+function toApiLocalDateTime(value: string): string {
+  return value.length === 16 ? `${value}:00` : value
+}
+
+function nowLocalInputValue(): string {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
 }

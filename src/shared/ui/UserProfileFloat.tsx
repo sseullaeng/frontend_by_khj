@@ -12,6 +12,7 @@ import { X, Star, Package } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 import { useUserProfile } from '@/features/user/hooks'
 import { useUserReviews } from '@/features/review/hooks'
+import { commentToDisplay } from '@/features/review/comment'
 import { useItemList } from '@/features/item/hooks'
 import { formatKst } from '@/shared/lib/date'
 
@@ -193,9 +194,15 @@ export default function UserProfileFloat({ userId, onClose }: Props) {
                       <span className="text-xs text-gray-400 ml-1">{review.rating}.0</span>
                     </div>
 
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      {review.comment ?? <span className="text-gray-400 italic">내용 비공개</span>}
-                    </p>
+                    {(() => {
+                      // 3rd-party view — 비공개면 마스킹, 작성자가 안 적었으면 별점 기반 디폴트
+                      const d = commentToDisplay(review)
+                      return d.kind === 'text' ? (
+                        <p className="text-sm text-gray-600 leading-relaxed">{d.text}</p>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">한줄평 비공개</p>
+                      )
+                    })()}
                   </li>
                 ))
               )}

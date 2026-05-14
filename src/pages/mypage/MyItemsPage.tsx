@@ -1,7 +1,8 @@
 // 내 거래 목록 페이지 — 거래(Transaction) 기반
 //
 // 탭: 전체 / 거래완료 / 판매중 / 대여제공(내가 빌려준) / 대여현황(내가 빌린)
-// 백엔드는 role + status 단건 필터만 → buyer 전체 / seller 전체 두 번 호출 후 클라에서 분기.
+// 라운드14 4-B: status CSV 다중 지원 → 활성/완료 분리 호출로 페이지 누락 ↓.
+//   role × {active, done} = 4 queries. 각 query 가 focused 라 size=100 한도에 잘 안 닿음.
 //
 // 완료된 거래도 상세 페이지(/trades/:id) 진입 가능.
 
@@ -24,12 +25,15 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'RENTAL_IN',  label: '대여현황' },
 ]
 
-const ACTIVE_STATUSES: TransactionStatus[] = ['채팅중', '예약', '인계완료']
+// 라운드14 — '반납요청' 추가
+const ACTIVE_STATUSES: TransactionStatus[] = ['채팅중', '예약', '인계완료', '반납요청']
+const DONE_STATUSES:   TransactionStatus[] = ['거래완료']
 
 const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
   '채팅중':   { color: 'bg-amber-100 text-amber-700' },
   '예약':     { color: 'bg-yellow-100 text-yellow-700' },
   '인계완료': { color: 'bg-indigo-100 text-indigo-700' },
+  '반납요청': { color: 'bg-orange-100 text-orange-700' },
   '거래완료': { color: 'bg-blue-100 text-blue-700' },
   '취소':     { color: 'bg-red-100 text-red-600' },
 }
@@ -46,36 +50,34 @@ export default function MyItemsPage() {
   const myId = currentUser?.id ?? null
   const [tabKey, setTabKey] = useState<TabKey>('ALL')
 
-  // buyer/seller 두 측면 전체 — 탭별 필터는 클라이언트에서
-  //   백엔드 size 기본 20 / 최대 100. 한 페이지에서 누락 최소화 위해 100 사용.
-  //   (무한 스크롤 도입은 후속 — 백엔드 multi-status CSV 적용 시 호출 수도 줄일 수 있음)
-  const buyerQ  = useMyTransactions({ role: 'buyer',  size: 100 })
-  const sellerQ = useMyTransactions({ role: 'seller', size: 100 })
-  const isLoading = buyerQ.isLoading || sellerQ.isLoading
+  // role × {active, done} 4 queries — multi-status CSV 로 focused fetch (size=100).
+  //   '취소' 는 main 화면에서 노출 안 함. 필요 시 별도 탭.
+  const buyerActiveQ  = useMyTransactions({ role: 'buyer',  status: ACTIVE_STATUSES, size: 100 })
+  const buyerDoneQ    = useMyTransactions({ role: 'buyer',  status: DONE_STATUSES,   size: 100 })
+  const sellerActiveQ = useMyTransactions({ role: 'seller', status: ACTIVE_STATUSES, size: 100 })
+  const sellerDoneQ   = useMyTransactions({ role: 'seller', status: DONE_STATUSES,   size: 100 })
 
-  const buyerTxs  = buyerQ.data?.content  ?? []
-  const sellerTxs = sellerQ.data?.content ?? []
+  const isLoading =
+    buyerActiveQ.isLoading || buyerDoneQ.isLoading ||
+    sellerActiveQ.isLoading || sellerDoneQ.isLoading
+
+  const buyerActive  = buyerActiveQ.data?.content  ?? []
+  const buyerDone    = buyerDoneQ.data?.content    ?? []
+  const sellerActive = sellerActiveQ.data?.content ?? []
+  const sellerDone   = sellerDoneQ.data?.content   ?? []
 
   const transactions: Transaction[] = (() => {
     switch (tabKey) {
-      case 'ALL': {
-        const merged = [...buyerTxs, ...sellerTxs]
-        return dedupeByCreatedDesc(merged)
-      }
-      case 'DONE': {
-        const merged = [...buyerTxs, ...sellerTxs].filter((t) => t.status === '거래완료')
-        return dedupeByCreatedDesc(merged)
-      }
+      case 'ALL':
+        return dedupeByCreatedDesc([...buyerActive, ...buyerDone, ...sellerActive, ...sellerDone])
+      case 'DONE':
+        return dedupeByCreatedDesc([...buyerDone, ...sellerDone])
       case 'SELLING':
-        return sortByCreatedDesc(sellerTxs.filter((t) => ACTIVE_STATUSES.includes(t.status)))
+        return sortByCreatedDesc(sellerActive)
       case 'RENTAL_OUT':
-        return sortByCreatedDesc(
-          sellerTxs.filter((t) => t.tradeType === '대여' && ACTIVE_STATUSES.includes(t.status)),
-        )
+        return sortByCreatedDesc(sellerActive.filter((t) => t.tradeType === '대여'))
       case 'RENTAL_IN':
-        return sortByCreatedDesc(
-          buyerTxs.filter((t) => t.tradeType === '대여' && ACTIVE_STATUSES.includes(t.status)),
-        )
+        return sortByCreatedDesc(buyerActive.filter((t) => t.tradeType === '대여'))
     }
   })()
 
