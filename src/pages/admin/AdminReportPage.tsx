@@ -38,7 +38,7 @@ import { cn } from '@/shared/lib/cn'
 const STATUS_TABS: { value: AdminReportStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: '전체' },
   { value: 'PENDING', label: '접수' },
-  { value: 'IN_PROGRESS', label: '처리 중' },
+  { value: 'IN_PROGRESS', label: '모니터링 중' },
   { value: 'COMPLETED', label: '완료' },
   { value: 'REJECTED', label: '반려' },
 ]
@@ -48,7 +48,7 @@ const STATUS_TABS: { value: AdminReportStatus | 'ALL'; label: string }[] = [
 type StatusBadge = { label: string; cls: string; icon: typeof Clock }
 const STATUS_BADGE_BASE: Record<AdminReportStatus, StatusBadge> = {
   PENDING: { label: '접수', cls: 'text-amber-700 bg-amber-100', icon: Clock },
-  IN_PROGRESS: { label: '처리 중', cls: 'text-blue-700 bg-blue-100', icon: AlertTriangle },
+  IN_PROGRESS: { label: '모니터링 중', cls: 'text-blue-700 bg-blue-100', icon: AlertTriangle },
   COMPLETED: { label: '완료', cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
   REJECTED: { label: '반려', cls: 'text-gray-600 bg-gray-100', icon: XCircle },
 }
@@ -59,6 +59,7 @@ const STATUS_BADGE: Record<string, StatusBadge> = {
   대기: STATUS_BADGE_BASE.PENDING,
   처리중: STATUS_BADGE_BASE.IN_PROGRESS,
   '처리 중': STATUS_BADGE_BASE.IN_PROGRESS,
+  '모니터링 중': STATUS_BADGE_BASE.IN_PROGRESS,
   처리완료: STATUS_BADGE_BASE.COMPLETED,
   완료: STATUS_BADGE_BASE.COMPLETED,
   반려: STATUS_BADGE_BASE.REJECTED,
@@ -78,6 +79,7 @@ function normalizeReportStatus(status: string): AdminReportStatus | null {
     case 'IN_PROGRESS':
     case '처리중':
     case '처리 중':
+    case '모니터링 중':
       return 'IN_PROGRESS'
     case 'COMPLETED':
     case '처리완료':
@@ -265,8 +267,8 @@ const ACTION_OPTIONS: {
 }[] = [
   {
     value: 'MARK_IN_PROGRESS',
-    label: '처리 중으로',
-    desc: '검토 시작 — 추후 완료/반려 처리',
+    label: '모니터링 중으로',
+    desc: '검토를 시작하고 추후 완료/반려 처리',
     activeCls: 'border-blue-500 bg-blue-50',
   },
   {

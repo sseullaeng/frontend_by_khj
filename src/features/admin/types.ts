@@ -114,7 +114,7 @@ export interface NoticeUpsertRequest {
 
 // ── Report 처리 (§11.5) ───────────────────────────────────────────────────
 export type AdminReportStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
-export type AdminReportStatusKo = '접수' | '처리중' | '처리완료' | '반려'
+export type AdminReportStatusKo = '접수' | '처리중' | '모니터링 중' | '처리완료' | '반려'
 export type AdminReportAction = 'MARK_IN_PROGRESS' | 'COMPLETE' | 'REJECT'
 
 export interface AdminReport {
@@ -299,7 +299,7 @@ export interface AdminDashboardCharts {
   tradeByStatus: { status: AdminChartTradeStatus; count: number }[]
   // 라운드12 PR #106 — 신고 위젯
   reportsSummary?: {
-    pending: number // 접수 + 처리중
+    pending: number // 접수 + 모니터링 중
     resolved: number // 처리완료 + 반려
     totalLast7Days: number // 최근 7일 신고 수 (전체 status)
   }
