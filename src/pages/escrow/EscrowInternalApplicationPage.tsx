@@ -22,6 +22,7 @@ import type {
 } from '@/features/escrow/types'
 import type { RentalUnit } from '@/features/item/types'
 import { uploadImages, validateImageFile } from '@/shared/api/upload'
+import { formatKst } from '@/shared/lib/date'
 import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import type { AddressResult } from '@/shared/ui/KakaoAddressSearch'
 import { Button } from '@/shared/ui/Button'
@@ -73,16 +74,25 @@ export default function EscrowInternalApplicationPage() {
   //   (대여+판매 겸용 item 이라도 백엔드가 대여 거래대행 lifecycle 을 적용할 수 있도록)
   const isRentalEscrow = item?.tradeTypes?.includes('대여') ?? false
 
+  // 라운드14 V43 통합 — buyer 의 사전 대여 신청이 chatRoom 에 있으면 백엔드가 그 기간을 자동 재사용.
+  //   ChatRoomCard.rentalStart/End 가 채워져 있으면 picker 비활성화 + 사전 기간 안내.
+  const presetStart = chatRoom?.card?.rentalStart ?? null
+  const presetEnd   = chatRoom?.card?.rentalEnd ?? null
+  const hasPresetPeriod = !!(isRentalEscrow && presetStart && presetEnd)
+
   // 라운드14 V43 — 대여 itemPrice 는 백엔드가 rentalPrice × duration 으로 자동 산정·검증.
   //   FE 가 임의 가격 못 보냄 (위변조 차단). 사용자에게는 미리 계산해서 표시만.
+  //   사전 기간이 있으면 그 기간으로, 없으면 입력값으로 계산.
   const rentalAuto = useMemo(() => {
     if (!isRentalEscrow) return null
-    if (!rentalStartAt || !rentalEndAt) return null
     if (!item?.rentalUnit || !item.rentalPrice) return null
-    return computeRentalPrice(rentalStartAt, rentalEndAt, item.rentalUnit, item.rentalPrice)
-  }, [isRentalEscrow, rentalStartAt, rentalEndAt, item?.rentalUnit, item?.rentalPrice])
+    const s = hasPresetPeriod ? presetStart! : rentalStartAt
+    const e = hasPresetPeriod ? presetEnd!   : rentalEndAt
+    if (!s || !e) return null
+    return computeRentalPrice(s, e, item.rentalUnit, item.rentalPrice)
+  }, [isRentalEscrow, hasPresetPeriod, presetStart, presetEnd, rentalStartAt, rentalEndAt, item?.rentalUnit, item?.rentalPrice])
 
-  // 자동 산정 결과를 itemPrice state 에 반영 (송신용)
+  // 자동 산정 결과를 itemPrice state 에 반영 (송신용 — 백엔드는 무시하지만 정합성 유지)
   useEffect(() => {
     if (rentalAuto) setItemPrice(rentalAuto.total)
   }, [rentalAuto])
@@ -122,7 +132,8 @@ export default function EscrowInternalApplicationPage() {
     // 라운드14 V43 — 대여 거래는 rentalStartAt + rentalEndAt 둘 다 필수, start < end
     //   (chatRoom 에 buyer 사전 신청이 있으면 백엔드가 그 기간을 자동 재사용하지만,
     //    FE 는 입력값 보내고 백엔드가 우선순위에 따라 처리한다.)
-    if (isRentalEscrow) {
+    if (isRentalEscrow && !hasPresetPeriod) {
+      // 사전 신청 기간이 chatRoom 에 있으면 picker 누락 가능 (백엔드가 그 기간 자동 사용)
       if (!rentalStartAt)              { toast.error('대여 시작 일시를 입력해 주세요.'); return }
       if (!rentalEndAt)                { toast.error('반납 예정 일시를 입력해 주세요.'); return }
       if (rentalStartAt >= rentalEndAt) { toast.error('반납 일시는 시작 일시보다 늦어야 해요.'); return }
@@ -272,38 +283,56 @@ export default function EscrowInternalApplicationPage() {
             </div>
           </section>
 
-          {/* 대여 기간 (라운드14 V43 — 시작/반납 picker) */}
+          {/* 대여 기간 (라운드14 V43) — 사전 신청 있으면 안내, 없으면 picker */}
           {isRentalEscrow && (
             <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
               <p className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
                 <CalendarClock size={15} className="text-gray-500" />
-                대여 기간 <span className="text-red-500">*</span>
+                대여 기간 {!hasPresetPeriod && <span className="text-red-500">*</span>}
               </p>
-              <p className="text-xs text-gray-500 mb-3">
-                구매자가 채팅방에서 미리 대여 신청한 기간이 있으면 그 기간이 우선 적용돼요.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label className="block text-xs">
-                  <span className="text-gray-600 mb-0.5 block">시작</span>
-                  <input
-                    type="datetime-local"
-                    min={nowLocalInputValue()}
-                    value={rentalStartAt}
-                    onChange={(e) => setRentalStartAt(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
-                  />
-                </label>
-                <label className="block text-xs">
-                  <span className="text-gray-600 mb-0.5 block">반납</span>
-                  <input
-                    type="datetime-local"
-                    min={rentalStartAt || nowLocalInputValue()}
-                    value={rentalEndAt}
-                    onChange={(e) => setRentalEndAt(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
-                  />
-                </label>
-              </div>
+              {hasPresetPeriod ? (
+                <div className="mt-2 rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm">
+                  <p className="text-xs text-primary-700 font-medium mb-1 inline-flex items-center gap-1">
+                    <Info size={12} /> 구매자 사전 신청 기간 적용
+                  </p>
+                  <p className="text-primary-900 font-semibold">
+                    {formatKst(presetStart, 'yyyy.MM.dd HH:mm')}
+                    <span className="text-primary-600 mx-1.5">~</span>
+                    {formatKst(presetEnd, 'yyyy.MM.dd HH:mm')}
+                  </p>
+                  <p className="text-[11px] text-primary-700/80 mt-1">
+                    구매자가 채팅방에서 미리 신청한 기간이라 입력이 필요 없어요.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-gray-500 mb-3">
+                    구매자가 채팅방에서 미리 대여 신청한 기간이 있으면 그 기간이 우선 적용돼요.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="block text-xs">
+                      <span className="text-gray-600 mb-0.5 block">시작</span>
+                      <input
+                        type="datetime-local"
+                        min={nowLocalInputValue()}
+                        value={rentalStartAt}
+                        onChange={(e) => setRentalStartAt(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
+                      />
+                    </label>
+                    <label className="block text-xs">
+                      <span className="text-gray-600 mb-0.5 block">반납</span>
+                      <input
+                        type="datetime-local"
+                        min={rentalStartAt || nowLocalInputValue()}
+                        value={rentalEndAt}
+                        onChange={(e) => setRentalEndAt(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
               {item?.deposit != null && item.deposit > 0 && (
                 <p className="mt-3 text-xs text-gray-500">
                   물품 보증금: {item.deposit.toLocaleString()}{item.depositType === 'PERCENT' ? '%' : '원'}

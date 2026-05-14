@@ -38,6 +38,14 @@ export interface ChatRoomCard {
   escrowApplicationId?: number | null
   escrowStatus?:        EscrowApplicationStatus | null
   deliveryId?:          number | null
+
+  // 라운드14 V43 통합 — 대여 거래의 기간 노출 (모든 cardKind 공통)
+  //   - 비대여(판매/나눔)         → null
+  //   - cardKind='Transaction'     → Transaction.rentalStart/End
+  //   - cardKind='EscrowApplication' → EscrowApplication.rentalStartAt/EndAt
+  //   - cardKind='Item' 단계        → 사전 신청(rental-request) 있으면 그 기간, 없으면 null
+  rentalStart?:     string | null
+  rentalEnd?:       string | null
 }
 
 export interface ChatRoom {
