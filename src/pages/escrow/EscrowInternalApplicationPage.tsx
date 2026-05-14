@@ -67,7 +67,9 @@ export default function EscrowInternalApplicationPage() {
   const { data: chatRoom } = useChatRoom(chatRoomId || 0)
   const { data: item } = useItemDetail(itemId || 0)
   const [prefilled, setPrefilled] = useState(false)
-  const isRentalEscrow = chatRoom?.tradeMode === '대여'
+  // 반납 기한 입력은 백엔드 spec 기준 — item.tradeTypes 에 '대여' 가 포함된 모든 신청 폼에 노출.
+  //   (대여+판매 겸용 item 이라도 백엔드가 대여 거래대행 lifecycle 을 적용할 수 있도록)
+  const isRentalEscrow = item?.tradeTypes?.includes('대여') ?? false
 
   useEffect(() => {
     if (prefilled) return
