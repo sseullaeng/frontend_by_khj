@@ -1,6 +1,6 @@
-// 내 거래 목록 페이지 — 거래(Transaction) 기반
+// 내 거래 목록 페이지 — 등록 물품 + 거래(Transaction) 기반
 //
-// 탭: 전체 / 거래완료 / 판매중 / 대여제공(내가 빌려준) / 대여현황(내가 빌린)
+// 탭: 전체(등록 물품) / 거래완료 / 판매중 / 대여제공(내가 빌려준) / 대여현황(내가 빌린)
 // 라운드14 4-B: status CSV 다중 지원 → 활성/완료 분리 호출로 페이지 누락 ↓.
 //   role × {active, done} = 4 queries. 각 query 가 focused 라 size=100 한도에 잘 안 닿음.
 //
@@ -17,11 +17,10 @@ import type { Transaction, TransactionStatus } from '@/features/trade/types'
 import { fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-type TabKey = 'ALL' | 'REGISTERED' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
+type TabKey = 'ALL' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'ALL', label: '전체' },
-  { key: 'REGISTERED', label: '등록물품' },
   { key: 'DONE', label: '거래완료' },
   { key: 'SELLING', label: '판매중' },
   { key: 'RENTAL_OUT', label: '대여제공' },
@@ -60,7 +59,7 @@ export default function MyItemsPage() {
   const sellerActiveQ = useMyTransactions({ role: 'seller', status: ACTIVE_STATUSES, size: 100 })
   const sellerDoneQ = useMyTransactions({ role: 'seller', status: DONE_STATUSES, size: 100 })
   const registeredItemsQ = useMyRegisteredItems({ size: 100 })
-  const isRegisteredTab = tabKey === 'REGISTERED'
+  const isRegisteredTab = tabKey === 'ALL'
 
   const isTransactionLoading =
     buyerActiveQ.isLoading ||
@@ -78,7 +77,7 @@ export default function MyItemsPage() {
   const transactions: Transaction[] = (() => {
     switch (tabKey) {
       case 'ALL':
-        return dedupeByCreatedDesc([...buyerActive, ...buyerDone, ...sellerActive, ...sellerDone])
+        return []
       case 'DONE':
         return dedupeByCreatedDesc([...buyerDone, ...sellerDone])
       case 'SELLING':
@@ -87,8 +86,6 @@ export default function MyItemsPage() {
         return sortByCreatedDesc(sellerActive.filter((t) => t.tradeType === '대여'))
       case 'RENTAL_IN':
         return sortByCreatedDesc(buyerActive.filter((t) => t.tradeType === '대여'))
-      case 'REGISTERED':
-        return []
     }
   })()
 
