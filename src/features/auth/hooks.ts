@@ -27,14 +27,12 @@ import type {
  */
 export function useLogin() {
   const setUser = useAuthStore((s) => s.setUser)  // 사용자 정보 저장 함수
-  const navigate = useNavigate()  // 페이지 네비게이션 함수
-
+  // 라운드14 — navigate 는 페이지(LoginPage) 측 책임. next 처리 위해.
   return useMutation({
     // 가이드 §2.1: 로그인 응답 data 가 곧 사용자 정보 객체 (User schema)
     mutationFn: (body: LoginRequest) => authApi.login(body).then((r) => r.data),
     onSuccess: (user) => {
       setUser(user)
-      navigate('/')
     },
     onError: (err) => {
       const msg =
@@ -56,13 +54,11 @@ export function useLogin() {
  */
 export function useOAuthLogin() {
   const setUser = useAuthStore((s) => s.setUser)
-  const navigate = useNavigate()
-
+  // 라운드14 — navigate 는 SocialCallbackPage 책임 (next sessionStorage 처리)
   return useMutation({
     mutationFn: (req: OAuthLoginRequest) => authApi.oauthLogin(req).then((r) => r.data),
     onSuccess: (user) => {
       setUser(user)
-      navigate('/')
     },
     onError: (err) => {
       const msg =

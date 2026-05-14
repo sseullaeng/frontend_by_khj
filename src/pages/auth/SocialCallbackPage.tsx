@@ -95,8 +95,17 @@ export default function SocialCallbackPage() {
       return
     }
 
-    // ── 일반 OAuth 로그인 ──────────────────────────────────────────────────
-    oauthLogin({ provider, code, redirectUri: REDIRECT_URI[provider] })
+    // ── 일반 OAuth 로그인 — 성공 시 sessionStorage('postLoginNext') 로 복귀 ──
+    oauthLogin(
+      { provider, code, redirectUri: REDIRECT_URI[provider] },
+      {
+        onSuccess: () => {
+          const next = sessionStorage.getItem('postLoginNext')
+          sessionStorage.removeItem('postLoginNext')
+          navigate(next && next !== '' ? next : '/', { replace: true })
+        },
+      },
+    )
   }, [provider, params, navigate, oauthLogin, preview])
 
   // 연결 확인 모달 — preview 성공 시 노출
