@@ -6,7 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'  // React Rout
 import { toast } from 'sonner'  // 토스트 알림
 import { loginSchema, type LoginRequest } from '@/features/auth/types'  // 인증 관련 타입
 import { useLogin } from '@/features/auth/hooks'  // 로그인 훅
-import { loginWithKakao, loginWithGoogle } from '@/features/auth/oauth'  // 소셜 로그인 SDK
+import { loginWithGoogle } from '@/features/auth/oauth'  // 소셜 로그인 SDK (카카오는 미운영, 일단 제외)
 import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
@@ -55,13 +55,9 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 
-  // 카카오/구글 모두 redirect 흐름 — 페이지가 provider 로 이동, 콜백은 SocialCallbackPage 가 처리.
+  // 구글 redirect 흐름 — 콜백은 SocialCallbackPage 가 처리.
   //   SocialCallbackPage 는 sessionStorage('postLoginNext') 를 읽어 복귀.
-  const handleKakao = () => {
-    loginWithKakao().catch((err) => {
-      toast.error(err instanceof Error ? err.message : '카카오 로그인에 실패했어요.')
-    })
-  }
+  //   (카카오는 일단 제외 — 디벨로퍼 앱 검수 통과 후 재활성화)
   const handleGoogle = () => {
     loginWithGoogle().catch((err) => {
       toast.error(err instanceof Error ? err.message : '구글 로그인에 실패했어요.')
@@ -106,14 +102,6 @@ export default function LoginPage() {
           <div className="flex items-center justify-center gap-4">
             <button
               type="button"
-              onClick={handleKakao}
-              aria-label="카카오로 로그인"
-              className="w-12 h-12 rounded-full bg-[#FEE500] text-[#3C1E1E] hover:opacity-90 transition-opacity flex items-center justify-center"
-            >
-              <KakaoIcon />
-            </button>
-            <button
-              type="button"
               onClick={handleGoogle}
               aria-label="구글로 로그인"
               className="w-12 h-12 rounded-full border border-gray-300 bg-white hover:bg-gray-50 transition-colors flex items-center justify-center"
@@ -131,15 +119,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
-}
-
-// 카카오톡 풍선 아이콘 (브랜드 컬러 #3C1E1E 위에 currentColor)
-function KakaoIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 3C6.48 3 2 6.62 2 10.79c0 2.63 1.74 4.95 4.4 6.32-.16.59-.7 2.6-.83 3.07-.15.59.21.58.45.42.18-.12 2.85-1.94 4.05-2.76.6.07 1.21.11 1.83.11 5.52 0 10-3.61 10-7.16S17.52 3 12 3z" />
-    </svg>
   )
 }
 
