@@ -144,7 +144,7 @@ export function useNotificationStream() {
 
         toast(noti.title, {
           description: noti.content,
-          position: 'bottom-center',
+          position: 'bottom-right',
           duration: 5000,
           action: {
             label: '보기',
