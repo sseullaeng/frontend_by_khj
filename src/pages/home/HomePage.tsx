@@ -179,17 +179,17 @@ function PageGrid({ items }: { items: Item[] }) {
  * 페이지 단위 가로 슬라이드 캐러셀.
  *   - 각 페이지가 viewport 폭을 가득 차지 (w-full shrink-0 snap-start)
  *   - snap-x snap-mandatory 로 한 페이지 단위로 정착
- *   - 데스크탑: 좌우 화살표 + 마우스 드래그
+ *   - 데스크탑: 좌우 화살표 + native 휠/스크롤바
  *   - 모바일: 화살표 숨김, 터치 native 스크롤 + snap
  *   - 하단 도트 인디케이터 (현재 페이지 강조, 클릭 시 해당 페이지로 이동)
+ *
+ * ⚠ 마우스 드래그 스크롤은 의도적으로 제외:
+ *   setPointerCapture 를 쓰면 Chromium 계열이 자식 <a> 의 click 을
+ *   capture 한 컨테이너로 redirect 해서 카드 클릭이 동작 안 함.
+ *   네비게이션은 화살표 + 도트 + 휠 + 트랙패드/스크롤바로 충분.
  */
 function PagedCarousel({ pages }: { pages: Item[][] }) {
   const ref = useRef<HTMLDivElement>(null)
-  const startXRef = useRef(0)
-  const scrollLeftRef = useRef(0)
-  const movedRef = useRef(false)
-  const draggingRef = useRef(false)
-
   const [active, setActive] = useState(0)
 
   const updateActive = () => {
@@ -217,39 +217,6 @@ function PagedCarousel({ pages }: { pages: Item[][] }) {
     if (!el) return
     const clamped = Math.min(pages.length - 1, Math.max(0, idx))
     el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' })
-  }
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!ref.current) return
-    if (e.pointerType === 'touch') return  // 터치는 native (관성/snap 유지)
-    draggingRef.current = true
-    movedRef.current = false
-    startXRef.current = e.clientX
-    scrollLeftRef.current = ref.current.scrollLeft
-    ref.current.setPointerCapture(e.pointerId)
-  }
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current || !ref.current) return
-    const dx = e.clientX - startXRef.current
-    if (Math.abs(dx) > 4) movedRef.current = true
-    ref.current.scrollLeft = scrollLeftRef.current - dx
-  }
-  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current || !ref.current) return
-    draggingRef.current = false
-    if (ref.current.hasPointerCapture(e.pointerId)) {
-      ref.current.releasePointerCapture(e.pointerId)
-    }
-    // 드래그 종료 시 가장 가까운 페이지로 snap
-    const idx = Math.round(ref.current.scrollLeft / Math.max(1, ref.current.clientWidth))
-    goTo(idx)
-  }
-  const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (movedRef.current) {
-      e.preventDefault()
-      e.stopPropagation()
-      movedRef.current = false
-    }
   }
 
   const atStart = active === 0
@@ -285,13 +252,8 @@ function PagedCarousel({ pages }: { pages: Item[][] }) {
 
       <div
         ref={ref}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onClickCapture={onClickCapture}
         onScroll={updateActive}
-        className="flex overflow-x-auto select-none cursor-grab active:cursor-grabbing snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {pages.map((page, idx) => (
           <div key={idx} className="w-full shrink-0 snap-start">
