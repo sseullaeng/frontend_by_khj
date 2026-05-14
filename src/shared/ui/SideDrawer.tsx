@@ -240,7 +240,7 @@ function ChatRoomView({
   //   채팅방엔 [거래대행 페이지로] 한 줄만 노출.
 
   // 라운드14 — 대여 거래 매트릭스 (예약 → 인계 → 반납 → 회신)
-  const tradeMode = room?.tradeMode
+  const tradeMode = room?.card?.tradeMode ?? room?.tradeMode
   const isRental = tradeMode === '대여'
   const presetRentalStart = room?.card?.rentalStart ?? null
   const presetRentalEnd = room?.card?.rentalEnd ?? null
@@ -258,8 +258,12 @@ function ChatRoomView({
   const canComplete = isSeller && !isRental && isTxStarted
   // 취소 — 양쪽, 채팅중·예약 까지 (인계완료 이후 차단)
   const canCancel = isTxStarted && (txStatus === '채팅중' || txStatus === '예약')
-  // 거래대행 시작 — seller, 거래 시작됐고 채팅중 단계까지
-  const canStartEscrow = isSeller && isTxStarted && txStatus === '채팅중' && !isEscrowCard
+  // 거래대행 시작 — 일반 거래는 채팅중, 대여는 판매자가 예약 확정한 뒤부터 노출.
+  const canStartEscrow =
+    isSeller &&
+    isTxStarted &&
+    !isEscrowCard &&
+    (isRental ? txStatus === '예약' : txStatus === '채팅중')
   // 거래 진행 중에는 [나가기] 숨김
   const showLeaveButton = !isTxStarted && !(isEscrowCard && !isEscrowCompleted && !isEscrowCanceled)
 
@@ -766,7 +770,7 @@ function ChatRoomView({
                   className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Receipt size={13} />
-                  예약 확정
+                  대여 거래 시작
                 </button>
               )}
               {canHandover && (
