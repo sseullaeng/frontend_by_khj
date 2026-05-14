@@ -97,18 +97,9 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           )}
         </div>
 
-        {/* 거래완료 — 카드 전체 회색 + 중앙 텍스트 + 우상→좌하 평행 두 줄 */}
+        {/* 거래완료 — 카드 전체 회색 + 중앙 텍스트 */}
         {isCompleted && (
           <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center bg-gray-300/55">
-            <svg
-              className="absolute inset-0 w-full h-full"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden
-            >
-              <line x1="100" y1="0"  x2="0" y2="100" stroke="#4b5563" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-              <line x1="100" y1="25" x2="0" y2="125" stroke="#4b5563" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            </svg>
             <span className="relative px-3 py-1 rounded-lg bg-gray-900/85 text-white text-sm font-bold tracking-wide">
               거래완료
             </span>
