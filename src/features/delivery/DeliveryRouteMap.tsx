@@ -22,6 +22,7 @@ interface Props {
   pickupAddress: string
   dropoffAddress: string
   riderLocation: Coord | null
+  demoRiderAtDropoff?: boolean
   height?: string
 }
 
@@ -62,6 +63,7 @@ export default function DeliveryRouteMap({
   pickupAddress,
   dropoffAddress,
   riderLocation,
+  demoRiderAtDropoff,
   height = '280px',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -77,6 +79,7 @@ export default function DeliveryRouteMap({
   const [pickupCoord, setPickupCoord] = useState<Coord | null>(null)
   const [dropoffCoord, setDropoffCoord] = useState<Coord | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const effectiveRiderLocation = riderLocation ?? (demoRiderAtDropoff ? dropoffCoord : null)
 
   // 1) 주소 → 좌표 변환
   useEffect(() => {
@@ -143,13 +146,10 @@ export default function DeliveryRouteMap({
           map,
         })
 
-        // 초기 fit bounds (라이더 좌표가 있으면 함께 포함)
+        // 초기 fit bounds
         const bounds = new kakao.maps.LatLngBounds()
         bounds.extend(pickupLatLng)
         bounds.extend(dropoffLatLng)
-        if (riderLocation) {
-          bounds.extend(new kakao.maps.LatLng(riderLocation.lat, riderLocation.lng))
-        }
         map.setBounds(bounds)
       })
       .catch(() => {
@@ -184,7 +184,7 @@ export default function DeliveryRouteMap({
     if (!mapRef.current || !window.kakao) return
     const { kakao } = window
 
-    if (!riderLocation) {
+    if (!effectiveRiderLocation) {
       riderMarkerRef.current?.setMap(null)
       riderLabelRef.current?.setMap(null)
       riderMarkerRef.current = null
@@ -192,7 +192,7 @@ export default function DeliveryRouteMap({
       return
     }
 
-    const latlng = new kakao.maps.LatLng(riderLocation.lat, riderLocation.lng)
+    const latlng = new kakao.maps.LatLng(effectiveRiderLocation.lat, effectiveRiderLocation.lng)
     if (riderMarkerRef.current) {
       riderMarkerRef.current.setPosition(latlng)
     } else {
@@ -200,15 +200,22 @@ export default function DeliveryRouteMap({
     }
     if (riderLabelRef.current) {
       riderLabelRef.current.setPosition(latlng)
+      riderLabelRef.current.setMap(null)
+      riderLabelRef.current = new kakao.maps.CustomOverlay({
+        position: latlng,
+        content: badgeHtml(riderLocation ? '라이더' : '라이더(데모)', '#3b82f6'),
+        yAnchor: 1,
+        map: mapRef.current,
+      })
     } else {
       riderLabelRef.current = new kakao.maps.CustomOverlay({
         position: latlng,
-        content: badgeHtml('라이더', '#3b82f6'),
+        content: badgeHtml(riderLocation ? '라이더' : '라이더(데모)', '#3b82f6'),
         yAnchor: 1,
         map: mapRef.current,
       })
     }
-  }, [riderLocation])
+  }, [effectiveRiderLocation, riderLocation])
 
   if (error) {
     return (

@@ -169,6 +169,7 @@ export default function DeliveryTrackPage() {
                   ? { lat: liveLocation.latitude, lng: liveLocation.longitude }
                   : null
               }
+              demoRiderAtDropoff
               height="280px"
             />
 
@@ -199,8 +200,8 @@ export default function DeliveryTrackPage() {
             ) : (
               <p className="text-xs text-gray-400">
                 {isRider
-                  ? '위치 권한을 허용하면 자동으로 전송됩니다.'
-                  : '아직 라이더 위치 정보가 없어요.'}
+                  ? '위치 권한을 허용하면 자동으로 전송됩니다. 현재 지도에는 데모 위치가 표시돼요.'
+                  : '아직 라이더 위치 정보가 없어 수령지에 데모 위치를 표시하고 있어요.'}
               </p>
             )}
           </div>
