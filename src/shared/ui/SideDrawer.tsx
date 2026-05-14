@@ -1034,7 +1034,32 @@ function NotificationPanel() {
   const { mutate: markAllRead } = useMarkAllRead()
   const { mutate: markRead } = useMarkRead()
   const items = data?.pages[0]?.content ?? []
-  const timelineItems = [...items].reverse()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const getNotificationPath = (n: (typeof items)[number]) => {
+    if (!n.linkType || n.linkId == null) return null
+    switch (n.linkType) {
+      case 'TRANSACTION':
+        return `/trades/${n.linkId}`
+      // 라운드14 3-D — buyer-info 로 직접 분기 (페이지에 안전 redirect 가드 있음)
+      case 'ESCROW':
+        return `/escrow/${n.linkId}/buyer-info`
+      case 'DELIVERY':
+        return `/delivery/${n.linkId}/track`
+      case 'ITEM':
+        return `/items/${n.linkId}`
+      case 'REVIEW':
+        return '/reviews'
+      case 'PAYMENT':
+        return '/point'
+      case 'INQUIRY':
+        return `/mypage/inquiries/${n.linkId}`
+      case 'OVERDUE':
+        return '/mypage/overdue'
+      default:
+        return null
+    }
+  }
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
   const handleNotificationClick = (n: (typeof items)[number]) => {
@@ -1043,130 +1068,75 @@ function NotificationPanel() {
       if (n.linkId != null) openChatRoom(n.linkId)
       return
     }
-    close()
-    if (!n.linkType || n.linkId == null) return
-    const path = (() => {
-      switch (n.linkType) {
-        case 'TRANSACTION':
-          return `/trades/${n.linkId}`
-        // 라운드14 3-D — buyer-info 로 직접 분기 (페이지에 안전 redirect 가드 있음)
-        case 'ESCROW':
-          return `/escrow/${n.linkId}/buyer-info`
-        case 'DELIVERY':
-          return `/delivery/${n.linkId}/track`
-        case 'ITEM':
-          return `/items/${n.linkId}`
-        case 'REVIEW':
-          return '/reviews'
-        case 'PAYMENT':
-          return '/point'
-        case 'INQUIRY':
-          return `/mypage/inquiries/${n.linkId}`
-        case 'OVERDUE':
-          return '/mypage/overdue'
-        default:
-          return null
-      }
-    })()
-    if (path) navigate(path)
+    const path = getNotificationPath(n)
+    if (path) {
+      close()
+      navigate(path)
+      return
+    }
+    setExpandedId((current) => (current === n.id ? null : n.id))
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white shrink-0">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">알림 대화</p>
-          <p className="text-xs text-gray-400">{items.length}개의 알림</p>
-        </div>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+        <span className="text-xs text-gray-500">{items.length}개의 알림</span>
         <button
           onClick={() => markAllRead()}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600"
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-500 transition-colors"
         >
           <CheckCheck size={13} />
           모두 읽음
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-[#f7f8fb] px-4 py-5">
+      <ul className="flex-1 divide-y divide-gray-100 overflow-y-auto">
         {items.length === 0 && (
-          <p className="py-16 text-center text-sm text-gray-400">알림이 없어요</p>
+          <li className="py-16 text-center text-sm text-gray-400">알림이 없어요</li>
         )}
-        {timelineItems.length > 0 && (
-          <ol className="flex min-h-full flex-col justify-end gap-5">
-            {timelineItems.map((n) => (
-              <li key={n.id}>
-                <NotificationBubble
-                  notification={n}
-                  onClick={() => handleNotificationClick(n)}
-                />
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function NotificationBubble({
-  notification,
-  onClick,
-}: {
-  notification: {
-    type: string
-    linkType: string | null
-    title: string
-    content: string
-    read: boolean
-    createdAt: string
-  }
-  onClick: () => void
-}) {
-  const isChat = notification.type === 'CHAT' || notification.type === 'MESSAGE' || notification.linkType === 'CHAT_ROOM'
-  const hasAction = notification.linkType != null
-
-  return (
-    <div className="flex items-start gap-2.5">
-      <NotificationAvatar type={notification.type} linkType={notification.linkType} unread={!notification.read} />
-      <div className="min-w-0 max-w-[82%]">
-        <div className="mb-1 flex items-center gap-2 px-1">
-          <span className="text-xs font-semibold text-gray-700">
-            {isChat ? '새 채팅' : '쓸랭 알림'}
-          </span>
-          <span className="text-[11px] text-gray-400">{fromNow(notification.createdAt)}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClick}
-          className={cn(
-            'group relative w-full rounded-2xl rounded-tl-md border px-4 py-3 text-left shadow-sm transition-all',
-            'before:absolute before:left-[-6px] before:top-3 before:h-3 before:w-3 before:rotate-45 before:border-l before:border-b',
-            notification.read
-              ? 'border-gray-200 bg-white hover:-translate-y-0.5 hover:bg-white before:border-gray-200 before:bg-white'
-              : 'border-primary-200 bg-white ring-1 ring-primary-100 hover:-translate-y-0.5 hover:bg-primary-50 before:border-primary-200 before:bg-white'
-          )}
-        >
-          <div className="mb-2 flex items-center gap-2">
-            <NotificationBadge type={notification.type} linkType={notification.linkType} />
-            {!notification.read && (
-              <span className="rounded-full bg-primary-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-                새 알림
-              </span>
-            )}
-          </div>
-          <p className="text-[15px] font-semibold leading-snug text-gray-900 line-clamp-2">
-            {notification.title}
-          </p>
-          <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600 line-clamp-5">
-            {notification.content}
-          </p>
-          {hasAction && (
-            <div className="mt-3 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors group-hover:bg-primary-100 group-hover:text-primary-700">
-              {isChat ? '채팅방 열기' : '상세 보기'}
-            </div>
-          )}
-        </button>
-      </div>
+        {items.map((n) => {
+          const expanded = expandedId === n.id
+          const isChat = n.type === 'CHAT' || n.type === 'MESSAGE' || n.linkType === 'CHAT_ROOM'
+          const path = getNotificationPath(n)
+          return (
+            <li key={n.id} className={cn(!n.read && 'bg-primary-50/60')}>
+              <DrawerListRow
+                onClick={() => handleNotificationClick(n)}
+                avatar={<NotificationAvatar type={n.type} linkType={n.linkType} unread={false} />}
+                title={n.title}
+                time={fromNow(n.createdAt)}
+                description={n.content}
+                meta={<NotificationBadge type={n.type} linkType={n.linkType} />}
+                unread={!n.read}
+                trailing={
+                  !n.read ? (
+                    <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" aria-hidden />
+                  ) : null
+                }
+              />
+              {expanded && (
+                <div className="mx-5 mb-4 -mt-1 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <NotificationBadge type={n.type} linkType={n.linkType} />
+                    <span className="text-[11px] text-gray-400">{formatKst(n.createdAt, 'yyyy.MM.dd HH:mm')}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">{n.title}</p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600">
+                    {n.content}
+                  </p>
+                  <p className="mt-3 text-[11px] text-gray-400">
+                    {isChat
+                      ? '채팅 알림은 채팅방으로 열립니다.'
+                      : path
+                        ? '해당 상세 화면으로 이동할 수 있습니다.'
+                        : '관리자 알림은 이 영역에서 전체 내용을 확인할 수 있습니다.'}
+                  </p>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
