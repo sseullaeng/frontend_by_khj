@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat' // 유저 프로필 플로팅 패널
 import {
@@ -133,39 +133,74 @@ function ChatPanel() {
     <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
       {rooms.map((room) => (
         <li key={room.id}>
-          <button
+          <DrawerListRow
             onClick={() => openChatRoom(room.id)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-          >
-            <div className="w-11 h-11 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-              {room.opponentProfileImage && (
-                <img
-                  src={room.opponentProfileImage}
-                  alt={room.opponentNickname}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-baseline">
-                <span className="font-medium text-sm text-gray-900">{room.opponentNickname}</span>
-                {room.lastMessageAt && (
-                  <span className="text-xs text-gray-400 shrink-0 ml-2">
-                    {fromNow(room.lastMessageAt)}
-                  </span>
+            avatar={
+              <div className="w-11 h-11 rounded-full bg-gray-200 shrink-0 overflow-hidden">
+                {room.opponentProfileImage && (
+                  <img
+                    src={room.opponentProfileImage}
+                    alt={room.opponentNickname}
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
-              <p className="text-sm text-gray-500 truncate mt-0.5">{room.lastMessage ?? ''}</p>
-            </div>
-            {room.myUnread > 0 && (
-              <span className="w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center shrink-0">
-                {room.myUnread}
-              </span>
-            )}
-          </button>
+            }
+            title={room.opponentNickname}
+            time={room.lastMessageAt ? fromNow(room.lastMessageAt) : undefined}
+            description={room.lastMessage ?? ''}
+            trailing={
+              room.myUnread > 0 ? (
+                <span className="w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center shrink-0">
+                  {room.myUnread}
+                </span>
+              ) : null
+            }
+          />
         </li>
       ))}
     </ul>
+  )
+}
+
+function DrawerListRow({
+  avatar,
+  title,
+  time,
+  description,
+  meta,
+  trailing,
+  unread,
+  onClick,
+}: {
+  avatar: ReactNode
+  title: ReactNode
+  time?: ReactNode
+  description?: ReactNode
+  meta?: ReactNode
+  trailing?: ReactNode
+  unread?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left',
+        unread && 'bg-primary-50/70'
+      )}
+    >
+      {avatar}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-baseline gap-2">
+          <span className="font-medium text-sm text-gray-900 truncate">{title}</span>
+          {time && <span className="text-xs text-gray-400 shrink-0">{time}</span>}
+        </div>
+        {description && <p className="text-sm text-gray-500 truncate mt-0.5">{description}</p>}
+        {meta && <div className="mt-1">{meta}</div>}
+      </div>
+      {trailing}
+    </button>
   )
 }
 
@@ -1052,24 +1087,20 @@ function NotificationPanel() {
         )}
         {items.map((n) => (
           <li key={n.id}>
-            <button
+            <DrawerListRow
               onClick={() => handleNotificationClick(n)}
-              className={`w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left ${
-                !n.read ? 'bg-primary-50' : ''
-              }`}
-            >
-              <NotificationAvatar type={n.type} linkType={n.linkType} unread={!n.read} />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline gap-2">
-                  <span className="font-medium text-sm text-gray-900 truncate">{n.title}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{fromNow(n.createdAt)}</span>
-                </div>
-                <p className="text-sm text-gray-500 truncate mt-0.5">{n.content}</p>
-                <div className="mt-1">
-                  <NotificationBadge type={n.type} linkType={n.linkType} />
-                </div>
-              </div>
-            </button>
+              avatar={<NotificationAvatar type={n.type} linkType={n.linkType} unread={false} />}
+              title={n.title}
+              time={fromNow(n.createdAt)}
+              description={n.content}
+              meta={<NotificationBadge type={n.type} linkType={n.linkType} />}
+              unread={!n.read}
+              trailing={
+                !n.read ? (
+                  <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" aria-hidden />
+                ) : null
+              }
+            />
           </li>
         ))}
       </ul>
