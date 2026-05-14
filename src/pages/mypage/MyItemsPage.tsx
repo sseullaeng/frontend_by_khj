@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShoppingBag, ChevronLeft } from 'lucide-react'
 import { useMyTransactions } from '@/features/trade/hooks'
+import { useItemDetail } from '@/features/item/hooks'
 import { useAuthStore } from '@/features/auth/store'
 import type { Transaction, TransactionStatus } from '@/features/trade/types'
 import { fromNow } from '@/shared/lib/date'
@@ -18,30 +19,30 @@ import { cn } from '@/shared/lib/cn'
 type TabKey = 'ALL' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'ALL',        label: '전체' },
-  { key: 'DONE',       label: '거래완료' },
-  { key: 'SELLING',    label: '판매중' },
+  { key: 'ALL', label: '전체' },
+  { key: 'DONE', label: '거래완료' },
+  { key: 'SELLING', label: '판매중' },
   { key: 'RENTAL_OUT', label: '대여제공' },
-  { key: 'RENTAL_IN',  label: '대여현황' },
+  { key: 'RENTAL_IN', label: '대여현황' },
 ]
 
 // 라운드14 — '반납요청' 추가
 const ACTIVE_STATUSES: TransactionStatus[] = ['채팅중', '예약', '인계완료', '반납요청']
-const DONE_STATUSES:   TransactionStatus[] = ['거래완료']
+const DONE_STATUSES: TransactionStatus[] = ['거래완료']
 
 const STATUS_BADGE: Record<TransactionStatus, { color: string }> = {
-  '채팅중':   { color: 'bg-amber-100 text-amber-700' },
-  '예약':     { color: 'bg-yellow-100 text-yellow-700' },
-  '인계완료': { color: 'bg-indigo-100 text-indigo-700' },
-  '반납요청': { color: 'bg-orange-100 text-orange-700' },
-  '거래완료': { color: 'bg-blue-100 text-blue-700' },
-  '취소':     { color: 'bg-red-100 text-red-600' },
+  채팅중: { color: 'bg-amber-100 text-amber-700' },
+  예약: { color: 'bg-yellow-100 text-yellow-700' },
+  인계완료: { color: 'bg-indigo-100 text-indigo-700' },
+  반납요청: { color: 'bg-orange-100 text-orange-700' },
+  거래완료: { color: 'bg-blue-100 text-blue-700' },
+  취소: { color: 'bg-red-100 text-red-600' },
 }
 
 const TYPE_BADGE: Record<string, string> = {
-  '판매': 'bg-blue-100 text-blue-700',
-  '대여': 'bg-green-100 text-green-700',
-  '나눔': 'bg-purple-100 text-purple-700',
+  판매: 'bg-blue-100 text-blue-700',
+  대여: 'bg-green-100 text-green-700',
+  나눔: 'bg-purple-100 text-purple-700',
 }
 
 export default function MyItemsPage() {
@@ -52,19 +53,21 @@ export default function MyItemsPage() {
 
   // role × {active, done} 4 queries — multi-status CSV 로 focused fetch (size=100).
   //   '취소' 는 main 화면에서 노출 안 함. 필요 시 별도 탭.
-  const buyerActiveQ  = useMyTransactions({ role: 'buyer',  status: ACTIVE_STATUSES, size: 100 })
-  const buyerDoneQ    = useMyTransactions({ role: 'buyer',  status: DONE_STATUSES,   size: 100 })
+  const buyerActiveQ = useMyTransactions({ role: 'buyer', status: ACTIVE_STATUSES, size: 100 })
+  const buyerDoneQ = useMyTransactions({ role: 'buyer', status: DONE_STATUSES, size: 100 })
   const sellerActiveQ = useMyTransactions({ role: 'seller', status: ACTIVE_STATUSES, size: 100 })
-  const sellerDoneQ   = useMyTransactions({ role: 'seller', status: DONE_STATUSES,   size: 100 })
+  const sellerDoneQ = useMyTransactions({ role: 'seller', status: DONE_STATUSES, size: 100 })
 
   const isLoading =
-    buyerActiveQ.isLoading || buyerDoneQ.isLoading ||
-    sellerActiveQ.isLoading || sellerDoneQ.isLoading
+    buyerActiveQ.isLoading ||
+    buyerDoneQ.isLoading ||
+    sellerActiveQ.isLoading ||
+    sellerDoneQ.isLoading
 
-  const buyerActive  = buyerActiveQ.data?.content  ?? []
-  const buyerDone    = buyerDoneQ.data?.content    ?? []
+  const buyerActive = buyerActiveQ.data?.content ?? []
+  const buyerDone = buyerDoneQ.data?.content ?? []
   const sellerActive = sellerActiveQ.data?.content ?? []
-  const sellerDone   = sellerDoneQ.data?.content   ?? []
+  const sellerDone = sellerDoneQ.data?.content ?? []
 
   const transactions: Transaction[] = (() => {
     switch (tabKey) {
@@ -107,7 +110,7 @@ export default function MyItemsPage() {
                 'py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors',
                 tabKey === t.key
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700',
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               )}
             >
               {t.label}
@@ -152,10 +155,15 @@ function sortByCreatedDesc(list: Transaction[]): Transaction[] {
 }
 
 function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) {
+  const { data: item } = useItemDetail(tx.itemId)
   const role: 'buyer' | 'seller' = myId != null && tx.sellerId === myId ? 'seller' : 'buyer'
   const status = STATUS_BADGE[tx.status]
   const typeColor = TYPE_BADGE[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
   const counterpartId = role === 'buyer' ? tx.sellerId : tx.buyerId
+  const thumbnailUrl =
+    item?.thumbnailUrl ??
+    item?.images.find((image) => image.thumbnail)?.imageUrl ??
+    item?.images[0]?.imageUrl
 
   return (
     <li>
@@ -163,6 +171,15 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
         to={`/trades/${tx.id}`}
         className="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary-300 transition-colors"
       >
+        <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+          {thumbnailUrl ? (
+            <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <ShoppingBag size={20} />
+            </div>
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
             <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', status.color)}>
@@ -174,7 +191,7 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
             <span
               className={cn(
                 'px-2 py-0.5 text-xs font-medium rounded-full',
-                role === 'buyer' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700',
+                role === 'buyer' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
               )}
             >
               {role === 'buyer' ? '구매' : '판매'}
@@ -182,9 +199,7 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
           </div>
 
           <p className="font-medium text-gray-900 mb-1 text-sm">
-            <Link to={`/items/${tx.itemId}`} className="hover:underline">
-              물품 #{tx.itemId}
-            </Link>
+            {item?.title ?? `물품 #${tx.itemId}`}
           </p>
 
           <p className="text-sm font-semibold text-gray-900 mb-1.5">

@@ -3,7 +3,7 @@
 // 백엔드 인식 query param: q, categoryId, tradeType, minPrice, maxPrice, tag, sort
 // (기존 client-side brand / transactionMethod / category-slug 필터는 제거 — 백엔드 미지원)
 
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll'
 import { useItemList } from '@/features/item/hooks'
@@ -14,35 +14,41 @@ import ItemListItem from '@/features/item/components/ItemListItem'
 import { Grid, List, X } from 'lucide-react'
 
 const TRADE_TYPES: { value: '' | TradeType; label: string }[] = [
-  { value: '',     label: '전체' },
+  { value: '', label: '전체' },
   { value: '판매', label: '판매' },
   { value: '대여', label: '대여' },
   { value: '나눔', label: '나눔' },
 ]
 
+const normalizePriceInput = (value: string) => value.replace(/\D/g, '')
+const preventInvalidPriceKey = (e: KeyboardEvent<HTMLInputElement>) => {
+  if (['-', '+', 'e', 'E', '.'].includes(e.key)) e.preventDefault()
+}
+
 export default function ItemListPage() {
-  const [keyword, setKeyword]     = useState('')
+  const [keyword, setKeyword] = useState('')
   const [tradeType, setTradeType] = useState<'' | TradeType>('')
   const [categoryId, setCategoryId] = useState<number | null>(null)
-  const [minPrice, setMinPrice]   = useState('')
-  const [maxPrice, setMaxPrice]   = useState('')
-  const [sort, setSort]           = useState<ItemSort>('latest')
-  const [viewMode, setViewMode]   = useState<'grid' | 'list'>('grid')
-  const debouncedKeyword          = useDebounce(keyword, 400)
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [sort, setSort] = useState<ItemSort>('latest')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const debouncedKeyword = useDebounce(keyword, 400)
 
   // 거래완료는 항상 후순위로 (백엔드 multi-key sort 위임 — 페이지 경계 안정)
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useItemList({
-      q: debouncedKeyword || undefined,
-      tradeType: tradeType || undefined,
-      categoryId: categoryId ?? undefined,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      sort: `completed_last,${sort}`,
-    })
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useItemList({
+    q: debouncedKeyword || undefined,
+    tradeType: tradeType || undefined,
+    categoryId: categoryId ?? undefined,
+    minPrice: minPrice ? Number(minPrice) : undefined,
+    maxPrice: maxPrice ? Number(maxPrice) : undefined,
+    sort: `completed_last,${sort}`,
+  })
 
   const sentinelRef = useInfiniteScroll({
-    onIntersect: () => { if (hasNextPage) fetchNextPage() },
+    onIntersect: () => {
+      if (hasNextPage) fetchNextPage()
+    },
     enabled: hasNextPage,
   })
 
@@ -69,7 +75,7 @@ export default function ItemListPage() {
             placeholder="어떤 물품을 찾으시나요?"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+            className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
           />
           {keyword && (
             <button
@@ -106,7 +112,7 @@ export default function ItemListPage() {
         {/* 거래 유형 */}
         <div>
           <p className="text-xs font-medium text-gray-700 mb-2">거래 유형</p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {TRADE_TYPES.map((t) => (
               <button
                 key={t.value}
@@ -126,37 +132,45 @@ export default function ItemListPage() {
         {/* 가격 범위 */}
         <div>
           <p className="text-xs font-medium text-gray-700 mb-2">가격 범위</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
             <input
               type="number"
+              min={0}
+              inputMode="numeric"
               placeholder="최소 가격"
               value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-primary-500"
+              onChange={(e) => setMinPrice(normalizePriceInput(e.target.value))}
+              onKeyDown={preventInvalidPriceKey}
+              className="w-full min-w-0 px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-primary-500"
             />
-            <div className="flex items-center px-2 text-gray-400">~</div>
+            <div className="flex items-center justify-center px-1 text-gray-400">~</div>
             <input
               type="number"
+              min={0}
+              inputMode="numeric"
               placeholder="최대 가격"
               value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-primary-500"
+              onChange={(e) => setMaxPrice(normalizePriceInput(e.target.value))}
+              onKeyDown={preventInvalidPriceKey}
+              className="w-full min-w-0 px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-primary-500"
             />
           </div>
         </div>
       </div>
 
       {/* 정렬 + 총 개수 + 보기 형식 */}
-      <div className="flex items-center justify-between px-4 py-3 -mx-4">
+      <div className="flex flex-col gap-2 px-4 py-3 -mx-4 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-xs text-gray-400">
           총 <strong className="text-gray-700">{totalCount}</strong>개
         </span>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex shrink-0 items-center bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-md transition-colors ${
-                viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                viewMode === 'grid'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
               aria-label="그리드 보기"
             >
@@ -165,7 +179,9 @@ export default function ItemListPage() {
             <button
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-md transition-colors ${
-                viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                viewMode === 'list'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
               aria-label="리스트 보기"
             >
@@ -176,7 +192,7 @@ export default function ItemListPage() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as ItemSort)}
-            className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none cursor-pointer"
+            className="min-w-0 flex-1 text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none cursor-pointer sm:flex-none"
           >
             <option value="latest">최신순</option>
             <option value="price_asc">가격 낮은순</option>
