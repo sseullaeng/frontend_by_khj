@@ -444,14 +444,18 @@ function AdminItemDetailModal({ id, onClose }: { id: number; onClose: () => void
               )}
             </section>
 
-            <div className="flex gap-2 pt-3 border-t border-gray-100">
-              <button
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onClose}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+                fullWidth
+                className="h-10 rounded-xl border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               >
                 닫기
-              </button>
+              </Button>
               <Button
+                type="button"
                 variant="danger"
                 fullWidth
                 onClick={() => setConfirmDel(true)}
@@ -468,15 +472,19 @@ function AdminItemDetailModal({ id, onClose }: { id: number; onClose: () => void
                   <p className="text-xs text-gray-500 mb-4">
                     관리자 권한으로 강제 삭제됩니다. 복구 불가.
                   </p>
-                  <div className="flex gap-2">
-                    <button
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
                       onClick={() => setConfirmDel(false)}
                       disabled={isDeleting}
-                      className="flex-1 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 disabled:opacity-50"
+                      fullWidth
+                      className="h-9 rounded-lg border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
                     >
                       취소
-                    </button>
+                    </Button>
                     <Button
+                      type="button"
                       variant="danger"
                       fullWidth
                       onClick={handleDelete}

@@ -145,20 +145,25 @@ function BannerRow({ banner, onEdit }: { banner: Banner; onEdit: () => void }) {
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
             <h3 className="font-bold text-gray-900 mb-1">배너를 삭제할까요?</h3>
             <p className="text-sm text-gray-500 mb-4">"{banner.title}" 배너가 영구 삭제됩니다.</p>
-            <div className="flex gap-2">
-              <button
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setConfirmOpen(false)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 font-medium"
+                fullWidth
+                className="h-10 rounded-xl border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               >
                 취소
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
                 onClick={() => remove.mutate(banner.id, { onSuccess: () => setConfirmOpen(false) })}
-                disabled={remove.isPending}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                isLoading={remove.isPending}
+                fullWidth
               >
                 삭제
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -338,14 +343,17 @@ function BannerFormModal({
           </div>
         </div>
 
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
-          <button
+        <div className="grid grid-cols-2 gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+          <Button
+            type="button"
+            variant="outline"
             onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 font-medium"
+            fullWidth
+            className="h-10 rounded-xl border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
           >
             취소
-          </button>
-          <Button onClick={handleSubmit} isLoading={isPending} disabled={uploading} fullWidth>
+          </Button>
+          <Button type="button" onClick={handleSubmit} isLoading={isPending} disabled={uploading} fullWidth>
             {isEdit ? '수정' : '등록'}
           </Button>
         </div>

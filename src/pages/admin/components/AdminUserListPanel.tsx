@@ -4,6 +4,7 @@ import { Ban, ShieldOff, ShieldCheck, UserX, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
 import { SelectDropdown } from '@/shared/ui/SelectDropdown'
+import { Button } from '@/shared/ui/Button'
 import {
   useAdminUserDetail,
   useSetUserBlocked,
@@ -441,26 +442,31 @@ export default function AdminUserListPanel({
               </div>
             )}
             {/* 취소 / 확인 버튼 */}
-            <div className="flex gap-2 mt-4">
-              <button
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => {
                   setConfirm(null)
                   setSuspendDays(7)
                   setWithdrawReason('')
                 }}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600"
+                fullWidth
+                className="h-10 rounded-xl border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               >
                 취소
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
                 onClick={handleConfirm}
+                variant={confirm.action === 'withdraw' || confirm.action === 'block' ? 'danger' : 'primary'}
+                fullWidth
                 className={cn(
-                  'flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors',
-                  confirm.action === 'withdraw' || confirm.action === 'block'
-                    ? 'bg-red-500 hover:bg-red-600'
-                    : confirm.action === 'unsuspend' || confirm.action === 'unblock'
-                      ? 'bg-emerald-500 hover:bg-emerald-600'
-                      : 'bg-amber-500 hover:bg-amber-600'
+                  'h-10 rounded-xl',
+                  (confirm.action === 'unsuspend' || confirm.action === 'unblock') &&
+                    'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700',
+                  confirm.action === 'suspend' &&
+                    'bg-amber-500 hover:bg-amber-600 active:bg-amber-700'
                 )}
               >
                 {confirm.action === 'withdraw'
@@ -472,7 +478,7 @@ export default function AdminUserListPanel({
                       : confirm.action === 'unblock'
                         ? '해제'
                         : '정지'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
