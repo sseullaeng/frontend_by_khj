@@ -107,6 +107,21 @@ export default function EscrowBuyerInfoPage() {
   // 제출 활성화 — 입력 4개 필드만 본다. preview 응답 기다리지 않음.
   const canSubmit = !!deliveryAddress && deliveryLat != null && deliveryLng != null && phoneOk
 
+  const handlePreview = async () => {
+    if (!previewBody) {
+      toast.error('수령지 주소를 검색하면 수수료를 계산할 수 있어요.')
+      return
+    }
+    try {
+      await preview.mutateAsync(previewBody)
+      toast.success('예상 수수료를 계산했어요.')
+    } catch (err) {
+      if (err instanceof BusinessError) toast.error(err.message)
+      else if (err instanceof Error) toast.error(err.message)
+      else toast.error('수수료 계산에 실패했어요.')
+    }
+  }
+
   const handleSubmit = async () => {
     if (!deliveryAddress || deliveryLat == null || deliveryLng == null) {
       toast.error('수령지 주소를 검색해 주세요.')
@@ -211,9 +226,20 @@ export default function EscrowBuyerInfoPage() {
             <p className="text-xs text-primary-700/70">예상 수수료 계산 중...</p>
           ) : (
             <p className="text-xs text-primary-700/70">
-              수령지 주소를 검색하면 자동 계산돼요. (실패해도 [확인·계산] 누르면 서버에서 계산해요.)
+              수령지 주소를 검색하면 자동 계산돼요. 자동 계산이 늦으면 직접 다시 계산할 수 있어요.
             </p>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            fullWidth
+            className="mt-3 bg-white"
+            onClick={handlePreview}
+            isLoading={preview.isPending}
+          >
+            수수료 계산해보기
+          </Button>
         </div>
 
         <Button

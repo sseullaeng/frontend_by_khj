@@ -166,6 +166,25 @@ export default function EscrowApplicationPage() {
     (isReceiverBuyer ? buyerAreaReady : sellerAreaReady) &&
     (isReceiverSeller ? imageFiles.length > 0 : true)   // seller 라면 이미지 1장 이상
 
+  const handlePreview = async () => {
+    if (!previewBody) {
+      toast.error(isReceiverBuyer
+        ? '수령지 주소를 검색하면 수수료를 계산할 수 있어요.'
+        : '픽업 주소와 물품 옵션을 입력하면 수수료를 계산할 수 있어요.'
+      )
+      return
+    }
+    try {
+      await preview.mutateAsync(previewBody)
+      toast.success('예상 수수료를 계산했어요.')
+    } catch (err) {
+      const msg = err instanceof BusinessError ? err.message
+                : err instanceof Error ? err.message
+                : '수수료 계산에 실패했어요.'
+      toast.error(msg)
+    }
+  }
+
   const handleSubmit = async () => {
     if (!isValid || !link) return
 
@@ -487,6 +506,21 @@ export default function EscrowApplicationPage() {
           fees={fees}
           isLoadingFees={preview.isPending}
         />
+        <div className="lg:col-start-2">
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth
+            onClick={handlePreview}
+            isLoading={preview.isPending}
+            disabled={submitting}
+          >
+            수수료 계산해보기
+          </Button>
+          <p className="mt-2 text-xs text-gray-400 text-center">
+            자동 계산이 늦으면 버튼을 눌러 다시 계산할 수 있어요.
+          </p>
+        </div>
       </div>
 
       {/* 취소 수수료 경고 */}
