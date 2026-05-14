@@ -1,7 +1,7 @@
 // 거래대행 링크 공유 — EscrowStartPage 의 useCreateEscrowLink 결과를 location.state 로 받음
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Copy, Share2, CheckCircle, ArrowLeft } from 'lucide-react'
+import { Copy, Share2, CheckCircle, ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/shared/ui/Button'
 import { formatKst } from '@/shared/lib/date'
 import type { EscrowLink } from '@/features/escrow/types'
@@ -83,6 +83,18 @@ export default function EscrowLinkPage() {
           <Share2 size={16} />
           링크 공유하기
         </Button>
+      </div>
+
+      {/* 링크 분실 시 재신청 필요 안내 — 이 페이지를 나가면 link 객체를 다시 못 받음 */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2">
+        <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-amber-900 mb-0.5">링크는 지금 꼭 저장해 주세요</p>
+          <p className="text-xs text-amber-700/90 leading-relaxed">
+            이 페이지를 벗어나면 같은 링크를 다시 볼 수 없어요. 잃어버리면 처음부터 다시 신청해야 하니
+            지금 복사·공유로 보관해 주세요.
+          </p>
+        </div>
       </div>
 
       <div className="bg-blue-50 rounded-xl p-5">
