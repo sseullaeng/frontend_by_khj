@@ -71,9 +71,9 @@ export default function EscrowApplicationPage() {
   const [pickupOpen,       setPickupOpen]       = useState(false)
   const [itemPrice,        setItemPrice]        = useState<number>(0)
   const [itemDescription,  setItemDescription]  = useState('')
-  const [weight,           setWeight]           = useState<WeightKey | null>(null)
-  const [volume,           setVolume]           = useState<VolumeKey | null>(null)
-  const [fragility,        setFragility]        = useState<FragilityKey | null>(null)
+  const [weight,           setWeight]           = useState<WeightKey | null>('1to3')
+  const [volume,           setVolume]           = useState<VolumeKey | null>('m')
+  const [fragility,        setFragility]        = useState<FragilityKey | null>('f1')
   const [deliveryNotes,    setDeliveryNotes]    = useState('')
   const [imageFiles,       setImageFiles]       = useState<File[]>([])
 
