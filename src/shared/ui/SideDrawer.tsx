@@ -1054,23 +1054,54 @@ function NotificationPanel() {
           <li key={n.id}>
             <button
               onClick={() => handleNotificationClick(n)}
-              className={`w-full flex flex-col gap-0.5 px-5 py-4 hover:bg-gray-50 transition-colors text-left ${
+              className={`w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left ${
                 !n.read ? 'bg-primary-50' : ''
               }`}
             >
-              {!n.read && (
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 inline-block mb-0.5" />
-              )}
-              <span className="text-sm font-medium text-gray-900 flex items-center flex-wrap gap-1.5">
-                <NotificationBadge type={n.type} linkType={n.linkType} />
-                {n.title}
-              </span>
-              <span className="text-xs text-gray-500 line-clamp-2">{n.content}</span>
-              <span className="text-xs text-gray-400 mt-0.5">{fromNow(n.createdAt)}</span>
+              <NotificationAvatar type={n.type} linkType={n.linkType} unread={!n.read} />
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline gap-2">
+                  <span className="font-medium text-sm text-gray-900 truncate">{n.title}</span>
+                  <span className="text-xs text-gray-400 shrink-0">{fromNow(n.createdAt)}</span>
+                </div>
+                <p className="text-sm text-gray-500 truncate mt-0.5">{n.content}</p>
+                <div className="mt-1">
+                  <NotificationBadge type={n.type} linkType={n.linkType} />
+                </div>
+              </div>
             </button>
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+function NotificationAvatar({
+  type,
+  linkType,
+  unread,
+}: {
+  type: string
+  linkType: string | null
+  unread: boolean
+}) {
+  const cfg = (() => {
+    if (linkType === 'INQUIRY') return { icon: <Bell size={18} />, className: 'bg-violet-100 text-violet-700' }
+    if (type === 'TRANSACTION') return { icon: <Receipt size={18} />, className: 'bg-amber-100 text-amber-700' }
+    if (type === 'ESCROW' || linkType === 'ESCROW') return { icon: <Receipt size={18} />, className: 'bg-orange-100 text-orange-700' }
+    if (type === 'DELIVERY') return { icon: <Truck size={18} />, className: 'bg-sky-100 text-sky-700' }
+    if (type === 'REVIEW') return { icon: <Star size={18} />, className: 'bg-pink-100 text-pink-700' }
+    if (type === 'CHAT' || type === 'MESSAGE') return { icon: <MessageCircle size={18} />, className: 'bg-blue-100 text-blue-700' }
+    return { icon: <Bell size={18} />, className: 'bg-gray-100 text-gray-600' }
+  })()
+
+  return (
+    <div className={cn('relative w-11 h-11 rounded-full shrink-0 flex items-center justify-center', cfg.className)}>
+      {cfg.icon}
+      {unread && (
+        <span className="absolute -right-0.5 -top-0.5 w-3 h-3 rounded-full bg-primary-500 border-2 border-white" />
+      )}
     </div>
   )
 }
