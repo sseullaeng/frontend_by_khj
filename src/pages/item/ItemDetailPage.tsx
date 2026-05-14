@@ -9,7 +9,11 @@ import {
   Heart, MapPin, Eye, Clock, ChevronLeft, ChevronRight, Flag,
   Pencil, Trash2, MessageCircle,
 } from 'lucide-react'
-import { useItemDetail, useToggleWish, useDeleteItem, useAdminDeleteItem } from '@/features/item/hooks'
+import {
+  useItemDetail, useToggleWish, useDeleteItem, useAdminDeleteItem,
+  useRentalBlocks, useRequestRental,
+} from '@/features/item/hooks'
+import RentalDatePicker, { type RentalRange } from '@/features/item/RentalDatePicker'
 import { useUserProfile } from '@/features/user/hooks'
 import { useDrawerStore } from '@/shared/store/drawerStore'
 import { useAuthStore } from '@/features/auth/store'
@@ -20,6 +24,8 @@ import UserProfileFloat from '@/shared/ui/UserProfileFloat'
 import { cn } from '@/shared/lib/cn'
 import { fromNow } from '@/shared/lib/date'
 import { toast } from 'sonner'
+import { BusinessError } from '@/shared/types'
+import { getErrorMessage } from '@/shared/lib/errorMessages'
 import type { ItemStatus, TradeType } from '@/features/item/types'
 
 // 상태 배지 (판매중은 미표시 → undefined)
@@ -53,6 +59,13 @@ export default function ItemDetailPage() {
   const [profileFloatOpen, setProfileFloatOpen] = useState(false)
   const [tradeModeOpen, setTradeModeOpen] = useState(false)   // 라운드13 #5 — 채팅 시작 시 거래방식 모달
   const [imageIndex, setImageIndex] = useState(0)
+
+  // 라운드14 4-C — 대여 달력 + 신청
+  //   hook 은 early return 위에서 호출 (React error #310 회피)
+  const rentalItemId = Number(id) || 0
+  const rentalBlocksQ = useRentalBlocks(rentalItemId || undefined)
+  const requestRental = useRequestRental(rentalItemId)
+  const [rentalRange, setRentalRange] = useState<RentalRange | null>(null)
 
   // 로딩/에러 가드
   if (isLoading) {
@@ -115,6 +128,30 @@ export default function ItemDetailPage() {
         await startChatWithMode(modes[0])
       } else {
         setTradeModeOpen(true)   // 모달 열기
+      }
+    })
+
+  // 라운드14 4-C — 대여 신청: 채팅방 만들고 그 위에 rental-request 전송
+  const handleRentalRequest = () =>
+    requireVerified(async () => {
+      if (!rentalRange || !rentalRange.start || !rentalRange.end) {
+        toast.error('대여 기간(시작·종료)을 모두 선택해 주세요.')
+        return
+      }
+      try {
+        const room = await chatApi.createRoom(item.id, '대여')
+        await requestRental.mutateAsync({
+          rentalStart: `${rentalRange.start}T00:00:00`,
+          rentalEnd:   `${rentalRange.end}T23:59:59`,
+          chatRoomId:  room.data.id,
+        })
+        openChatRoom(room.data.id)
+        open('chat')
+        setRentalRange(null)
+        toast.success('대여 신청을 보냈어요. 판매자가 확인 후 예약돼요.')
+      } catch (err) {
+        if (err instanceof BusinessError) toast.error(getErrorMessage(err.code, err.message))
+        else toast.error('대여 신청에 실패했어요.')
       }
     })
 
@@ -233,13 +270,24 @@ export default function ItemDetailPage() {
                     </span>
                   </div>
                 )}
-                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (
-                  <span className="text-xs text-gray-500">
-                    {item.depositType === 'PERCENT'
-                      ? `보증금 ${item.deposit}% (대여가 기준)`
-                      : `보증금 ${item.deposit.toLocaleString()}원`}
-                  </span>
-                )}
+                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (() => {
+                  // 라운드14 B-1 — PERCENT 일 때 환산 base = salePrice ?? rentalPrice (백엔드 공식 일치)
+                  if (item.depositType !== 'PERCENT') {
+                    return (
+                      <span className="text-xs text-gray-500">
+                        보증금 {item.deposit.toLocaleString()}원
+                      </span>
+                    )
+                  }
+                  const base = item.salePrice ?? item.rentalPrice ?? 0
+                  const computed = Math.ceil(base * item.deposit / 100)
+                  return (
+                    <span className="text-xs text-gray-500">
+                      보증금 {item.deposit}% ≒ {computed.toLocaleString()}원
+                      <span className="text-gray-400"> (거래 시 자동 환산)</span>
+                    </span>
+                  )
+                })()}
               </>
             )}
           </div>
@@ -273,6 +321,36 @@ export default function ItemDetailPage() {
               프로필 보기
             </span>
           </button>
+
+          <hr className="border-gray-100" />
+
+          {/* 라운드14 4-C — 대여 가능 기간 + 신청 (대여 모드 + 본인 아님 한정) */}
+          {modes.includes('대여') && !isOwner && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">대여 기간 선택</h3>
+              <RentalDatePicker
+                blocks={rentalBlocksQ.data?.blocks ?? []}
+                value={rentalRange}
+                onChange={setRentalRange}
+              />
+              {rentalRange?.start && rentalRange?.end && (
+                <p className="text-xs text-gray-500">
+                  선택 기간: <span className="font-medium text-gray-900">{rentalRange.start} ~ {rentalRange.end}</span>
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleRentalRequest}
+                disabled={!rentalRange?.start || !rentalRange?.end || requestRental.isPending}
+                className="w-full mt-1 py-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-semibold transition-colors"
+              >
+                {requestRental.isPending ? '신청 중...' : '대여 신청'}
+              </button>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                회색 날짜는 이미 다른 사용자가 예약한 기간이에요. 판매자가 신청을 확인하면 예약으로 전환됩니다.
+              </p>
+            </div>
+          )}
 
           <hr className="border-gray-100" />
 

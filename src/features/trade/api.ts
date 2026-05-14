@@ -17,9 +17,14 @@ export const transactionApi = {
   getDetail: (id: number) =>
     api.get<Transaction>(`/api/v1/transactions/${id}`),
 
-  // 내 거래 목록 — role/status 필터
-  getMyList: (params?: TransactionListParams) =>
-    api.get<PageResponse<Transaction>>('/api/v1/users/me/transactions', { params }),
+  // 내 거래 목록 — role/status 필터 (라운드14 4-B: status CSV 다중 지원)
+  getMyList: (params?: TransactionListParams) => {
+    const { status, ...rest } = params ?? {}
+    const statusParam = Array.isArray(status) ? status.join(',') : status
+    return api.get<PageResponse<Transaction>>('/api/v1/users/me/transactions', {
+      params: { ...rest, ...(statusParam ? { status: statusParam } : {}) },
+    })
+  },
 
   // 상태 전이 — 라운드 11 (Tx-Hold)
   //   예약:     seller 만, 채팅중   → 예약       (buyer 포인트 hold)

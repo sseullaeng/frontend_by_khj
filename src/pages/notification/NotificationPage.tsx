@@ -22,7 +22,9 @@ function notificationToHref(noti: Notification): string {
   const map: Record<NotificationLinkType, string> = {
     CHAT_ROOM:   `/notifications`,                  // 채팅 드로워 진입은 별도 트리거
     TRANSACTION: `/trades/${noti.linkId}`,
-    ESCROW:      `/escrow/list/${noti.linkId}`,      // 거래대행 신청
+    // 라운드14 3-D — 거래대행 신청 알림은 buyer-info 로 직접 분기
+    //   buyer 가 아니거나 이미 입력 완료면 페이지가 안전하게 redirect 함.
+    ESCROW:      `/escrow/${noti.linkId}/buyer-info`,
     DELIVERY:    `/delivery/${noti.linkId}/track`,
     ITEM:        `/items/${noti.linkId}`,
     REVIEW:      `/reviews`,

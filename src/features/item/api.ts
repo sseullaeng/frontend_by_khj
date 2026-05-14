@@ -19,6 +19,20 @@ export const itemApi = {
   // 상세
   getDetail: (id: number) => api.get<ItemDetail>(`/api/v1/items/${id}`),
 
+  // 라운드14 4-C: 대여 가능 기간 조회 (공개)
+  //   활성 거래(취소/거래완료 제외)의 rentalStart/End 페어 반환 — 달력 비활성 표시용
+  getRentalBlocks: (id: number) =>
+    api.get<{ blocks: { start: string; end: string }[] }>(`/api/v1/items/${id}/rental-blocks`),
+
+  // 라운드14 4-C: 대여 신청 (buyer)
+  //   백엔드가 채팅중 Transaction 생성, 응답으로 transactionId
+  //   에러: 409 TRANSACTION_RENTAL_OVERLAP / 400 TRANSACTION_RENTAL_INVALID_PERIOD / 403 TRANSACTION_FORBIDDEN
+  postRentalRequest: (
+    id: number,
+    body: { rentalStart: string; rentalEnd: string; chatRoomId?: number },
+  ) =>
+    api.post<{ transactionId: number }>(`/api/v1/items/${id}/rental-request`, body),
+
   // 등록 (이메일 인증 필수)
   create: (body: ItemCreateRequest) =>
     api.post<{ id: number }>('/api/v1/items', body),
