@@ -217,6 +217,7 @@ function ChatRoomView({
   const chatBlocked = opponentLeft || iLeft // 입력 / 액션 버튼 모두 disable
   const { mutateAsync: leaveAsync, isPending: isLeaving } = useLeaveChatRoom()
   const { mutateAsync: createTxAsync, isPending: isCreatingTx } = useCreateTransaction()
+  const [isResolvingEscrowRoom, setIsResolvingEscrowRoom] = useState(false)
 
   // 라운드13 PR #131 — 거래 상태 (room.card 에서) + [거래 완료] action='완료'
   const txId = room?.card?.transactionId ?? null
@@ -238,6 +239,8 @@ function ChatRoomView({
 
   // 라운드14 — 대여 거래 매트릭스 (예약 → 인계 → 반납 → 회신)
   const tradeMode = room?.card?.tradeMode ?? room?.tradeMode
+  const chatTradeMode =
+    tradeMode === '판매' || tradeMode === '대여' || tradeMode === '나눔' ? tradeMode : null
   const isRental = tradeMode === '대여'
   const presetRentalStart = room?.card?.rentalStart ?? null
   const presetRentalEnd = room?.card?.rentalEnd ?? null
@@ -737,15 +740,27 @@ function ChatRoomView({
               {/* 거래대행 시작 — 거래 진행 중인 판매자 (채팅중 단계까지) */}
               {canStartEscrow && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!room) return
-                    close()
-                    navigate(`/escrow/internal/new?chatRoomId=${room.id}&itemId=${room.itemId}`)
+                    try {
+                      setIsResolvingEscrowRoom(true)
+                      const resolved = await chatApi.createRoom(room.itemId, chatTradeMode)
+                      close()
+                      navigate(
+                        `/escrow/internal/new?chatRoomId=${resolved.data.id}&itemId=${room.itemId}`
+                      )
+                    } catch (err) {
+                      console.error('resolve escrow chat room failed', err)
+                      toast.error('거래대행 신청을 시작하지 못했어요.')
+                    } finally {
+                      setIsResolvingEscrowRoom(false)
+                    }
                   }}
+                  disabled={isResolvingEscrowRoom}
                   className="w-full py-2 rounded-lg bg-white border border-primary-300 text-primary-600 hover:bg-primary-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Truck size={13} />
-                  거래대행 시작
+                  {isResolvingEscrowRoom ? '준비 중...' : '거래대행 시작'}
                 </button>
               )}
 
