@@ -7,15 +7,13 @@
 //   TradeStatus: '진행중' | '완료' | '취소'  (백엔드에서 5단계 → 3분류 그룹핑)
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ChevronRight, ShieldCheck, ShoppingBag } from 'lucide-react'
+import { AlertTriangle, ChevronRight, ShieldCheck } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { useAdminDashboardCharts, useAdminMe, useAdminTransactions } from '@/features/admin/hooks'
+import { useAdminDashboardCharts, useAdminMe } from '@/features/admin/hooks'
 import { useAdminOverdueList } from '@/features/overdue/hooks'
-import { TRANSACTION_STATUS_LABEL } from '@/features/transaction/types'
-import { formatKst } from '@/shared/lib/date'
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
 
@@ -37,18 +35,6 @@ function defaultRange(): { start: string; end: string } {
   const past = new Date(today)
   past.setDate(today.getDate() - 13)
   return { start: fmt(past), end: fmt(today) }
-}
-
-function currentMonthRange(): { start: string; end: string } {
-  const today = new Date()
-  const first = new Date(today.getFullYear(), today.getMonth(), 1)
-  const fmt = (d: Date) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${dd}`
-  }
-  return { start: fmt(first), end: fmt(today) }
 }
 
 // nickname prop 은 옛 mypage 흐름과의 호환용 (PR #29 revert 잔재). 미지정 시
@@ -129,8 +115,6 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
           onClick={() => navigate('/admin/reports')}
         />
       </div>
-
-      <MonthlyTradeItems />
 
       {/* 연체 위젯 — 라운드14. 진행 중 / 위험(PHASE_4) totalElements 만 사용. */}
       <OverdueSummary />
@@ -282,92 +266,6 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
 
 // 라운드14 — 연체 현황 위젯. 백엔드 dashboard 응답에 합산 필드가 없어,
 //   목록 endpoint 의 totalElements 만 가볍게(size=1) 끌어와 카운트 표시.
-function MonthlyTradeItems() {
-  const navigate = useNavigate()
-  const range = useMemo(currentMonthRange, [])
-  const { data, isLoading } = useAdminTransactions({
-    startDate: `${range.start}T00:00:00`,
-    endDate: `${range.end}T23:59:59`,
-    page: 0,
-    size: 5,
-  })
-  const trades = data?.content ?? []
-
-  return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-4">
-      <button
-        type="button"
-        onClick={() => navigate(`/admin/trades?start=${range.start}&end=${range.end}`)}
-        className="w-full flex items-center justify-between mb-3 text-left"
-      >
-        <div>
-          <p className="text-sm font-semibold text-gray-900 inline-flex items-center gap-1.5">
-            <ShoppingBag size={14} className="text-indigo-500" />
-            이번달 거래 물품
-          </p>
-          <p className="text-xs text-gray-400 mt-0.5">{range.start} ~ {range.end}</p>
-        </div>
-        <ChevronRight size={14} className="text-gray-300" />
-      </button>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-16 rounded-xl bg-gray-50 animate-pulse" />
-          ))}
-        </div>
-      ) : trades.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400">이번달 거래가 없어요</p>
-      ) : (
-        <ul className="space-y-2">
-          {trades.map((trade) => (
-            <li key={trade.id}>
-              <button
-                type="button"
-                onClick={() => navigate(`/items/${trade.itemId}`)}
-                className="w-full flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 text-left hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                  {trade.itemImageUrl ? (
-                    <img
-                      src={trade.itemImageUrl}
-                      alt={trade.itemTitle}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <ShoppingBag size={20} className="text-gray-300" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    {trade.tradeType && (
-                      <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600">
-                        {trade.tradeType}
-                      </span>
-                    )}
-                    <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-                      {TRANSACTION_STATUS_LABEL[trade.status]}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {trade.itemTitle || `물품 #${trade.itemId}`}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                    <span className="font-medium text-gray-700">
-                      {trade.price > 0 ? `${trade.price.toLocaleString()}원` : '무료 나눔'}
-                    </span>
-                    <span>{formatKst(trade.createdAt, 'M/d HH:mm')}</span>
-                  </div>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
 function OverdueSummary() {
   const navigate = useNavigate()
   const active = useAdminOverdueList({ status: '진행중', size: 1 })
