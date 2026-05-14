@@ -133,7 +133,9 @@ export default function Header() {
                   >
                     <span className="relative">
                       <Bell size={20} />
-                      <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                      {hasUnread && (
+                        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                      )}
                     </span>
                     <span className="text-sm font-medium hidden md:block">채팅/알림</span>
                   </button>
