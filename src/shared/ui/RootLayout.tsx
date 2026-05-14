@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'  // React Router의 Outlet (자식 라
 import Header from './Header'              // 상단 네비게이션 헤더
 import Footer from './Footer'              // 하단 푸터
 import SideDrawer from './SideDrawer'      // 사이드 드로워 (채팅/알림)
+import StompProvider from '@/app/StompProvider'
 
 /**
  * 웹 스타일 레이아웃 컴포넌트
@@ -18,6 +19,8 @@ import SideDrawer from './SideDrawer'      // 사이드 드로워 (채팅/알림
 export default function RootLayout() {
   return (
     <div className="min-h-screen bg-gray-50">
+      <StompProvider />
+
       {/* 상단 네비게이션 헤더 */}
       <Header />
       

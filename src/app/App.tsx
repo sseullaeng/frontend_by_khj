@@ -3,7 +3,6 @@ import { RouterProvider } from 'react-router-dom'  // React Router의 라우터 
 import { router } from './router'                 // 정의된 라우터 설정
 import { AppProviders } from './providers'       // 전역 상태 및 테마 프로바이더
 import { useMe } from '@/features/auth/hooks'   // 세션 복원: 쿠키 기반 /users/me
-import StompProvider from './StompProvider'      // 로그인 시 STOMP 자동 연결
 
 // 새로고침/앱 mount 시 쿠키로 세션 복원 (가이드 §2.2)
 function SessionRestorer() {
@@ -16,7 +15,6 @@ export default function App() {
   return (
     <AppProviders>
       <SessionRestorer />
-      <StompProvider />
       <RouterProvider router={router} />
     </AppProviders>
   )
