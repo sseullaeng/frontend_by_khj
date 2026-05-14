@@ -8,36 +8,49 @@
 //   각 컴포넌트가 자체 컨테이너/헤더를 가져 inline 시 중첩될 수 있음 — 후속 디자인 정리.
 import { lazy, Suspense, useState, type ComponentType } from 'react'
 import {
-  ChevronLeft, ChevronRight, LayoutDashboard,
-  Users, UserPlus, UserX, ShoppingBag, Package, AlertTriangle,
-  MessageSquare, ArrowDownToLine, Megaphone, Image as ImageIcon,
-  ShieldAlert, Truck, Menu as MenuIcon,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Users,
+  UserPlus,
+  UserX,
+  ShoppingBag,
+  Package,
+  AlertTriangle,
+  MessageSquare,
+  ArrowDownToLine,
+  Megaphone,
+  Image as ImageIcon,
+  ShieldAlert,
+  Truck,
+  Menu as MenuIcon,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
 
 // ── 메뉴별 lazy 로드 (관리자 페이지가 무거우니 첫 진입 시점에만) ──────────────
-const AdminStats             = lazy(() => import('@/pages/mypage/AdminStats'))
-const AdminUserPage          = lazy(() => import('@/pages/admin/AdminUserPage'))
-const AdminTodayUsersPage    = lazy(() => import('@/pages/admin/AdminTodayUsersPage'))
+const AdminStats = lazy(() => import('@/pages/mypage/AdminStats'))
+const AdminUserPage = lazy(() => import('@/pages/admin/AdminUserPage'))
+const AdminTodayUsersPage = lazy(() => import('@/pages/admin/AdminTodayUsersPage'))
 const AdminWithdrawnUsersPage = lazy(() => import('@/pages/admin/AdminWithdrawnUsersPage'))
 const AdminMonthlyTradesPage = lazy(() => import('@/pages/admin/AdminMonthlyTradesPage'))
-const AdminItemPage          = lazy(() => import('@/pages/admin/AdminItemPage'))
-const AdminReportPage        = lazy(() => import('@/pages/admin/AdminReportPage'))
-const SupportPage            = lazy(() => import('@/pages/support/SupportPage'))   // admin 일 때 문의 목록 노출
-const AdminWithdrawPage      = lazy(() => import('@/pages/admin/AdminWithdrawPage'))
-const AdminNoticePage        = lazy(() => import('@/pages/admin/AdminNoticePage'))
-const AdminBannerPage        = lazy(() => import('@/pages/admin/AdminBannerPage'))
-const AdminEscrowConfigPage  = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
-const AdminDeliveryPage      = lazy(() => import('@/pages/admin/AdminDeliveryPage'))
+const AdminItemPage = lazy(() => import('@/pages/admin/AdminItemPage'))
+const AdminEscrowApplicationsPage = lazy(() => import('@/pages/admin/AdminEscrowApplicationsPage'))
+const AdminReportPage = lazy(() => import('@/pages/admin/AdminReportPage'))
+const SupportPage = lazy(() => import('@/pages/support/SupportPage')) // admin 일 때 문의 목록 노출
+const AdminWithdrawPage = lazy(() => import('@/pages/admin/AdminWithdrawPage'))
+const AdminNoticePage = lazy(() => import('@/pages/admin/AdminNoticePage'))
+const AdminBannerPage = lazy(() => import('@/pages/admin/AdminBannerPage'))
+const AdminEscrowConfigPage = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
+const AdminDeliveryPage = lazy(() => import('@/pages/admin/AdminDeliveryPage'))
 
 interface MenuItem {
-  id:        string
-  label:     string
-  icon:      typeof Users
+  id: string
+  label: string
+  icon: typeof Users
   component: ComponentType
 }
 interface MenuGroup {
-  id:    string
+  id: string
   label: string
   items: MenuItem[]
 }
@@ -46,34 +59,53 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     id: 'dashboard',
     label: '대시보드',
-    items: [
-      { id: 'stats', label: '통계',  icon: LayoutDashboard, component: AdminStats },
-    ],
+    items: [{ id: 'stats', label: '통계', icon: LayoutDashboard, component: AdminStats }],
   },
   {
     id: 'users',
     label: '회원',
     items: [
-      { id: 'users.all',       label: '전체 회원',     icon: Users,    component: AdminUserPage },
-      { id: 'users.today',     label: '오늘 신규',     icon: UserPlus, component: AdminTodayUsersPage },
-      { id: 'users.withdrawn', label: '탈퇴 회원',     icon: UserX,    component: AdminWithdrawnUsersPage },
+      { id: 'users.all', label: '전체 회원', icon: Users, component: AdminUserPage },
+      { id: 'users.today', label: '오늘 신규', icon: UserPlus, component: AdminTodayUsersPage },
+      {
+        id: 'users.withdrawn',
+        label: '탈퇴 회원',
+        icon: UserX,
+        component: AdminWithdrawnUsersPage,
+      },
     ],
   },
   {
     id: 'trades',
     label: '거래·물품',
     items: [
-      { id: 'trades.monthly', label: '이번달 거래', icon: ShoppingBag, component: AdminMonthlyTradesPage },
-      { id: 'trades.items',   label: '물품 관리',   icon: Package,     component: AdminItemPage },
+      {
+        id: 'trades.monthly',
+        label: '이번달 거래',
+        icon: ShoppingBag,
+        component: AdminMonthlyTradesPage,
+      },
+      { id: 'trades.items', label: '물품 관리', icon: Package, component: AdminItemPage },
+      {
+        id: 'trades.escrow',
+        label: '거래대행',
+        icon: ShieldAlert,
+        component: AdminEscrowApplicationsPage,
+      },
     ],
   },
   {
     id: 'ops',
     label: '운영',
     items: [
-      { id: 'ops.reports',   label: '신고 처리',    icon: AlertTriangle,   component: AdminReportPage },
-      { id: 'ops.support',   label: '문의 처리',    icon: MessageSquare,   component: SupportPage },
-      { id: 'ops.withdraws', label: '출금 관리',    icon: ArrowDownToLine, component: AdminWithdrawPage },
+      { id: 'ops.reports', label: '신고 처리', icon: AlertTriangle, component: AdminReportPage },
+      { id: 'ops.support', label: '문의 처리', icon: MessageSquare, component: SupportPage },
+      {
+        id: 'ops.withdraws',
+        label: '출금 관리',
+        icon: ArrowDownToLine,
+        component: AdminWithdrawPage,
+      },
     ],
   },
   {
@@ -88,8 +120,13 @@ const MENU_GROUPS: MenuGroup[] = [
     id: 'settings',
     label: '설정',
     items: [
-      { id: 'settings.escrow',   label: '에스크로 설정', icon: ShieldAlert, component: AdminEscrowConfigPage },
-      { id: 'settings.delivery', label: '배달 관리',     icon: Truck,       component: AdminDeliveryPage },
+      {
+        id: 'settings.escrow',
+        label: '에스크로 설정',
+        icon: ShieldAlert,
+        component: AdminEscrowConfigPage,
+      },
+      { id: 'settings.delivery', label: '배달 관리', icon: Truck, component: AdminDeliveryPage },
     ],
   },
 ]
@@ -103,9 +140,7 @@ export default function AdminConsole() {
   // 모바일 사이드바 토글
   const [mobileOpen, setMobileOpen] = useState(false)
   // 그룹 펼침 상태 — 기본 다 펼침
-  const [openGroups, setOpenGroups] = useState<Set<string>>(
-    new Set(MENU_GROUPS.map((g) => g.id)),
-  )
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(MENU_GROUPS.map((g) => g.id)))
 
   const activeItem = ALL_ITEMS.find((i) => i.id === activeId) ?? ALL_ITEMS[0]
   const ActiveComponent = activeItem.component
@@ -135,9 +170,7 @@ export default function AdminConsole() {
         >
           <MenuIcon size={20} />
         </button>
-        <h2 className="text-sm font-semibold text-gray-900 truncate">
-          {activeItem.label}
-        </h2>
+        <h2 className="text-sm font-semibold text-gray-900 truncate">{activeItem.label}</h2>
       </div>
 
       {/* ── 사이드바 ──────────────────────────────────────────── */}
@@ -148,7 +181,7 @@ export default function AdminConsole() {
           'hidden lg:block',
           collapsed ? 'lg:w-16' : 'lg:w-60',
           // 모바일 — drawer
-          mobileOpen && '!block fixed inset-y-0 left-0 w-64 z-40 shadow-xl !border-r',
+          mobileOpen && '!block fixed inset-y-0 left-0 w-64 z-40 shadow-xl !border-r'
         )}
       >
         <div className="sticky top-0 max-h-screen overflow-y-auto p-3 flex flex-col gap-1">
@@ -190,7 +223,7 @@ export default function AdminConsole() {
                               active
                                 ? 'bg-primary-500 text-white'
                                 : 'text-gray-700 hover:bg-gray-100',
-                              collapsed && 'justify-center',
+                              collapsed && 'justify-center'
                             )}
                             title={collapsed ? item.label : undefined}
                           >
@@ -218,7 +251,9 @@ export default function AdminConsole() {
 
       {/* ── 우측 콘텐츠 ───────────────────────────────────────── */}
       <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 bg-gray-50">
-        <Suspense fallback={<p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>}>
+        <Suspense
+          fallback={<p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>}
+        >
           <ActiveComponent />
         </Suspense>
       </main>

@@ -17,7 +17,6 @@ export default function AdminWithdrawnUsersPage() {
 
   return (
     <div className="pb-10">
-
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -33,11 +32,10 @@ export default function AdminWithdrawnUsersPage() {
         <span className="text-sm text-gray-400 ml-auto">총 {withdrawnUsers.length}명</span>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
-        <p className="text-sm text-amber-700 font-medium">복구 가능 안내</p>
-        <p className="text-xs text-amber-600 mt-0.5">
-          탈퇴 회원은 복구 버튼으로 계정을 정상 상태로 되돌릴 수 있습니다.
-          복구 후에도 기존 거래 내역과 포인트는 유지됩니다.
+      <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6">
+        <p className="text-sm text-gray-700 font-medium">탈퇴 계정 안내</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          관리자 강제 탈퇴는 soft-delete 처리이며 별도 복구 endpoint가 없습니다.
         </p>
       </div>
 
@@ -49,11 +47,7 @@ export default function AdminWithdrawnUsersPage() {
           <p className="text-sm">탈퇴 회원이 없습니다</p>
         </div>
       ) : (
-        <AdminUserListPanel
-          users={withdrawnUsers}
-          showTabs={false}
-          initialTab="WITHDRAWN"
-        />
+        <AdminUserListPanel users={withdrawnUsers} showTabs={false} initialTab="WITHDRAWN" />
       )}
     </div>
   )

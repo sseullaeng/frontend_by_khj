@@ -6,7 +6,7 @@
 //
 // 상태 흐름:
 //   신청 ─APPROVE─▶ 승인 ─COMPLETE─▶ 완료
-//      └─REJECT─▶ 환불완료 (잔액 자동 환불, atomic)
+//      └─REJECT─▶ 거부 (잔액 자동 환불, atomic)
 import { useState } from 'react'
 import { Wallet, Hash, Clock, Building2, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,37 +18,37 @@ import { formatKst, fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
 const STATUS_TABS: { value: WithdrawalStatus | 'ALL'; label: string }[] = [
-  { value: 'ALL',      label: '전체' },
-  { value: '신청',     label: '신청' },
-  { value: '승인',     label: '승인' },
-  { value: '완료',     label: '완료' },
-  { value: '실패',     label: '실패' },
-  { value: '취소',     label: '취소' },
-  { value: '환불완료', label: '환불완료' },
+  { value: 'ALL', label: '전체' },
+  { value: '신청', label: '신청' },
+  { value: '승인', label: '승인' },
+  { value: '완료', label: '완료' },
+  { value: '거부', label: '거부' },
 ]
 
 // 라운드14 — 백엔드가 영어 alias 추가 시 응답 status 가 한글/영어 혼재 가능.
 //   매핑 외 값이 와도 crash 안 나도록 fallback.
 type WithdrawBadge = { cls: string; icon: typeof Clock; label?: string }
-const STATUS_BADGE_BASE: Record<WithdrawalStatus, WithdrawBadge> = {
-  신청:     { cls: 'text-amber-700 bg-amber-100',     icon: Clock },
-  승인:     { cls: 'text-blue-700 bg-blue-100',       icon: AlertCircle },
-  완료:     { cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
-  실패:     { cls: 'text-red-700 bg-red-100',         icon: XCircle },
-  취소:     { cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
-  환불완료: { cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
+const STATUS_BADGE_BASE: Record<'신청' | '승인' | '완료' | '거부', WithdrawBadge> = {
+  신청: { cls: 'text-amber-700 bg-amber-100', icon: Clock },
+  승인: { cls: 'text-blue-700 bg-blue-100', icon: AlertCircle },
+  완료: { cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
+  거부: { cls: 'text-red-700 bg-red-100', icon: XCircle },
 }
 // 영어 alias 호환 — 백엔드가 REQUESTED/APPROVED/... 같은 값을 보낼 때도 동일 뱃지
 const STATUS_BADGE: Record<string, WithdrawBadge> = {
   ...STATUS_BADGE_BASE,
   REQUESTED: STATUS_BADGE_BASE.신청,
-  PENDING:   STATUS_BADGE_BASE.신청,
-  APPROVED:  STATUS_BADGE_BASE.승인,
+  PENDING: STATUS_BADGE_BASE.신청,
+  APPROVED: STATUS_BADGE_BASE.승인,
   COMPLETED: STATUS_BADGE_BASE.완료,
-  FAILED:    STATUS_BADGE_BASE.실패,
-  CANCELLED: STATUS_BADGE_BASE.취소,
-  CANCELED:  STATUS_BADGE_BASE.취소,
-  REFUNDED:  STATUS_BADGE_BASE.환불완료,
+  REJECTED: STATUS_BADGE_BASE.거부,
+  FAILED: STATUS_BADGE_BASE.거부,
+  CANCELLED: STATUS_BADGE_BASE.거부,
+  CANCELED: STATUS_BADGE_BASE.거부,
+  REFUNDED: STATUS_BADGE_BASE.거부,
+  실패: STATUS_BADGE_BASE.거부,
+  취소: STATUS_BADGE_BASE.거부,
+  환불완료: STATUS_BADGE_BASE.거부,
 }
 const FALLBACK_BADGE: WithdrawBadge = {
   cls: 'text-gray-500 bg-gray-100',
@@ -62,6 +62,43 @@ function maskAccount(num: string): string {
   if (clean.length <= 4) return num
   const tail = clean.slice(-4)
   return `●●●●-${tail}`
+}
+
+type NormalizedWithdrawalStatus = '신청' | '승인' | '완료' | '거부'
+
+function normalizeWithdrawalStatus(status: string): NormalizedWithdrawalStatus | null {
+  switch (status) {
+    case '신청':
+    case 'REQUESTED':
+    case 'PENDING':
+      return '신청'
+    case '승인':
+    case 'APPROVED':
+      return '승인'
+    case '완료':
+    case 'COMPLETED':
+      return '완료'
+    case '거부':
+    case 'REJECTED':
+    case 'FAILED':
+    case 'CANCELLED':
+    case 'CANCELED':
+    case 'REFUNDED':
+    case '실패':
+    case '취소':
+    case '환불완료':
+      return '거부'
+    default:
+      return null
+  }
+}
+
+function requestedAtOf(w: Withdrawal): string | null {
+  return w.requestedAt ?? w.createdAt ?? null
+}
+
+function processedAtOf(w: Withdrawal): string | null {
+  return w.processedAt ?? (w.updatedAt && w.updatedAt !== w.createdAt ? w.updatedAt : null)
 }
 
 export default function AdminWithdrawPage() {
@@ -87,12 +124,15 @@ export default function AdminWithdrawPage() {
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
-            onClick={() => { setStatus(t.value); setPage(0) }}
+            onClick={() => {
+              setStatus(t.value)
+              setPage(0)
+            }}
             className={cn(
               'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
               status === t.value
                 ? 'bg-primary-500 text-white border-primary-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300',
+                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
             )}
           >
             {t.label}
@@ -110,26 +150,46 @@ export default function AdminWithdrawPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {data!.content.map((w) => {
-            const badge = STATUS_BADGE[w.status as string] ?? FALLBACK_BADGE
+            const normalized = normalizeWithdrawalStatus(w.status as string)
+            const badge =
+              STATUS_BADGE[w.status as string] ??
+              (normalized ? STATUS_BADGE_BASE[normalized] : FALLBACK_BADGE)
             const Icon = badge.icon
-            const canAct = w.status === '신청' || w.status === '승인'
+            const canAct = normalized === '신청' || normalized === '승인'
+            const requestedAt = requestedAtOf(w)
+            const processedAt = processedAtOf(w)
             return (
-              <li key={w.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+              <li
+                key={w.id}
+                className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', badge.cls)}>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
+                        badge.cls
+                      )}
+                    >
                       <Icon size={11} />
-                      {badge.label ?? w.status}
+                      {badge.label ?? normalized ?? w.status}
                     </span>
                     <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
-                      <Hash size={10} />{w.id}
+                      <Hash size={10} />
+                      {w.id}
                     </span>
-                    <span className="text-[11px] text-gray-400">신청 {fromNow(w.createdAt)}</span>
+                    {requestedAt && (
+                      <span className="text-[11px] text-gray-400">신청 {fromNow(requestedAt)}</span>
+                    )}
                   </div>
 
                   <p className="text-lg font-bold text-gray-900 mb-1">
                     {w.amount.toLocaleString()}원
                   </p>
+
+                  {w.userId != null && (
+                    <p className="text-xs text-gray-500 mb-0.5">신청자 #{w.userId}</p>
+                  )}
 
                   <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-0.5">
                     <Building2 size={12} className="text-gray-400" />
@@ -140,9 +200,11 @@ export default function AdminWithdrawPage() {
                     <span>{w.accountHolder}</span>
                   </div>
 
-                  {w.updatedAt && w.updatedAt !== w.createdAt && (
+                  {processedAt && (
                     <p className="text-[11px] text-gray-400 mt-1">
-                      최종 업데이트 {formatKst(w.updatedAt, 'yyyy.MM.dd HH:mm')}
+                      처리 {formatKst(processedAt, 'yyyy.MM.dd HH:mm')}
+                      {w.adminId != null && ` (admin #${w.adminId})`}
+                      {w.adminMemo && ` - ${w.adminMemo}`}
                     </p>
                   )}
                 </div>
@@ -169,7 +231,9 @@ export default function AdminWithdrawPage() {
           >
             이전
           </button>
-          <span className="px-3 py-1.5">{data.page + 1} / {data.totalPages}</span>
+          <span className="px-3 py-1.5">
+            {data.page + 1} / {data.totalPages}
+          </span>
           <button
             disabled={!data.hasNext}
             onClick={() => setPage((p) => p + 1)}
@@ -194,27 +258,46 @@ const ACTION_OPTIONS: {
   label: string
   desc: string
   activeCls: string
-  forStatus: WithdrawalStatus[]
+  forStatus: NormalizedWithdrawalStatus[]
 }[] = [
-  { value: 'APPROVE',  label: '승인',
+  {
+    value: 'APPROVE',
+    label: '승인',
     desc: '외부 이체 절차 시작 — 잔액은 신청 시점에 이미 차감됨',
     activeCls: 'border-blue-500 bg-blue-50',
-    forStatus: ['신청'] },
-  { value: 'REJECT',   label: '거절',
-    desc: '신청 거절 — 차감된 잔액 자동 환불 (atomic)',
+    forStatus: ['신청'],
+  },
+  {
+    value: 'REJECT',
+    label: '거부',
+    desc: '사기 의심 출금 차단 — 차감된 잔액 자동 환불',
     activeCls: 'border-red-500 bg-red-50',
-    forStatus: ['신청'] },
-  { value: 'COMPLETE', label: '이체 완료',
+    forStatus: ['신청'],
+  },
+  {
+    value: 'COMPLETE',
+    label: '이체 완료',
     desc: '외부 이체가 끝났음 — 출금 마감',
     activeCls: 'border-emerald-500 bg-emerald-50',
-    forStatus: ['승인'] },
+    forStatus: ['승인'],
+  },
 ]
 
-function WithdrawActionModal({ withdrawal: w, onClose }: { withdrawal: Withdrawal; onClose: () => void }) {
-  const available = ACTION_OPTIONS.filter((o) => o.forStatus.includes(w.status))
+function WithdrawActionModal({
+  withdrawal: w,
+  onClose,
+}: {
+  withdrawal: Withdrawal
+  onClose: () => void
+}) {
+  const normalizedStatus = normalizeWithdrawalStatus(w.status as string)
+  const available = ACTION_OPTIONS.filter(
+    (o) => normalizedStatus && o.forStatus.includes(normalizedStatus)
+  )
   const [action, setAction] = useState<AdminWithdrawalAction>(available[0]?.value ?? 'APPROVE')
   const [memo, setMemo] = useState('')
   const { mutateAsync, isPending } = usePatchAdminWithdrawal()
+  const requestedAt = requestedAtOf(w)
 
   const handleSubmit = async () => {
     try {
@@ -230,9 +313,14 @@ function WithdrawActionModal({ withdrawal: w, onClose }: { withdrawal: Withdrawa
       <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
         <h3 className="text-base font-bold text-gray-900 mb-1">출금 #{w.id} 처리</h3>
         <p className="text-xs text-gray-500 mb-1">
-          {w.amount.toLocaleString()}원 · {w.bankName} {maskAccount(w.accountNumber)} ({w.accountHolder})
+          {w.amount.toLocaleString()}원 · {w.bankName} {maskAccount(w.accountNumber)} (
+          {w.accountHolder})
         </p>
-        <p className="text-[11px] text-gray-400 mb-4">신청 {formatKst(w.createdAt, 'yyyy.MM.dd HH:mm')}</p>
+        {requestedAt && (
+          <p className="text-[11px] text-gray-400 mb-4">
+            신청 {formatKst(requestedAt, 'yyyy.MM.dd HH:mm')}
+          </p>
+        )}
 
         <p className="text-xs font-semibold text-gray-700 mb-2">처리 방식</p>
         <div className="flex flex-col gap-2 mb-4">
@@ -243,7 +331,7 @@ function WithdrawActionModal({ withdrawal: w, onClose }: { withdrawal: Withdrawa
               onClick={() => setAction(o.value)}
               className={cn(
                 'p-3 rounded-xl border-2 text-left transition-colors',
-                action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50',
+                action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50'
               )}
             >
               <p className="text-sm font-medium text-gray-900">{o.label}</p>
@@ -252,7 +340,9 @@ function WithdrawActionModal({ withdrawal: w, onClose }: { withdrawal: Withdrawa
           ))}
         </div>
 
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">관리자 메모 (선택)</label>
+        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+          관리자 메모 (선택)
+        </label>
         <textarea
           value={memo}
           onChange={(e) => setMemo(e.target.value)}

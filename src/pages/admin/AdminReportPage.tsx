@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle, Clock, XCircle, Hash, User, Package } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useAdminReports, usePatchAdminReport } from '@/features/admin/hooks'
+import { useAdminReportDetail, useAdminReports, usePatchAdminReport } from '@/features/admin/hooks'
 import type { AdminReport, AdminReportStatus, AdminReportAction } from '@/features/admin/types'
 import { Button } from '@/shared/ui/Button'
 import { formatKst, fromNow } from '@/shared/lib/date'
@@ -15,35 +15,59 @@ import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
 
 const STATUS_TABS: { value: AdminReportStatus | 'ALL'; label: string }[] = [
-  { value: 'ALL',         label: '전체' },
-  { value: 'PENDING',     label: '대기' },
+  { value: 'ALL', label: '전체' },
+  { value: 'PENDING', label: '접수' },
   { value: 'IN_PROGRESS', label: '처리 중' },
-  { value: 'COMPLETED',   label: '완료' },
-  { value: 'REJECTED',    label: '반려' },
+  { value: 'COMPLETED', label: '완료' },
+  { value: 'REJECTED', label: '반려' },
 ]
 
 // 라운드14 — 백엔드가 응답 status 에 영어 alias 추가 + 한글 enum 도 혼재 가능.
 //   프론트 enum 외 값이 와도 crash 안 나도록 fallback 처리.
 type StatusBadge = { label: string; cls: string; icon: typeof Clock }
 const STATUS_BADGE_BASE: Record<AdminReportStatus, StatusBadge> = {
-  PENDING:     { label: '대기',    cls: 'text-amber-700 bg-amber-100',     icon: Clock },
-  IN_PROGRESS: { label: '처리 중', cls: 'text-blue-700 bg-blue-100',       icon: AlertTriangle },
-  COMPLETED:   { label: '완료',    cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
-  REJECTED:    { label: '반려',    cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
+  PENDING: { label: '접수', cls: 'text-amber-700 bg-amber-100', icon: Clock },
+  IN_PROGRESS: { label: '처리 중', cls: 'text-blue-700 bg-blue-100', icon: AlertTriangle },
+  COMPLETED: { label: '완료', cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
+  REJECTED: { label: '반려', cls: 'text-gray-600 bg-gray-100', icon: XCircle },
 }
 // 한글 alias (구버전 응답 호환)
 const STATUS_BADGE: Record<string, StatusBadge> = {
   ...STATUS_BADGE_BASE,
-  '대기':    STATUS_BADGE_BASE.PENDING,
-  '처리중':  STATUS_BADGE_BASE.IN_PROGRESS,
+  접수: STATUS_BADGE_BASE.PENDING,
+  대기: STATUS_BADGE_BASE.PENDING,
+  처리중: STATUS_BADGE_BASE.IN_PROGRESS,
   '처리 중': STATUS_BADGE_BASE.IN_PROGRESS,
-  '완료':    STATUS_BADGE_BASE.COMPLETED,
-  '반려':    STATUS_BADGE_BASE.REJECTED,
+  처리완료: STATUS_BADGE_BASE.COMPLETED,
+  완료: STATUS_BADGE_BASE.COMPLETED,
+  반려: STATUS_BADGE_BASE.REJECTED,
 }
 const FALLBACK_BADGE: StatusBadge = {
   label: '알 수 없음',
   cls: 'text-gray-500 bg-gray-100',
   icon: AlertTriangle,
+}
+
+function normalizeReportStatus(status: string): AdminReportStatus | null {
+  switch (status) {
+    case 'PENDING':
+    case '접수':
+    case '대기':
+      return 'PENDING'
+    case 'IN_PROGRESS':
+    case '처리중':
+    case '처리 중':
+      return 'IN_PROGRESS'
+    case 'COMPLETED':
+    case '처리완료':
+    case '완료':
+      return 'COMPLETED'
+    case 'REJECTED':
+    case '반려':
+      return 'REJECTED'
+    default:
+      return null
+  }
 }
 
 export default function AdminReportPage() {
@@ -70,12 +94,15 @@ export default function AdminReportPage() {
         {STATUS_TABS.map((t) => (
           <button
             key={t.value}
-            onClick={() => { setStatus(t.value); setPage(0) }}
+            onClick={() => {
+              setStatus(t.value)
+              setPage(0)
+            }}
             className={cn(
               'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
               status === t.value
                 ? 'bg-primary-500 text-white border-primary-500'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300',
+                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
             )}
           >
             {t.label}
@@ -102,12 +129,18 @@ export default function AdminReportPage() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', badge.cls)}>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
+                        badge.cls
+                      )}
+                    >
                       <Icon size={11} />
                       {badge.label}
                     </span>
                     <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
-                      <Hash size={10} />{r.id}
+                      <Hash size={10} />
+                      {r.id}
                     </span>
                     <span className="text-[11px] text-gray-400">{fromNow(r.createdAt)}</span>
                   </div>
@@ -118,16 +151,31 @@ export default function AdminReportPage() {
                   <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
                     <span className="inline-flex items-center gap-1">
                       <User size={11} /> 신고자{' '}
-                      <Link to={`/users/${r.reporterId}`} className="text-primary-600 hover:underline">#{r.reporterId}</Link>
+                      <Link
+                        to={`/users/${r.reporterId}`}
+                        className="text-primary-600 hover:underline"
+                      >
+                        #{r.reporterId}
+                      </Link>
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <User size={11} /> 피신고자{' '}
-                      <Link to={`/users/${r.reportedId}`} className="text-primary-600 hover:underline">#{r.reportedId}</Link>
+                      <Link
+                        to={`/users/${r.reportedId}`}
+                        className="text-primary-600 hover:underline"
+                      >
+                        #{r.reportedId}
+                      </Link>
                     </span>
                     {r.itemId != null && (
                       <span className="inline-flex items-center gap-1">
                         <Package size={11} />{' '}
-                        <Link to={`/items/${r.itemId}`} className="text-primary-600 hover:underline">물품 #{r.itemId}</Link>
+                        <Link
+                          to={`/items/${r.itemId}`}
+                          className="text-primary-600 hover:underline"
+                        >
+                          물품 #{r.itemId}
+                        </Link>
                       </span>
                     )}
                   </div>
@@ -141,7 +189,10 @@ export default function AdminReportPage() {
                 </div>
 
                 {/* 액션 */}
-                {(r.status === 'PENDING' || r.status === 'IN_PROGRESS') && (
+                {(() => {
+                  const normalized = normalizeReportStatus(r.status as string)
+                  return normalized === 'PENDING' || normalized === 'IN_PROGRESS'
+                })() && (
                   <div className="flex sm:flex-col gap-1.5 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => setActioningReport(r)}>
                       처리
@@ -164,7 +215,9 @@ export default function AdminReportPage() {
           >
             이전
           </button>
-          <span className="px-3 py-1.5">{data.page + 1} / {data.totalPages}</span>
+          <span className="px-3 py-1.5">
+            {data.page + 1} / {data.totalPages}
+          </span>
           <button
             disabled={!data.hasNext}
             onClick={() => setPage((p) => p + 1)}
@@ -190,34 +243,46 @@ const ACTION_OPTIONS: {
   desc: string
   activeCls: string
 }[] = [
-  { value: 'MARK_IN_PROGRESS', label: '처리 중으로',
+  {
+    value: 'MARK_IN_PROGRESS',
+    label: '처리 중으로',
     desc: '검토 시작 — 추후 완료/반려 처리',
-    activeCls: 'border-blue-500 bg-blue-50' },
-  { value: 'COMPLETE',         label: '완료 처리',
+    activeCls: 'border-blue-500 bg-blue-50',
+  },
+  {
+    value: 'COMPLETE',
+    label: '완료 처리',
     desc: '신고 내용을 확인하고 조치했어요',
-    activeCls: 'border-emerald-500 bg-emerald-50' },
-  { value: 'REJECT',           label: '반려',
+    activeCls: 'border-emerald-500 bg-emerald-50',
+  },
+  {
+    value: 'REJECT',
+    label: '반려',
     desc: '신고가 부적절하거나 근거 부족',
-    activeCls: 'border-gray-500 bg-gray-50' },
+    activeCls: 'border-gray-500 bg-gray-50',
+  },
 ]
 
 function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: () => void }) {
+  const { data: detail } = useAdminReportDetail(report.id)
+  const current = detail ?? report
   const [action, setAction] = useState<AdminReportAction>('COMPLETE')
   const [memo, setMemo] = useState('')
   const { mutateAsync, isPending } = usePatchAdminReport()
 
   // PENDING 일 때만 MARK_IN_PROGRESS 가능
+  const normalizedStatus = normalizeReportStatus(current.status as string)
   const availableActions = ACTION_OPTIONS.filter((o) =>
-    report.status === 'PENDING' ? true : o.value !== 'MARK_IN_PROGRESS',
+    normalizedStatus === 'PENDING' ? true : o.value !== 'MARK_IN_PROGRESS'
   )
 
   const handleSubmit = async () => {
     try {
-      await mutateAsync({ id: report.id, body: { action, memo: memo.trim() || undefined } })
+      await mutateAsync({ id: current.id, body: { action, memo: memo.trim() || undefined } })
       onClose()
     } catch (err) {
       // 진단 로그 — action / report id 와 응답 에러 단계 확인
-      console.error('admin report patch failed', { reportId: report.id, action, err })
+      console.error('admin report patch failed', { reportId: current.id, action, err })
       toast.error(err instanceof Error ? err.message : '처리에 실패했어요.')
     }
   }
@@ -225,8 +290,8 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
-        <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{report.id} 처리</h3>
-        <p className="text-xs text-gray-500 mb-4 line-clamp-2">{report.reason}</p>
+        <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{current.id} 처리</h3>
+        <p className="text-xs text-gray-500 mb-4 line-clamp-2">{current.reason}</p>
 
         <p className="text-xs font-semibold text-gray-700 mb-2">처리 방식</p>
         <div className="flex flex-col gap-2 mb-4">
@@ -237,7 +302,7 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
               onClick={() => setAction(o.value)}
               className={cn(
                 'p-3 rounded-xl border-2 text-left transition-colors',
-                action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50',
+                action === o.value ? o.activeCls : 'border-gray-200 bg-white hover:bg-gray-50'
               )}
             >
               <p className="text-sm font-medium text-gray-900">{o.label}</p>
@@ -246,7 +311,9 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
           ))}
         </div>
 
-        <label className="block text-xs font-semibold text-gray-700 mb-1.5">관리자 메모 (선택)</label>
+        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+          관리자 메모 (선택)
+        </label>
         <textarea
           value={memo}
           onChange={(e) => setMemo(e.target.value)}

@@ -4,7 +4,10 @@
 // suspendedUntil/suspendDays/lastLoginAt 모두 포함됨. 어댑터에서 0/임시값 제거.
 
 import type { AdminUser as BackendAdminUser } from '@/features/admin/types'
-import type { AdminUser as PanelAdminUser, AdminUserStatus } from '@/pages/admin/components/AdminUserListPanel'
+import type {
+  AdminUser as PanelAdminUser,
+  AdminUserStatus,
+} from '@/pages/admin/components/AdminUserListPanel'
 
 const SOCIAL_LABEL: Record<BackendAdminUser['socialProvider'], string> = {
   LOCAL: '이메일',
@@ -27,5 +30,7 @@ export function toPanelUser(u: BackendAdminUser): PanelAdminUser {
     suspendedAt: u.suspendedAt ?? undefined,
     suspendDays: u.suspendDays ?? undefined,
     suspendedUntil: u.suspendedUntil ?? undefined,
+    pointBalance: u.pointBalance,
+    lastLoginAt: u.lastLoginAt,
   }
 }
