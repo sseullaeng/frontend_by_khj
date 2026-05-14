@@ -62,6 +62,10 @@ export type PointHistoryType =
   | '배달정산'
   | '거래보관' // 라운드11: 예약 시 hold (음수)
   | '거래환불' // 라운드11: 취소 시 hold 환불 (양수)
+  | '보증금보관'
+  | '보증금반환'
+  | '보증금환불'
+  | '보증금차감'
 
 // 변동 발생 도메인 식별자
 export type PointReferenceType = 'PAYMENT' | 'TRANSACTION' | 'WITHDRAWAL' | 'DELIVERY' | 'REFUND'

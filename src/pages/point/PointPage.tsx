@@ -19,13 +19,26 @@ const TYPE_FILTERS: { value: PointHistoryType | 'all'; label: string }[] = [
   { value: '충전',     label: '충전' },
   { value: '거래보관', label: '거래보관' },
   { value: '거래환불', label: '거래환불' },
+  { value: '보증금보관', label: '보증금보관' },
+  { value: '보증금반환', label: '보증금반환' },
+  { value: '보증금환불', label: '보증금환불' },
+  { value: '보증금차감', label: '보증금차감' },
   { value: '판매정산', label: '판매정산' },
   { value: '결제',     label: '결제' },
   { value: '출금',     label: '출금' },
 ]
 
 // 적립 vs 차감 — 부호 보강 표시 (라벨 색상 분기)
-const PLUS_TYPES: PointHistoryType[] = ['충전', '거래환불', '판매정산', '환불', '배달정산']
+const PLUS_TYPES: PointHistoryType[] = [
+  '충전',
+  '거래환불',
+  '보증금반환',
+  '보증금환불',
+  '판매정산',
+  '환불',
+  '배달정산',
+]
+const HISTORY_PAGE_SIZE = 50
 
 export default function PointPage() {
   const { data: balanceData } = usePointBalance()
@@ -36,10 +49,10 @@ export default function PointPage() {
   const [filter, setFilter] = useState<PointHistoryType | 'all'>('all')
 
   const { data, isLoading } = useQuery({
-    queryKey: pointKeys.history(filter === 'all' ? undefined : filter),
+    queryKey: pointKeys.history(filter === 'all' ? undefined : filter, 0, HISTORY_PAGE_SIZE),
     queryFn: () =>
       paymentApi
-        .getHistory({ type: filter === 'all' ? undefined : filter, page: 0, size: 20 })
+        .getHistory({ type: filter === 'all' ? undefined : filter, page: 0, size: HISTORY_PAGE_SIZE })
         .then((r) => r.data),
   })
   const histories = data?.content ?? []

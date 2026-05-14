@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import type { InfiniteData } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { itemApi } from './api'
 import { itemKeys } from './keys'
@@ -20,6 +21,37 @@ import type {
   WishlistToggleResponse,
 } from './types'
 import type { PageResponse } from '@/shared/types'
+
+type ItemPage = PageResponse<Item>
+type ItemListCache = ItemPage | InfiniteData<ItemPage>
+
+function patchWishlistItem(item: Item, id: number, wishlisted: boolean, delta: number): Item {
+  return item.id === id
+    ? { ...item, isWishlisted: wishlisted, wishlistCount: Math.max(0, item.wishlistCount + delta) }
+    : item
+}
+
+function patchWishlistListCache(
+  old: ItemListCache | undefined,
+  id: number,
+  wishlisted: boolean,
+  delta: number,
+): ItemListCache | undefined {
+  if (!old) return old
+  if ('pages' in old) {
+    return {
+      ...old,
+      pages: old.pages.map((page) => ({
+        ...page,
+        content: page.content.map((item) => patchWishlistItem(item, id, wishlisted, delta)),
+      })),
+    }
+  }
+  return {
+    ...old,
+    content: old.content.map((item) => patchWishlistItem(item, id, wishlisted, delta)),
+  }
+}
 
 // 무한 스크롤 목록
 export function useItemList(filter: ItemFilter) {
@@ -166,21 +198,8 @@ export function useToggleWish(id: number) {
       }
 
       // 목록 캐시들도 해당 item 만 patch (있으면)
-      qc.setQueriesData<PageResponse<Item>>({ queryKey: itemKeys.lists() }, (old) =>
-        old
-          ? {
-              ...old,
-              content: old.content.map((it) =>
-                it.id === id
-                  ? {
-                      ...it,
-                      isWishlisted: next,
-                      wishlistCount: it.wishlistCount + (current ? -1 : 1),
-                    }
-                  : it,
-              ),
-            }
-          : old,
+      qc.setQueriesData<ItemListCache>({ queryKey: itemKeys.lists() }, (old) =>
+        patchWishlistListCache(old, id, next, current ? -1 : 1),
       )
 
       return { prevDetail }

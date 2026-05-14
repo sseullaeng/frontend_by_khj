@@ -10,16 +10,18 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShoppingBag, ChevronLeft } from 'lucide-react'
 import { useMyTransactions } from '@/features/trade/hooks'
-import { useItemDetail } from '@/features/item/hooks'
+import { useItemDetail, useMyItems as useMyRegisteredItems } from '@/features/item/hooks'
+import ItemListItem from '@/features/item/components/ItemListItem'
 import { useAuthStore } from '@/features/auth/store'
 import type { Transaction, TransactionStatus } from '@/features/trade/types'
 import { fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
-type TabKey = 'ALL' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
+type TabKey = 'ALL' | 'REGISTERED' | 'DONE' | 'SELLING' | 'RENTAL_OUT' | 'RENTAL_IN'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'ALL', label: '전체' },
+  { key: 'REGISTERED', label: '등록물품' },
   { key: 'DONE', label: '거래완료' },
   { key: 'SELLING', label: '판매중' },
   { key: 'RENTAL_OUT', label: '대여제공' },
@@ -57,17 +59,21 @@ export default function MyItemsPage() {
   const buyerDoneQ = useMyTransactions({ role: 'buyer', status: DONE_STATUSES, size: 100 })
   const sellerActiveQ = useMyTransactions({ role: 'seller', status: ACTIVE_STATUSES, size: 100 })
   const sellerDoneQ = useMyTransactions({ role: 'seller', status: DONE_STATUSES, size: 100 })
+  const registeredItemsQ = useMyRegisteredItems({ size: 100 })
+  const isRegisteredTab = tabKey === 'REGISTERED'
 
-  const isLoading =
+  const isTransactionLoading =
     buyerActiveQ.isLoading ||
     buyerDoneQ.isLoading ||
     sellerActiveQ.isLoading ||
     sellerDoneQ.isLoading
+  const isLoading = isRegisteredTab ? registeredItemsQ.isLoading : isTransactionLoading
 
   const buyerActive = buyerActiveQ.data?.content ?? []
   const buyerDone = buyerDoneQ.data?.content ?? []
   const sellerActive = sellerActiveQ.data?.content ?? []
   const sellerDone = sellerDoneQ.data?.content ?? []
+  const registeredItems = registeredItemsQ.data?.content ?? []
 
   const transactions: Transaction[] = (() => {
     switch (tabKey) {
@@ -81,6 +87,8 @@ export default function MyItemsPage() {
         return sortByCreatedDesc(sellerActive.filter((t) => t.tradeType === '대여'))
       case 'RENTAL_IN':
         return sortByCreatedDesc(buyerActive.filter((t) => t.tradeType === '대여'))
+      case 'REGISTERED':
+        return []
     }
   })()
 
@@ -96,7 +104,9 @@ export default function MyItemsPage() {
           <ChevronLeft size={22} />
         </button>
         <h1 className="text-lg font-bold text-gray-900">내 거래</h1>
-        <span className="text-sm text-gray-400 ml-auto">총 {transactions.length}건</span>
+        <span className="text-sm text-gray-400 ml-auto">
+          총 {isRegisteredTab ? registeredItems.length : transactions.length}건
+        </span>
       </div>
 
       {/* 탭 */}
@@ -121,8 +131,25 @@ export default function MyItemsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <p className="text-gray-500">거래 내역을 불러오는 중...</p>
+          <p className="text-gray-500">
+            {isRegisteredTab ? '등록 물품을 불러오는 중...' : '거래 내역을 불러오는 중...'}
+          </p>
         </div>
+      ) : isRegisteredTab ? (
+        registeredItems.length === 0 ? (
+          <div className="text-center py-8">
+            <ShoppingBag size={48} className="text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">등록한 물품이 없습니다</p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {registeredItems.map((item) => (
+              <li key={item.id}>
+                <ItemListItem item={item} />
+              </li>
+            ))}
+          </ul>
+        )
       ) : transactions.length === 0 ? (
         <div className="text-center py-8">
           <ShoppingBag size={48} className="text-gray-300 mx-auto mb-3" />
