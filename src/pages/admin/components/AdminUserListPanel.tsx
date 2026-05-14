@@ -1,8 +1,10 @@
 // 관리자 회원 목록 공용 패널 컴포넌트: 탭 필터·정지(기간 선택)·복구·탈퇴 처리 공통 UI
 import { useState } from 'react'
 import { ShieldOff, ShieldCheck, UserX } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
+import { useSetUserBlocked } from '@/features/admin/hooks'
 
 // ─── 타입 ──────────────────────────────────────────────────────────────────
 
@@ -109,24 +111,44 @@ export default function AdminUserListPanel({
     return eff === activeTab
   })
 
-  /** 확인 후 상태 변경 적용 */
+  // 라운드14 — 활동정지/복구는 백엔드 PATCH /admin/users/{id}/block 연동.
+  //   ⚠ 백엔드는 blocked: boolean 토글만 지원 — 정지 기간(suspendDays) 옵션은 UI 표시용.
+  //   ⚠ 강제 탈퇴 endpoint 는 아직 미구현 (라운드14 미구현 목록).
+  const setBlocked = useSetUserBlocked()
+
+  /** 확인 후 상태 변경 적용 — 백엔드 호출 + 로컬 캐시 반영 */
   const handleConfirm = () => {
     if (!confirm) return
-    if (confirm.action === 'suspend') {
-      // 활동정지 처리 및 정지 정보 저장
-      setStatuses(prev => ({ ...prev, [confirm.userId]: 'SUSPENDED' }))
-      const today = new Date().toISOString().slice(0, 10)
-      setSuspendInfo(prev => ({ ...prev, [confirm.userId]: { date: today, days: suspendDays } }))
-    } else if (confirm.action === 'restore') {
-      // 복구 처리 — 정지 정보 삭제
-      setStatuses(prev => ({ ...prev, [confirm.userId]: 'ACTIVE' }))
-      setSuspendInfo(prev => { const n = { ...prev }; delete n[confirm.userId]; return n })
-    } else {
-      // 탈퇴 처리
-      setStatuses(prev => ({ ...prev, [confirm.userId]: 'WITHDRAWN' }))
+    const userId = confirm.userId
+
+    if (confirm.action === 'withdraw') {
+      // 강제 탈퇴 — 백엔드 미구현
+      toast.error('관리자 강제 탈퇴는 아직 지원되지 않아요. 백엔드 구현 후 활성화됩니다.')
+      setConfirm(null)
+      return
     }
-    setConfirm(null)
-    setSuspendDays(7)
+
+    const blocked = confirm.action === 'suspend'
+    setBlocked.mutate(
+      { id: userId, blocked },
+      {
+        onSuccess: () => {
+          if (blocked) {
+            setStatuses(prev => ({ ...prev, [userId]: 'SUSPENDED' }))
+            const today = new Date().toISOString().slice(0, 10)
+            setSuspendInfo(prev => ({ ...prev, [userId]: { date: today, days: suspendDays } }))
+          } else {
+            setStatuses(prev => ({ ...prev, [userId]: 'ACTIVE' }))
+            setSuspendInfo(prev => { const n = { ...prev }; delete n[userId]; return n })
+          }
+        },
+        onError: () => toast.error('처리에 실패했어요. 다시 시도해 주세요.'),
+        onSettled: () => {
+          setConfirm(null)
+          setSuspendDays(7)
+        },
+      },
+    )
   }
 
   return (
