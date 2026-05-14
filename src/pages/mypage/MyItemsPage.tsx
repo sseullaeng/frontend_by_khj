@@ -13,6 +13,7 @@ import { useMyTransactions } from '@/features/trade/hooks'
 import { useItemDetail, useMyItems as useMyRegisteredItems } from '@/features/item/hooks'
 import ItemListItem from '@/features/item/components/ItemListItem'
 import { useAuthStore } from '@/features/auth/store'
+import { useUserProfile } from '@/features/user/hooks'
 import type { Transaction, TransactionStatus } from '@/features/trade/types'
 import { fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
@@ -192,6 +193,7 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
         ? '구매'
         : '판매'
   const counterpartId = role === 'buyer' ? tx.sellerId : tx.buyerId
+  const { data: counterpart } = useUserProfile(counterpartId)
   const thumbnailUrl =
     item?.thumbnailUrl ??
     item?.images.find((image) => image.thumbnail)?.imageUrl ??
@@ -241,12 +243,9 @@ function TransactionRow({ tx, myId }: { tx: Transaction; myId: number | null }) 
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span>
               상대방{' '}
-              <Link
-                to={`/users/${counterpartId}`}
-                className="text-gray-600 font-medium hover:underline"
-              >
-                #{counterpartId}
-              </Link>
+              <span className="text-gray-600 font-medium">
+                {counterpart?.nickname ?? `사용자 #${counterpartId}`}
+              </span>
             </span>
             <span>{fromNow(tx.createdAt)}</span>
           </div>
