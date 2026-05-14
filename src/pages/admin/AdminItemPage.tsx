@@ -23,6 +23,7 @@ import { useAdminDeleteItem } from '@/features/item/hooks'
 import type { AdminItemSummary, AdminItemsListParams } from '@/features/admin/types'
 import type { ItemStatus, TradeType } from '@/features/item/types'
 import { Button } from '@/shared/ui/Button'
+import { SelectDropdown } from '@/shared/ui/SelectDropdown'
 import { formatKst, fromNow } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
@@ -219,17 +220,13 @@ function FilterSelect({
   options: readonly { value: string; label: string }[]
 }) {
   return (
-    <select
+    <SelectDropdown
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 px-2 border border-gray-300 rounded-md bg-white text-gray-700"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      options={options}
+      buttonClassName="h-8 min-w-28 rounded-lg px-2.5 text-xs shadow-none"
+      menuClassName="left-0 right-auto"
+    />
   )
 }
 

@@ -7,6 +7,7 @@ import AdminUserListPanel from './components/AdminUserListPanel'
 import { useAdminUsers } from '@/features/admin/hooks'
 import { toPanelUser } from './lib/userAdapter'
 import type { AdminUserStatusBE } from '@/features/admin/types'
+import { SelectDropdown } from '@/shared/ui/SelectDropdown'
 
 const STATUS_OPTIONS: { value: AdminUserStatusBE | 'ALL'; label: string }[] = [
   { value: 'ALL', label: '상태 전체' },
@@ -97,17 +98,13 @@ export default function AdminUserPage() {
             </button>
           )}
         </div>
-        <select
+        <SelectDropdown
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as AdminUserStatusBE | 'ALL')}
-          className="h-10 px-3 border border-gray-200 rounded-xl bg-white text-sm text-gray-700 outline-none focus:border-primary-400"
-        >
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setStatusFilter(value)}
+          options={STATUS_OPTIONS}
+          className="sm:w-36"
+          buttonClassName="w-full"
+        />
       </div>
 
       {isLoading ? (

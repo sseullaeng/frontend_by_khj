@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Ban, ShieldOff, ShieldCheck, UserX, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
+import { SelectDropdown } from '@/shared/ui/SelectDropdown'
 import {
   useAdminUserDetail,
   useSetUserBlocked,
@@ -63,6 +64,10 @@ const ADMIN_STATUS_LABEL: Record<AdminUserStatus, string> = {
 
 /** 정지 기간 선택 옵션 (일) */
 const SUSPEND_OPTIONS = [3, 7, 30, 100]
+const SUSPEND_DROPDOWN_OPTIONS = SUSPEND_OPTIONS.map((days) => ({
+  value: String(days),
+  label: `${days}일`,
+}))
 
 // ─── 컴포넌트 Props ────────────────────────────────────────────────────────
 
@@ -410,17 +415,14 @@ export default function AdminUserListPanel({
             {confirm.action === 'suspend' && (
               <div className="mt-3 mb-1">
                 <label className="text-xs text-gray-500 mb-1 block">정지 기간</label>
-                <select
-                  value={suspendDays}
-                  onChange={(e) => setSuspendDays(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg outline-none focus:border-amber-400 bg-white"
-                >
-                  {SUSPEND_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}일
-                    </option>
-                  ))}
-                </select>
+                <SelectDropdown
+                  value={String(suspendDays)}
+                  onChange={(value) => setSuspendDays(Number(value))}
+                  options={SUSPEND_DROPDOWN_OPTIONS}
+                  className="w-full"
+                  buttonClassName="w-full border-amber-200 hover:border-amber-300 focus:ring-amber-100"
+                  menuClassName="left-0 right-auto"
+                />
               </div>
             )}
             {/* 탈퇴 사유 */}

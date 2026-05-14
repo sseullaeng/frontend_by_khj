@@ -11,6 +11,7 @@ import type { AdminDeliveryItem, AdminDeliveryListParams } from '@/features/admi
 import type { DeliveryStatus } from '@/features/delivery/types'
 import { fromNow, formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
+import { SelectDropdown } from '@/shared/ui/SelectDropdown'
 
 const STATUS_TABS: { value: DeliveryStatus | 'ALL'; label: string; color: string }[] = [
   { value: 'ALL', label: '전체', color: 'text-gray-700' },
@@ -155,20 +156,16 @@ export default function AdminDeliveryPage() {
           >
             <Search size={11} /> 적용
           </button>
-          <select
+          <SelectDropdown
             value={sort ?? 'latest'}
-            onChange={(e) => {
-              setSort(e.target.value as AdminDeliveryListParams['sort'])
+            onChange={(value) => {
+              setSort(value as AdminDeliveryListParams['sort'])
               setPage(0)
             }}
-            className="h-8 px-2 border border-gray-300 rounded bg-white text-gray-700 ml-auto"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            options={SORT_OPTIONS}
+            className="ml-auto"
+            buttonClassName="h-8 min-w-32 rounded-lg px-2.5 text-xs shadow-none"
+          />
         </div>
       </div>
 
