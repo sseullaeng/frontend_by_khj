@@ -42,6 +42,7 @@ const AdminNoticePage = lazy(() => import('@/pages/admin/AdminNoticePage'))
 const AdminBannerPage = lazy(() => import('@/pages/admin/AdminBannerPage'))
 const AdminEscrowConfigPage = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
 const AdminDeliveryPage = lazy(() => import('@/pages/admin/AdminDeliveryPage'))
+const AdminOverduePage = lazy(() => import('@/pages/admin/AdminOverduePage')) // 라운드14 — 연체 관리
 
 interface MenuItem {
   id: string
@@ -106,6 +107,7 @@ const MENU_GROUPS: MenuGroup[] = [
         icon: ArrowDownToLine,
         component: AdminWithdrawPage,
       },
+      { id: 'ops.overdue', label: '연체 관리', icon: AlertTriangle, component: AdminOverduePage },
     ],
   },
   {

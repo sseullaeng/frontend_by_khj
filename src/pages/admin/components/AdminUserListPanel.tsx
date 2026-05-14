@@ -1,6 +1,7 @@
 // 관리자 회원 목록 공용 패널 컴포넌트: 탭 필터·정지·영구차단·탈퇴 처리 공통 UI
 import { useState } from 'react'
-import { Ban, ShieldOff, ShieldCheck, UserX, X } from 'lucide-react'
+import { Ban, ShieldOff, ShieldCheck, UserX, Wallet, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
 import {
@@ -39,6 +40,9 @@ export interface AdminUser {
   suspendedUntil?: string // 라운드14 — 만료 시각 (백엔드 derived)
   pointBalance?: number
   lastLoginAt?: string | null
+  // 라운드14 — 연체 누적 채무 (보증금 소진 후 누적된 금액)
+  overdueDebt?: number
+  activeOverdueRecordId?: number | null
 }
 
 // ─── 상수 ──────────────────────────────────────────────────────────────────
@@ -267,6 +271,14 @@ export default function AdminUserListPanel({
                         {user.reportCount > 0 && (
                           <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
                             신고 {user.reportCount}건
+                          </span>
+                        )}
+                        {(user.overdueDebt ?? 0) > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-red-600 text-white"
+                            title="연체 채무 — 회원 상세에서 연체 record 로 이동"
+                          >
+                            <Wallet size={10} /> 채무 {(user.overdueDebt ?? 0).toLocaleString()}원
                           </span>
                         )}
                       </div>
@@ -563,6 +575,25 @@ function AdminUserDetailModal({ userId, onClose }: { userId: number; onClose: ()
                 value={user.suspendDays != null ? `${user.suspendDays}일` : '없음'}
               />
             </dl>
+
+            {/* 라운드14 — 연체 채무 영역. 진행 중 record 있으면 상세로 직링크 */}
+            {(user.overdueDebt ?? 0) > 0 && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+                <p className="text-xs text-red-700 font-semibold mb-1 inline-flex items-center gap-1">
+                  <Wallet size={12} /> 누적 연체 채무
+                </p>
+                <p className="text-base font-bold text-red-700">
+                  {(user.overdueDebt ?? 0).toLocaleString()}원
+                </p>
+                <Link
+                  to={user.activeOverdueRecordId ? `/admin/overdue/${user.activeOverdueRecordId}` : '/admin/overdue'}
+                  onClick={onClose}
+                  className="mt-2 inline-block text-xs text-red-700 underline hover:text-red-900"
+                >
+                  연체 record 상세 보기 →
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>
