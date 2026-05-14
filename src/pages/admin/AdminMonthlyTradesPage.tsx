@@ -8,7 +8,6 @@ import {
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   CalendarSearch,
   Search,
   X,
@@ -22,21 +21,12 @@ import { formatKst } from '@/shared/lib/date'
 // ─── 타입/상수 ─────────────────────────────────────────────────────────────
 
 type BackendType = '판매' | '대여' | '나눔'
-type BackendStatus = '채팅중' | '예약' | '거래완료' | '취소'
 
 const TYPE_TABS: { key: 'ALL' | BackendType; label: string }[] = [
   { key: 'ALL', label: '전체' },
   { key: '판매', label: '판매' },
   { key: '대여', label: '대여' },
   { key: '나눔', label: '나눔' },
-]
-
-const STATUS_TABS: { key: 'ALL' | BackendStatus; label: string }[] = [
-  { key: 'ALL', label: '전체' },
-  { key: '채팅중', label: '채팅 중' },
-  { key: '예약', label: '예약' },
-  { key: '거래완료', label: '거래 완료' },
-  { key: '취소', label: '취소' },
 ]
 
 // 백엔드 응답 Transaction.status (영문 enum) → 한국어 라벨 + 색상
@@ -77,15 +67,12 @@ export default function AdminMonthlyTradesPage() {
   const urlStart = searchParams.get('start')
   const urlEnd = searchParams.get('end')
   const urlType = searchParams.get('type') as BackendType | null
-  const urlStatus = searchParams.get('status') as BackendStatus | null
   const urlBuyerId = searchParams.get('buyerId')
   const urlSellerId = searchParams.get('sellerId')
 
   const [startDate, setStartDate] = useState(urlStart ?? monthAgoLocal())
   const [endDate, setEndDate] = useState(urlEnd ?? todayLocal())
   const [typeTab, setTypeTab] = useState<'ALL' | BackendType>(urlType ?? 'ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | BackendStatus>(urlStatus ?? '거래완료')
-  const [statusDropOpen, setStatusDropOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [buyerId, setBuyerId] = useState(urlBuyerId ?? '')
   const [sellerId, setSellerId] = useState(urlSellerId ?? '')
@@ -102,14 +89,14 @@ export default function AdminMonthlyTradesPage() {
       startDate: toStartOfDay(startDate),
       endDate: toEndOfDay(endDate),
       type: typeTab === 'ALL' ? undefined : typeTab,
-      status: statusFilter === 'ALL' ? undefined : statusFilter,
+      status: '거래완료' as const,
       buyerId: buyerId.trim() ? Number(buyerId) : undefined,
       sellerId: sellerId.trim() ? Number(sellerId) : undefined,
       keyword: keyword.trim() || undefined,
       page,
       size: 20,
     }),
-    [startDate, endDate, typeTab, statusFilter, keyword, buyerId, sellerId, page]
+    [startDate, endDate, typeTab, keyword, buyerId, sellerId, page]
   )
 
   const { data, isLoading } = useAdminTransactions(params)
@@ -235,42 +222,6 @@ export default function AdminMonthlyTradesPage() {
             </button>
           ))}
         </nav>
-      </div>
-
-      {/* 상태 드롭다운 */}
-      <div className="relative mb-4 flex justify-end">
-        <button
-          onClick={() => setStatusDropOpen((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <span>{STATUS_TABS.find((t) => t.key === statusFilter)?.label ?? '전체'}</span>
-          <ChevronDown
-            size={14}
-            className={cn('transition-transform', statusDropOpen && 'rotate-180')}
-          />
-        </button>
-        {statusDropOpen && (
-          <div className="absolute top-full right-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden min-w-[100px]">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => {
-                  setStatusFilter(tab.key)
-                  setStatusDropOpen(false)
-                  setPage(0)
-                }}
-                className={cn(
-                  'w-full text-left px-4 py-2 text-sm transition-colors',
-                  statusFilter === tab.key
-                    ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 거래 목록 */}
