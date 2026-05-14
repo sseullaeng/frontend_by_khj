@@ -83,7 +83,7 @@ export const escrowStartSchema = z.object({
   initiatorPickupLng:        z.number().optional(),
   initiatorItemPrice:        z.number().int().min(0).optional(),
   initiatorItemDescription:  z.string().max(500).optional(),
-  initiatorWeight:           z.enum(['lt1', '1to3', '3to5', '5to10', 'over10']).optional(),
+  initiatorWeight:           z.enum(['lt1', '1to3', '3to5', '5to10', 'gt10']).optional(),
   initiatorVolume:           z.enum(['s', 'm', 'l']).optional(),
   initiatorFragility:        z.enum(['f1', 'f2', 'f3', 'f4', 'f5']).optional(),
   initiatorDeliveryNotes:    z.string().max(500).optional(),
@@ -220,10 +220,10 @@ export interface EscrowCancelRequest {
 // ── 라운드12 PR-B — 채팅방 내부 거래대행 흐름 (preview / draft / buyer-info / pay) ───
 // 백엔드 spec PR #102 ~ #110 정합
 //   ⚠ 라운드13 정정 — Jackson 매칭이 소문자 code 기반. 대문자로 보내면 400.
-//   weight    : lt1 / 1to3 / 3to5 / 5to10 / over10  (라운드13 PR #130: gt10 → over10)
+//   weight    : lt1 / 1to3 / 3to5 / 5to10 / gt10  (라운드14 V43: over10 → gt10 으로 환원)
 //   volume    : s / m / l
 //   fragility : f1 ~ f5
-export type EscrowWeightCode    = 'lt1' | '1to3' | '3to5' | '5to10' | 'over10'
+export type EscrowWeightCode    = 'lt1' | '1to3' | '3to5' | '5to10' | 'gt10'  // 라운드14 V43
 export type EscrowVolumeCode    = 's' | 'm' | 'l'
 export type EscrowFragilityCode = 'f1' | 'f2' | 'f3' | 'f4' | 'f5'
 
@@ -259,6 +259,13 @@ export interface EscrowPreviewResponse {
 
 // 판매자 draft 생성 (POST /escrow/applications/internal/draft) — 판매자만
 //   기존 internal 과 다른 점: delivery 좌표 없음 (구매자가 buyer-info 에서 입력)
+//
+// 라운드14 V43:
+//   - rentalStartAt 신규 (대여 한정). rentalEndAt 와 짝.
+//   - chatRoom 에 buyer 의 사전 대여 신청 (POST /items/{id}/rental-request) 이 있으면
+//     백엔드가 그 Transaction 의 기간을 자동 재사용 → 여기 값 무시.
+//   - 사전 신청 없으면 둘 다 필수 (null 시 ESCROW_FORM_INVALID).
+//   - itemPrice 는 백엔드가 rentalPrice × duration 자동 검증. FE 위변조 차단.
 export interface EscrowDraftRequest {
   chatRoomId:      number
   itemId:          number
@@ -266,7 +273,8 @@ export interface EscrowDraftRequest {
   feePayer:        FeePayer
   itemPrice:       number
   itemDescription: string
-  rentalEndAt?:    string
+  rentalStartAt?:  string         // 라운드14 V43 — 대여 한정
+  rentalEndAt?:    string         // 대여 한정
 
   pickupAddress: string
   pickupLat:     number
@@ -314,7 +322,8 @@ export interface EscrowPaymentPreview {
   paymentDueAt:  string | null
 }
 
-// ── 채팅방 내부 신청 (POST /escrow/applications/internal) — 한 번에 입력 (deprecated 권장) ──
+// ── 채팅방 내부 신청 (POST /escrow/applications/internal) — 한 번에 입력 (full create) ──
+//   라운드14 V43 — 대여 케이스 동일하게 rentalStartAt/EndAt 지원 (3.1 규칙 동일).
 export interface EscrowInternalApplicationRequest {
   chatRoomId: number
   itemId:     number
@@ -322,6 +331,8 @@ export interface EscrowInternalApplicationRequest {
   feePayer:   FeePayer
   itemPrice:  number
   itemDescription: string
+  rentalStartAt?: string                   // 라운드14 V43 — 대여 한정
+  rentalEndAt?:   string                   // 대여 한정
 
   pickupAddress:   string
   pickupLat:       number

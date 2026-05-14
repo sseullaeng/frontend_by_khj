@@ -7,9 +7,9 @@
 //   - 제출: POST /escrow/applications/internal/draft → status="정보입력대기"
 //
 // 좌우 2칸 + 공통 FeeCalculator. delivery 좌표 없어 preview 호출 불가 → fees=null.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, ChevronLeft, MapPin, Plus, X, AlertTriangle } from 'lucide-react'
+import { CalendarClock, ChevronLeft, MapPin, Plus, X, AlertTriangle, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateEscrowDraft, useEscrowFeeSettings } from '@/features/escrow/hooks'
 import { useItemDetail } from '@/features/item/hooks'
@@ -20,6 +20,7 @@ import type {
   EscrowWeightCode,
   FeePayer,
 } from '@/features/escrow/types'
+import type { RentalUnit } from '@/features/item/types'
 import { uploadImages, validateImageFile } from '@/shared/api/upload'
 import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import type { AddressResult } from '@/shared/ui/KakaoAddressSearch'
@@ -44,6 +45,7 @@ export default function EscrowInternalApplicationPage() {
 
   const [itemPrice,       setItemPrice]       = useState<number>(0)
   const [itemDescription, setItemDescription] = useState('')
+  const [rentalStartAt,   setRentalStartAt]   = useState('')   // 라운드14 V43
   const [rentalEndAt,     setRentalEndAt]     = useState('')
   const [feePayer,        setFeePayer]        = useState<FeePayer>('both')
 
@@ -70,6 +72,20 @@ export default function EscrowInternalApplicationPage() {
   // 반납 기한 입력은 백엔드 spec 기준 — item.tradeTypes 에 '대여' 가 포함된 모든 신청 폼에 노출.
   //   (대여+판매 겸용 item 이라도 백엔드가 대여 거래대행 lifecycle 을 적용할 수 있도록)
   const isRentalEscrow = item?.tradeTypes?.includes('대여') ?? false
+
+  // 라운드14 V43 — 대여 itemPrice 는 백엔드가 rentalPrice × duration 으로 자동 산정·검증.
+  //   FE 가 임의 가격 못 보냄 (위변조 차단). 사용자에게는 미리 계산해서 표시만.
+  const rentalAuto = useMemo(() => {
+    if (!isRentalEscrow) return null
+    if (!rentalStartAt || !rentalEndAt) return null
+    if (!item?.rentalUnit || !item.rentalPrice) return null
+    return computeRentalPrice(rentalStartAt, rentalEndAt, item.rentalUnit, item.rentalPrice)
+  }, [isRentalEscrow, rentalStartAt, rentalEndAt, item?.rentalUnit, item?.rentalPrice])
+
+  // 자동 산정 결과를 itemPrice state 에 반영 (송신용)
+  useEffect(() => {
+    if (rentalAuto) setItemPrice(rentalAuto.total)
+  }, [rentalAuto])
 
   useEffect(() => {
     if (prefilled) return
@@ -103,7 +119,14 @@ export default function EscrowInternalApplicationPage() {
     // 라운드13 PR #128 — 나눔 거래는 0원 허용. 음수만 거부.
     if (itemPrice < 0)                       { toast.error('물품 가격은 0원 이상이어야 해요.'); return }
     if (!itemDescription.trim())              { toast.error('물품 설명을 입력해 주세요.'); return }
-    if (isRentalEscrow && !rentalEndAt)       { toast.error('대여 거래대행은 반납 예정일시를 입력해 주세요.'); return }
+    // 라운드14 V43 — 대여 거래는 rentalStartAt + rentalEndAt 둘 다 필수, start < end
+    //   (chatRoom 에 buyer 사전 신청이 있으면 백엔드가 그 기간을 자동 재사용하지만,
+    //    FE 는 입력값 보내고 백엔드가 우선순위에 따라 처리한다.)
+    if (isRentalEscrow) {
+      if (!rentalStartAt)              { toast.error('대여 시작 일시를 입력해 주세요.'); return }
+      if (!rentalEndAt)                { toast.error('반납 예정 일시를 입력해 주세요.'); return }
+      if (rentalStartAt >= rentalEndAt) { toast.error('반납 일시는 시작 일시보다 늦어야 해요.'); return }
+    }
     if (!pickupAddr)                          { toast.error('픽업 주소를 검색해 주세요.'); return }
     if (!weight || !volume || !fragility)     { toast.error('옵션을 모두 선택해 주세요.'); return }
 
@@ -121,7 +144,8 @@ export default function EscrowInternalApplicationPage() {
         feePayer,
         itemPrice,
         itemDescription: itemDescription.trim(),
-        rentalEndAt: isRentalEscrow ? toApiLocalDateTime(rentalEndAt) : undefined,
+        rentalStartAt: isRentalEscrow ? toApiLocalDateTime(rentalStartAt) : undefined,
+        rentalEndAt:   isRentalEscrow ? toApiLocalDateTime(rentalEndAt)   : undefined,
         pickupAddress: pickupAddr.address,
         pickupLat:     pickupAddr.lat,
         pickupLng:     pickupAddr.lng,
@@ -190,22 +214,49 @@ export default function EscrowInternalApplicationPage() {
           {/* 물품 정보 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
             <p className="text-sm font-semibold text-gray-900">물품 정보</p>
-            <div>
-              <label className="text-xs text-gray-600 mb-1 block">
-                물품 가격 (원) <span className="text-red-500">*</span>
-                <span className="text-[10px] text-gray-400 ml-1">(나눔은 0원)</span>
-              </label>
-              <input
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={itemPrice || ''}
-                onChange={(e) => setItemPrice(Number(e.target.value) || 0)}
-                onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
-                placeholder="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
-              />
-            </div>
+            {isRentalEscrow ? (
+              // 라운드14 V43 — 대여는 itemPrice 를 백엔드가 자동 산정 (rentalPrice × duration).
+              //   FE 는 미리보기만 표시, 입력 받지 않음 (위변조 차단).
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm">
+                <p className="text-xs text-sky-700 font-semibold mb-1 inline-flex items-center gap-1">
+                  <Info size={12} /> 대여료 자동 산정
+                </p>
+                {rentalAuto ? (
+                  <>
+                    <p className="text-sky-900">
+                      <b>{(item?.rentalPrice ?? 0).toLocaleString()}원</b>
+                      <span className="text-xs text-sky-700"> / {item?.rentalUnit}</span>
+                      <span className="text-sky-700 mx-1">×</span>
+                      <b>{rentalAuto.duration}{item?.rentalUnit}</b>
+                      <span className="text-sky-700 mx-1">=</span>
+                      <b className="text-base">{rentalAuto.total.toLocaleString()}원</b>
+                    </p>
+                    <p className="text-[11px] text-sky-700 mt-1">
+                      기간이 단위에 딱 맞지 않으면 올림(ceil) 처리돼요.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-sky-700">반납 기한을 입력하면 자동으로 계산돼요.</p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs text-gray-600 mb-1 block">
+                  물품 가격 (원) <span className="text-red-500">*</span>
+                  <span className="text-[10px] text-gray-400 ml-1">(나눔은 0원)</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={itemPrice || ''}
+                  onChange={(e) => setItemPrice(Number(e.target.value) || 0)}
+                  onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs text-gray-600 mb-1 block">
                 물품 설명 <span className="text-red-500">*</span>
@@ -221,26 +272,42 @@ export default function EscrowInternalApplicationPage() {
             </div>
           </section>
 
-          {/* 대여 반납 예정 */}
+          {/* 대여 기간 (라운드14 V43 — 시작/반납 picker) */}
           {isRentalEscrow && (
             <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
               <p className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
                 <CalendarClock size={15} className="text-gray-500" />
-                반납 예정일시 <span className="text-red-500">*</span>
+                대여 기간 <span className="text-red-500">*</span>
               </p>
-              <p className="text-xs text-gray-500 mb-2">
-                이 시각 이후 구매자가 반납 요청을 하지 않으면 백엔드가 자동으로 반납중 상태로 전환합니다.
+              <p className="text-xs text-gray-500 mb-3">
+                구매자가 채팅방에서 미리 대여 신청한 기간이 있으면 그 기간이 우선 적용돼요.
               </p>
-              <input
-                type="datetime-local"
-                min={nowLocalInputValue()}
-                value={rentalEndAt}
-                onChange={(e) => setRentalEndAt(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="block text-xs">
+                  <span className="text-gray-600 mb-0.5 block">시작</span>
+                  <input
+                    type="datetime-local"
+                    min={nowLocalInputValue()}
+                    value={rentalStartAt}
+                    onChange={(e) => setRentalStartAt(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  />
+                </label>
+                <label className="block text-xs">
+                  <span className="text-gray-600 mb-0.5 block">반납</span>
+                  <input
+                    type="datetime-local"
+                    min={rentalStartAt || nowLocalInputValue()}
+                    value={rentalEndAt}
+                    onChange={(e) => setRentalEndAt(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  />
+                </label>
+              </div>
               {item?.deposit != null && item.deposit > 0 && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-3 text-xs text-gray-500">
                   물품 보증금: {item.deposit.toLocaleString()}{item.depositType === 'PERCENT' ? '%' : '원'}
+                  <span className="text-gray-400 ml-1">(결제 시 자동 hold)</span>
                 </p>
               )}
             </section>
@@ -378,4 +445,27 @@ function nowLocalInputValue(): string {
   const d = new Date()
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
   return d.toISOString().slice(0, 16)
+}
+
+// 라운드14 V43 — 백엔드 RentalDurationCalculator 와 동일 공식 (사용자 미리보기용).
+//   duration = ceil((end - start) / unit), 최소 1.  단위: 시간 / 일 / 주 / 월(=30일 근사)
+const UNIT_MS: Record<RentalUnit, number> = {
+  '시간':           60 * 60 * 1000,
+  '일':        24 * 60 * 60 * 1000,
+  '주':    7 * 24 * 60 * 60 * 1000,
+  '월':   30 * 24 * 60 * 60 * 1000,
+}
+function computeRentalPrice(
+  startInput: string,
+  endInput: string,
+  unit: RentalUnit,
+  rentalPrice: number,
+): { duration: number; total: number } {
+  const start = new Date(startInput).getTime()
+  const end   = new Date(endInput).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return { duration: 0, total: 0 }
+  }
+  const duration = Math.max(1, Math.ceil((end - start) / UNIT_MS[unit]))
+  return { duration, total: rentalPrice * duration }
 }

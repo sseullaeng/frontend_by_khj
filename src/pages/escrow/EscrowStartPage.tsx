@@ -41,7 +41,7 @@ const WEIGHT_OPTIONS: { code: EscrowWeightCode; label: string }[] = [
   { code: '1to3',   label: '1~3kg' },
   { code: '3to5',   label: '3~5kg' },
   { code: '5to10',  label: '5~10kg' },
-  { code: 'over10', label: '10kg 이상' },
+  { code: 'gt10', label: '10kg 이상' },
 ]
 const VOLUME_OPTIONS: { code: EscrowVolumeCode; label: string }[] = [
   { code: 's', label: 'Small' },

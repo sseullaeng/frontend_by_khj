@@ -21,7 +21,7 @@ export const WEIGHT_OPTIONS = [
   { value: '1to3'  as WeightKey, label: '1~3kg',     multiplier: 1.2, isVan: false },
   { value: '3to5'  as WeightKey, label: '3~5kg',     multiplier: 1.5, isVan: false },
   { value: '5to10' as WeightKey, label: '5~10kg',    multiplier: 2.0, isVan: true  },
-  { value: 'over10' as WeightKey, label: '10kg 이상', multiplier: 2.5, isVan: true  },
+  { value: 'gt10' as WeightKey, label: '10kg 이상', multiplier: 2.5, isVan: true  },
 ] as const
 
 export const VOLUME_OPTIONS = [
