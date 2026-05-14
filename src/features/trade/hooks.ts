@@ -10,6 +10,7 @@ import type {
 import { itemKeys } from '@/features/item/keys'
 import { pointKeys } from '@/features/payment/keys'
 import { BusinessError } from '@/shared/types'
+import { chatKeys } from '@/features/chat/hooks'
 
 // 쿼리 키
 export const transactionKeys = {
@@ -43,6 +44,7 @@ export function useCreateTransaction() {
       transactionApi.create(body).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: transactionKeys.all() })
+      qc.invalidateQueries({ queryKey: chatKeys.rooms() })
       toast.success('거래가 시작됐어요.')
     },
     onError: (err) => {
@@ -83,6 +85,7 @@ export function usePatchTransaction(id: number) {
       qc.invalidateQueries({ queryKey: itemKeys.all() })          // Item.status 자동 연동
       qc.invalidateQueries({ queryKey: pointKeys.all() })         // 라운드11: 잔액·내역 전체 갱신 (hold/release/refund)
       qc.invalidateQueries({ queryKey: ['auth', 'me'] })
+      qc.invalidateQueries({ queryKey: chatKeys.rooms() })
     },
     onError: (err) => {
       if (err instanceof BusinessError) {
