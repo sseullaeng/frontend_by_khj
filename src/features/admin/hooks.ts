@@ -9,6 +9,8 @@ import type {
   AdminLoginRequest,
   AdminReportPatchRequest,
   AdminReportStatus,
+  AdminReport,
+  AdminUser,
   AdminWithdrawalPatchRequest,
   BannerUpsertRequest,
   NoticeType,
@@ -20,26 +22,30 @@ import { BusinessError } from '@/shared/types'
 import { getErrorMessage } from '@/shared/lib/errorMessages'
 
 export const adminKeys = {
-  all:        ()                                 => ['admin'] as const,
-  me:         ()                                 => [...adminKeys.all(), 'me'] as const,
-  dashboard:  ()                                 => [...adminKeys.all(), 'dashboard'] as const,
-  dashboardCharts: (start?: string, end?: string) => [...adminKeys.all(), 'dashboard', 'charts', start ?? 'default', end ?? 'default'] as const,
-  users:      (page = 0, size = 20)              => [...adminKeys.all(), 'users', page, size] as const,
-  user:       (id: number)                       => [...adminKeys.all(), 'user', id] as const,
-  banners:    (page = 0, size = 20)              => [...adminKeys.all(), 'banners', page, size] as const,
-  banner:     (id: number)                       => [...adminKeys.all(), 'banner', id] as const,
-  notices:    (type?: NoticeType, page = 0)      => [...adminKeys.all(), 'notices', type ?? 'all', page] as const,
-  notice:     (id: number)                       => [...adminKeys.all(), 'notice', id] as const,
-  reports:    (status?: AdminReportStatus, page = 0) => [...adminKeys.all(), 'reports', status ?? 'all', page] as const,
-  report:     (id: number)                       => [...adminKeys.all(), 'report', id] as const,
-  withdrawals:(status?: WithdrawalStatus, page = 0)  => [...adminKeys.all(), 'withdrawals', status ?? 'all', page] as const,
+  all: () => ['admin'] as const,
+  me: () => [...adminKeys.all(), 'me'] as const,
+  dashboard: () => [...adminKeys.all(), 'dashboard'] as const,
+  dashboardCharts: (start?: string, end?: string) =>
+    [...adminKeys.all(), 'dashboard', 'charts', start ?? 'default', end ?? 'default'] as const,
+  users: (page = 0, size = 20) => [...adminKeys.all(), 'users', page, size] as const,
+  user: (id: number) => [...adminKeys.all(), 'user', id] as const,
+  banners: (page = 0, size = 20) => [...adminKeys.all(), 'banners', page, size] as const,
+  banner: (id: number) => [...adminKeys.all(), 'banner', id] as const,
+  notices: (type?: NoticeType, page = 0) =>
+    [...adminKeys.all(), 'notices', type ?? 'all', page] as const,
+  notice: (id: number) => [...adminKeys.all(), 'notice', id] as const,
+  reports: (status?: AdminReportStatus, page = 0) =>
+    [...adminKeys.all(), 'reports', status ?? 'all', page] as const,
+  report: (id: number) => [...adminKeys.all(), 'report', id] as const,
+  withdrawals: (status?: WithdrawalStatus, page = 0) =>
+    [...adminKeys.all(), 'withdrawals', status ?? 'all', page] as const,
   // 라운드13 PR #134
-  items:      (params?: unknown)                 => [...adminKeys.all(), 'items', params ?? {}] as const,
-  item:       (id: number)                       => [...adminKeys.all(), 'item', id] as const,
-  deliveries: (params?: unknown)                 => [...adminKeys.all(), 'deliveries', params ?? {}] as const,
-  deliveryStats: ()                              => [...adminKeys.all(), 'deliveries', 'stats'] as const,
-  transactions:(params?: { startDate?: string; endDate?: string; type?: string; status?: string; keyword?: string; page?: number }) =>
-                                                        [...adminKeys.all(), 'transactions', params ?? {}] as const,
+  items: (params?: unknown) => [...adminKeys.all(), 'items', params ?? {}] as const,
+  item: (id: number) => [...adminKeys.all(), 'item', id] as const,
+  deliveries: (params?: unknown) => [...adminKeys.all(), 'deliveries', params ?? {}] as const,
+  deliveryStats: () => [...adminKeys.all(), 'deliveries', 'stats'] as const,
+  transactions: (params?: AdminTransactionSearchParams) =>
+    [...adminKeys.all(), 'transactions', params ?? {}] as const,
 }
 
 // ── 로그인 / Me ─────────────────────────────────────────────────────────
@@ -99,6 +105,14 @@ export function useAdminUsers(params?: AdminUserSearchParams) {
   })
 }
 
+export function useAdminUserDetail(id: number | undefined) {
+  return useQuery<AdminUser>({
+    queryKey: adminKeys.user(id ?? 0),
+    queryFn: () => adminApi.users.detail(id!).then((r) => r.data),
+    enabled: !!id,
+  })
+}
+
 export function useSetUserBlocked() {
   const qc = useQueryClient()
   return useMutation({
@@ -115,8 +129,7 @@ export function useSetUserBlocked() {
 export function useSuspendUser() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, days }: { id: number; days: number }) =>
-      adminApi.users.suspend(id, days),
+    mutationFn: ({ id, days }: { id: number; days: number }) => adminApi.users.suspend(id, days),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminKeys.all() })
       toast.success('활동 정지 처리됐어요.')
@@ -140,7 +153,10 @@ export function useUnsuspendUser() {
 export function useWithdrawUser() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => adminApi.users.withdraw(id),
+    mutationFn: (input: number | { id: number; reason?: string }) => {
+      if (typeof input === 'number') return adminApi.users.withdraw(input)
+      return adminApi.users.withdraw(input.id, input.reason ? { reason: input.reason } : undefined)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminKeys.all() })
       toast.success('탈퇴 처리됐어요.')
@@ -260,10 +276,22 @@ export function useDeleteNotice() {
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────
-export function useAdminReports(params?: { status?: AdminReportStatus; page?: number; size?: number }) {
+export function useAdminReports(params?: {
+  status?: AdminReportStatus
+  page?: number
+  size?: number
+}) {
   return useQuery({
     queryKey: adminKeys.reports(params?.status, params?.page),
     queryFn: () => adminApi.reports.list(params).then((r) => r.data),
+  })
+}
+
+export function useAdminReportDetail(id: number | undefined) {
+  return useQuery<AdminReport>({
+    queryKey: adminKeys.report(id ?? 0),
+    queryFn: () => adminApi.reports.detail(id!).then((r) => r.data),
+    enabled: !!id,
   })
 }
 
@@ -312,7 +340,11 @@ export function useAdminDeliveryStats() {
 }
 
 // ── Withdrawals ───────────────────────────────────────────────────────────
-export function useAdminWithdrawals(params?: { status?: WithdrawalStatus; page?: number; size?: number }) {
+export function useAdminWithdrawals(params?: {
+  status?: WithdrawalStatus
+  page?: number
+  size?: number
+}) {
   return useQuery({
     queryKey: adminKeys.withdrawals(params?.status, params?.page),
     queryFn: () => adminApi.withdrawals.list(params).then((r) => r.data),

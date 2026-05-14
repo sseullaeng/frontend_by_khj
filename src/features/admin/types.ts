@@ -28,9 +28,9 @@ export interface AdminMe {
 export type AdminUserStatusBE =
   | 'ACTIVE'
   | 'DORMANT'
-  | 'SUSPENDED'   // 시한부 활동 정지, suspendedUntil 만료 후 자동 ACTIVE
-  | 'BLOCKED'     // 영구 차단, 관리자 수동 unblock 필요
-  | 'WITHDRAWN'   // 탈퇴, 복구 불가
+  | 'SUSPENDED' // 시한부 활동 정지, suspendedUntil 만료 후 자동 ACTIVE
+  | 'BLOCKED' // 영구 차단, 관리자 수동 unblock 필요
+  | 'WITHDRAWN' // 탈퇴, 복구 불가
 
 export interface AdminUser {
   id: number
@@ -108,6 +108,7 @@ export interface NoticeUpsertRequest {
 
 // ── Report 처리 (§11.5) ───────────────────────────────────────────────────
 export type AdminReportStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED'
+export type AdminReportStatusKo = '접수' | '처리중' | '처리완료' | '반려'
 export type AdminReportAction = 'MARK_IN_PROGRESS' | 'COMPLETE' | 'REJECT'
 
 export interface AdminReport {
@@ -117,7 +118,7 @@ export interface AdminReport {
   itemId: number | null
   reason: string
   detail: string | null
-  status: AdminReportStatus
+  status: AdminReportStatus | AdminReportStatusKo
   adminId: number | null
   adminMemo: string | null
   processedAt: string | null
@@ -129,8 +130,19 @@ export interface AdminReportPatchRequest {
   memo?: string
 }
 
+export interface AdminUserWithdrawRequest {
+  reason?: string
+}
+
 // ── Admin 물품 관리 (라운드13 PR #134) ───────────────────────────────────
-import type { ItemDetail, ItemImage, TradeType, ItemStatus, RentalUnit, DepositType } from '@/features/item/types'
+import type {
+  ItemDetail,
+  ItemImage,
+  TradeType,
+  ItemStatus,
+  RentalUnit,
+  DepositType,
+} from '@/features/item/types'
 
 export interface AdminItemSummary {
   id: number
@@ -139,17 +151,17 @@ export interface AdminItemSummary {
   title: string
   thumbnailUrl: string | null
   tradeTypes: TradeType[]
-  salePrice:   number | null
+  salePrice: number | null
   rentalPrice: number | null
   // legacy
   tradeType: TradeType
-  price:     number
+  price: number
   categoryId: number | null
   status: ItemStatus
   region: string | null
   viewCount: number
   wishlistCount: number
-  reportCount: number          // ⭐ 누적 신고 수
+  reportCount: number // ⭐ 누적 신고 수
   createdAt: string
 }
 
@@ -157,7 +169,7 @@ export interface AdminItemReportEntry {
   id: number
   reporterId: number
   reason: string
-  status: string               // 백엔드 status (예: '접수', PENDING 등)
+  status: string // 백엔드 status (예: '접수', PENDING 등)
   createdAt: string
 }
 
@@ -171,7 +183,7 @@ export interface AdminItemTransactionEntry {
 }
 
 export interface AdminItemDetailResponse {
-  item: ItemDetail            // 기존 ItemDetail (전체 필드)
+  item: ItemDetail // 기존 ItemDetail (전체 필드)
   sellerNickname: string
   reportCount: number
   reportHistory: AdminItemReportEntry[]
@@ -270,23 +282,23 @@ export type AdminChartTradeStatus = '진행중' | '완료' | '취소'
 
 export interface AdminDashboardCharts {
   summary: {
-    users:          { total: number; monthDelta: number }
-    todaySignups:   { count: number; yesterdayDelta: number }
-    monthTrades:    { count: number; prevMonthRate: number | null }  // 전월 0이면 null
+    users: { total: number; monthDelta: number }
+    todaySignups: { count: number; yesterdayDelta: number }
+    monthTrades: { count: number; prevMonthRate: number | null } // 전월 0이면 null
     pendingReports: number
   }
-  signupTrend:   { date: string; count: number }[]            // YYYY-MM-DD
-  tradeByType:   { type: AdminChartTradeType; count: number }[]
+  signupTrend: { date: string; count: number }[] // YYYY-MM-DD
+  tradeByType: { type: AdminChartTradeType; count: number }[]
   tradeByStatus: { status: AdminChartTradeStatus; count: number }[]
   // 라운드12 PR #106 — 신고 위젯
   reportsSummary?: {
-    pending:        number   // 접수 + 처리중
-    resolved:       number   // 처리완료 + 반려
-    totalLast7Days: number   // 최근 7일 신고 수 (전체 status)
+    pending: number // 접수 + 처리중
+    resolved: number // 처리완료 + 반려
+    totalLast7Days: number // 최근 7일 신고 수 (전체 status)
   }
 }
 
 export interface AdminDashboardChartsParams {
-  startDate?: string  // YYYY-MM-DD, 미지정 시 백엔드 default = today-13
-  endDate?:   string  // YYYY-MM-DD, 미지정 시 백엔드 default = today
+  startDate?: string // YYYY-MM-DD, 미지정 시 백엔드 default = today-13
+  endDate?: string // YYYY-MM-DD, 미지정 시 백엔드 default = today
 }

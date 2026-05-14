@@ -13,27 +13,27 @@ import { fromNow, formatKst } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 
 const STATUS_TABS: { value: DeliveryStatus | 'ALL'; label: string; color: string }[] = [
-  { value: 'ALL',      label: '전체',     color: 'text-gray-700' },
-  { value: '모집중',   label: '모집중',   color: 'text-amber-700' },
-  { value: '수락',     label: '수락',     color: 'text-blue-700' },
-  { value: '배송중',   label: '배송중',   color: 'text-purple-700' },
+  { value: 'ALL', label: '전체', color: 'text-gray-700' },
+  { value: '모집중', label: '모집중', color: 'text-amber-700' },
+  { value: '수락', label: '수락', color: 'text-blue-700' },
+  { value: '배송중', label: '배송중', color: 'text-purple-700' },
   { value: '배송완료', label: '배송완료', color: 'text-emerald-700' },
   { value: '정산완료', label: '정산완료', color: 'text-emerald-700' },
-  { value: '취소',     label: '취소',     color: 'text-gray-500' },
+  { value: '취소', label: '취소', color: 'text-gray-500' },
 ]
 
 const SORT_OPTIONS = [
-  { value: 'latest',         label: '최신 요청순' },
+  { value: 'latest', label: '최신 요청순' },
   { value: 'picked_up_desc', label: '픽업 늦은 순' },
 ] as const
 
 const STATUS_BADGE_CLS: Record<DeliveryStatus, string> = {
-  모집중:   'bg-amber-100 text-amber-700',
-  수락:     'bg-blue-100 text-blue-700',
-  배송중:   'bg-purple-100 text-purple-700',
+  모집중: 'bg-amber-100 text-amber-700',
+  수락: 'bg-blue-100 text-blue-700',
+  배송중: 'bg-purple-100 text-purple-700',
   배송완료: 'bg-emerald-100 text-emerald-700',
   정산완료: 'bg-emerald-200 text-emerald-800',
-  취소:     'bg-gray-100 text-gray-500',
+  취소: 'bg-gray-100 text-gray-500',
 }
 
 export default function AdminDeliveryPage() {
@@ -81,21 +81,28 @@ export default function AdminDeliveryPage() {
             </p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-center">
-            {(['모집중', '수락', '배송중', '배송완료', '정산완료', '취소'] as DeliveryStatus[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => { setStatus(s); setPage(0) }}
-                className={cn(
-                  'rounded-lg py-1.5 border transition-colors',
-                  status === s ? 'border-primary-400 bg-primary-50' : 'border-gray-200 bg-gray-50 hover:bg-gray-100',
-                )}
-              >
-                <p className="text-[10px] text-gray-500">{s}</p>
-                <p className={cn('text-sm font-bold', STATUS_BADGE_CLS[s].split(' ')[1])}>
-                  {(stats.byStatus[s] ?? 0).toLocaleString()}
-                </p>
-              </button>
-            ))}
+            {(['모집중', '수락', '배송중', '배송완료', '정산완료', '취소'] as DeliveryStatus[]).map(
+              (s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setStatus(s)
+                    setPage(0)
+                  }}
+                  className={cn(
+                    'rounded-lg py-1.5 border transition-colors',
+                    status === s
+                      ? 'border-primary-400 bg-primary-50'
+                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                  )}
+                >
+                  <p className="text-[10px] text-gray-500">{s}</p>
+                  <p className={cn('text-sm font-bold', STATUS_BADGE_CLS[s].split(' ')[1])}>
+                    {(stats.byStatus[s] ?? 0).toLocaleString()}
+                  </p>
+                </button>
+              )
+            )}
           </div>
         </div>
       )}
@@ -106,12 +113,15 @@ export default function AdminDeliveryPage() {
           {STATUS_TABS.map((t) => (
             <button
               key={t.value}
-              onClick={() => { setStatus(t.value); setPage(0) }}
+              onClick={() => {
+                setStatus(t.value)
+                setPage(0)
+              }}
               className={cn(
                 'shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors',
                 status === t.value
                   ? 'bg-primary-500 text-white border-primary-500'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300',
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
               )}
             >
               {t.label}
@@ -147,11 +157,16 @@ export default function AdminDeliveryPage() {
           </button>
           <select
             value={sort ?? 'latest'}
-            onChange={(e) => { setSort(e.target.value as AdminDeliveryListParams['sort']); setPage(0) }}
+            onChange={(e) => {
+              setSort(e.target.value as AdminDeliveryListParams['sort'])
+              setPage(0)
+            }}
             className="h-8 px-2 border border-gray-300 rounded bg-white text-gray-700 ml-auto"
           >
             {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -181,7 +196,9 @@ export default function AdminDeliveryPage() {
           >
             이전
           </button>
-          <span className="px-3 py-1.5">{data.page + 1} / {data.totalPages}</span>
+          <span className="px-3 py-1.5">
+            {data.page + 1} / {data.totalPages}
+          </span>
           <button
             disabled={!data.hasNext}
             onClick={() => setPage((p) => p + 1)}
@@ -199,11 +216,17 @@ function DeliveryRow({ delivery: d }: { delivery: AdminDeliveryItem }) {
   return (
     <li className="bg-white border border-gray-200 rounded-xl p-3 hover:bg-gray-50">
       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-        <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', STATUS_BADGE_CLS[d.status])}>
+        <span
+          className={cn(
+            'text-[10px] px-1.5 py-0.5 rounded font-medium',
+            STATUS_BADGE_CLS[d.status]
+          )}
+        >
           {d.status}
         </span>
         <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
-          <Hash size={10} />{d.id}
+          <Hash size={10} />
+          {d.id}
         </span>
         <span className="text-xs font-semibold text-gray-900 ml-auto">
           {d.fee.toLocaleString()}원
@@ -215,11 +238,15 @@ function DeliveryRow({ delivery: d }: { delivery: AdminDeliveryItem }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600 mb-1.5">
         <div className="inline-flex items-start gap-1">
           <MapPin size={11} className="mt-0.5 text-amber-500 shrink-0" />
-          <span className="line-clamp-1"><b className="text-gray-500 font-normal">픽업</b> {d.pickupAddress}</span>
+          <span className="line-clamp-1">
+            <b className="text-gray-500 font-normal">픽업</b> {d.pickupAddress}
+          </span>
         </div>
         <div className="inline-flex items-start gap-1">
           <MapPin size={11} className="mt-0.5 text-emerald-500 shrink-0" />
-          <span className="line-clamp-1"><b className="text-gray-500 font-normal">도착</b> {d.dropoffAddress}</span>
+          <span className="line-clamp-1">
+            <b className="text-gray-500 font-normal">도착</b> {d.dropoffAddress}
+          </span>
         </div>
       </div>
 
@@ -249,7 +276,7 @@ function DeliveryRow({ delivery: d }: { delivery: AdminDeliveryItem }) {
         )}
         {d.escrowApplicationId != null && (
           <Link
-            to={`/escrow/applications/${d.escrowApplicationId}`}
+            to={`/admin/escrow/applications/${d.escrowApplicationId}`}
             target="_blank"
             className="inline-flex items-center gap-0.5 text-primary-600 hover:underline ml-auto"
           >
