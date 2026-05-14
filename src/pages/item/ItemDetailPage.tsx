@@ -92,7 +92,7 @@ export default function ItemDetailPage() {
   const isAdmin = currentUser?.role === 'ADMIN'
   // admin 은 본인 아닌 물품도 삭제 가능 (백엔드 가드 별도). 수정은 본인만.
   const showAdminActions = isAdmin && !isOwner
-  const status = STATUS_BADGE[item.status]
+  const status = item.rentalActive && item.status === '예약' ? undefined : STATUS_BADGE[item.status]
   // 썸네일 우선 정렬 (대표 이미지가 [0] 에 오도록)
   const orderedImages = [...item.images].sort((a, b) => Number(b.thumbnail) - Number(a.thumbnail))
   const safeIndex = Math.min(imageIndex, Math.max(orderedImages.length - 1, 0))

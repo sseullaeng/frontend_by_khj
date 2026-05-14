@@ -559,15 +559,19 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
           />
         </div>
 
-        <div className="flex gap-2 px-6 py-4 border-t border-gray-100">
-          <button
+        <div className="grid grid-cols-2 gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <Button
+            type="button"
+            variant="outline"
             onClick={onClose}
             disabled={isPending || isSanctioning}
-            className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
+            fullWidth
+            className="h-10 rounded-xl border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50"
           >
             취소
-          </button>
+          </Button>
           <Button
+            type="button"
             onClick={handleSubmit}
             isLoading={isPending || isSanctioning}
             disabled={sanction === 'SUSPEND' && (suspendDays < 1 || suspendDays > 365)}

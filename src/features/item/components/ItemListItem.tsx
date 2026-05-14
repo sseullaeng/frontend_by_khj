@@ -25,7 +25,7 @@ const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>>
 
 export default function ItemListItem({ item, className }: ItemListItemProps) {
   const { mutate: toggleWish } = useToggleWish(item.id)
-  const status = statusBadge[item.status]
+  const status = item.rentalActive && item.status === '예약' ? undefined : statusBadge[item.status]
   const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
 
   return (

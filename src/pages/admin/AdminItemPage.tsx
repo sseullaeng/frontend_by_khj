@@ -249,20 +249,22 @@ function ItemRow({ item, onOpenDetail }: { item: AdminItemSummary; onOpenDetail:
             <Hash size={10} />
             {item.id}
           </span>
-          <span
-            className={cn(
-              'text-[10px] px-1.5 py-0.5 rounded font-medium',
-              item.status === '판매중'
-                ? 'bg-green-100 text-green-700'
-                : item.status === '예약'
-                  ? 'bg-yellow-100 text-yellow-700'
-                  : item.status === '거래완료'
-                    ? 'bg-gray-100 text-gray-600'
-                    : 'bg-red-100 text-red-700'
-            )}
-          >
-            {item.status}
-          </span>
+          {!(item.rentalActive && item.status === '예약') && (
+            <span
+              className={cn(
+                'text-[10px] px-1.5 py-0.5 rounded font-medium',
+                item.status === '판매중'
+                  ? 'bg-green-100 text-green-700'
+                  : item.status === '예약'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : item.status === '거래완료'
+                      ? 'bg-gray-100 text-gray-600'
+                      : 'bg-red-100 text-red-700'
+              )}
+            >
+              {item.status}
+            </span>
+          )}
           {item.rentalActive && (
             <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-600 text-white">
               대여중

@@ -31,7 +31,7 @@ const statusBadge: Partial<Record<ItemStatus, { label: string; color: string }>>
 
 export default function ItemCard({ item, className }: ItemCardProps) {
   const { mutate: toggleWish } = useToggleWish(item.id)
-  const status = statusBadge[item.status]
+  const status = item.rentalActive && item.status === '예약' ? undefined : statusBadge[item.status]
   const isCompleted = item.status === '거래완료'
 
   // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
