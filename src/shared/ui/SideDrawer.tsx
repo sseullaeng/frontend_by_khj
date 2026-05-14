@@ -1037,6 +1037,7 @@ function NotificationPanel() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const getNotificationPath = (n: (typeof items)[number]) => {
+    if (n.type === 'NOTICE') return null
     if (!n.linkType || n.linkId == null) return null
     switch (n.linkType) {
       case 'TRANSACTION':
