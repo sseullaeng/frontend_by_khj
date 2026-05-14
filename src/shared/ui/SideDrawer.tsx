@@ -204,9 +204,6 @@ function ChatRoomView({
   const [reportReason, setReportReason] = useState('')
   const [blockOpen, setBlockOpen] = useState(false)
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
-  const [rentalOpen, setRentalOpen] = useState(false)
-  const [rentalStart, setRentalStart] = useState('')
-  const [rentalEnd, setRentalEnd] = useState('')
   // 프로필 플로팅 패널에 표시할 유저 ID (null이면 닫힘)
   const [profileUserId, setProfileUserId] = useState<number | null>(null)
 
@@ -247,8 +244,9 @@ function ChatRoomView({
   const hasPresetRentalPeriod = !!(presetRentalStart && presetRentalEnd)
 
   // 직거래 매트릭스 권한
-  const canStartTrade = isSeller && !isTxStarted && !isTxCompleted && !isEscrowCard
-  const canStartRequestedRental = canStartTrade && isRental && hasPresetRentalPeriod
+  const canCreateTrade = isSeller && !isRental && !isTxStarted && !isTxCompleted && !isEscrowCard
+  const canStartRequestedRental =
+    isSeller && isRental && !isTxStarted && !isTxCompleted && !isEscrowCard && hasPresetRentalPeriod
   // 대여 단계별
   const canReserve = isSeller && isRental && txStatus === '채팅중'
   const canHandover = isSeller && isRental && txStatus === '예약'
@@ -392,7 +390,6 @@ function ChatRoomView({
             }
           : {}),
       } as Parameters<typeof createTxAsync>[0])
-      setRentalOpen(false)
       close()
       navigate(`/trades/${txId}`)
     } catch {
@@ -506,81 +503,6 @@ function ChatRoomView({
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
               >
                 나가기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── 거래 시작 모달 (판매자만) ── */}
-      {rentalOpen && room && (
-        <div className="absolute inset-0 z-10 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-5 w-full sm:max-w-sm shadow-xl">
-            <div className="flex items-center gap-2 mb-3">
-              <Receipt size={18} className="text-primary-500" />
-              <h3 className="text-base font-bold text-gray-900">거래 시작</h3>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">
-              대여 거래라면 시작·종료 일시를 입력해 주세요. 판매·나눔 거래는 비워두고 [시작]
-              누르세요.
-            </p>
-            <div className="flex flex-col gap-2 mb-4">
-              <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">대여 시작 (선택)</label>
-                <input
-                  type="datetime-local"
-                  value={rentalStart}
-                  onChange={(e) => setRentalStart(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-gray-300 px-3 text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">대여 종료 (선택)</label>
-                <input
-                  type="datetime-local"
-                  value={rentalEnd}
-                  min={rentalStart}
-                  onChange={(e) => setRentalEnd(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-gray-300 px-3 text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setRentalOpen(false)
-                  setRentalStart('')
-                  setRentalEnd('')
-                }}
-                className="flex-1 py-2 border border-gray-200 rounded-xl text-xs text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={async () => {
-                  if (!room) return
-                  // 대여 시 둘 다 입력 + 종료 > 시작 검증
-                  if (rentalStart && rentalEnd) {
-                    if (rentalEnd <= rentalStart) {
-                      toast.error('종료 일시는 시작 일시 이후여야 해요.')
-                      return
-                    }
-                  }
-                  // ChatRoom 응답에 한국어 tradeType 이 없어서 대여 일시 입력 여부로 추정.
-                  //   대여 일시 있음 → '대여' / 없음 → '판매' (정확한 분기는 백엔드가 검증)
-                  const transactionType = rentalStart && rentalEnd ? '대여' : tradeMode
-                  await handleStartTrade(
-                    rentalStart && rentalEnd
-                      ? { rentalStart, rentalEnd }
-                      : transactionType === '대여' && presetRentalStart && presetRentalEnd
-                        ? { rentalStart: presetRentalStart, rentalEnd: presetRentalEnd }
-                        : undefined
-                  )
-                }}
-                disabled={isCreatingTx}
-                className="flex-1 py-2 bg-primary-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
-              >
-                {isCreatingTx ? '생성 중' : '시작'}
               </button>
             </div>
           </div>
@@ -707,7 +629,7 @@ function ChatRoomView({
               )}
 
               {/* 거래 시작 (판매자, 거래 시작 전) */}
-              {canStartTrade && (
+              {(canCreateTrade || canStartRequestedRental) && (
                 <>
                   <button
                     onClick={() => {
@@ -718,17 +640,13 @@ function ChatRoomView({
                         })
                         return
                       }
-                      setRentalOpen(true)
+                      void handleStartTrade()
                     }}
                     disabled={isCreatingTx}
                     className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     <Receipt size={13} />
-                    {canStartRequestedRental
-                      ? '대여 거래 시작'
-                      : isRental
-                        ? '대여 시작'
-                        : '거래 시작'}
+                    {canStartRequestedRental ? '대여 거래 시작' : '거래 시작'}
                   </button>
                   {canStartRequestedRental && presetRentalStart && presetRentalEnd && (
                     <p className="text-[11px] text-primary-700/80 text-center">
