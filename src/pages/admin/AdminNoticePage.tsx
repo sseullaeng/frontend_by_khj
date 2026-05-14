@@ -15,6 +15,7 @@ const TARGET_OPTIONS: { value: TargetRole; label: string; desc: string }[] = [
   { value: 'ALL',  label: '전체',     desc: '관리자 포함 모든 회원' },
   { value: 'USER', label: '일반 회원', desc: '관리자 제외 일반 유저만' },
 ]
+const MAX_NOTIFICATION_CONTENT = 5000
 
 export default function AdminNoticePage() {
   const [title, setTitle] = useState('')
@@ -100,12 +101,14 @@ export default function AdminNoticePage() {
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              maxLength={1000}
+              maxLength={MAX_NOTIFICATION_CONTENT}
               rows={6}
-              placeholder="알림 본문 (1000자 이내)"
+              placeholder={`알림 본문 (${MAX_NOTIFICATION_CONTENT.toLocaleString()}자 이내)`}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500 resize-none"
             />
-            <p className="text-[11px] text-gray-400 text-right mt-0.5">{content.length}/1000</p>
+            <p className="text-[11px] text-gray-400 text-right mt-0.5">
+              {content.length.toLocaleString()}/{MAX_NOTIFICATION_CONTENT.toLocaleString()}
+            </p>
           </div>
         </section>
 
