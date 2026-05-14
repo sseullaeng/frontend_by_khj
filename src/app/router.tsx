@@ -71,6 +71,7 @@ const BlockListPage = lazy(() => import('@/pages/mypage/BlockListPage')) // 차�
 const WishListPage = lazy(() => import('@/pages/mypage/WishListPage')) // 찜 목록 페이지
 const MyItemsPage = lazy(() => import('@/pages/mypage/MyItemsPage')) // 내 물품 페이지
 const TradeDetailPage = lazy(() => import('@/pages/mypage/TradeDetailPage')) // 거래 내역 상세 페이지
+const MyOverduePage = lazy(() => import('@/pages/mypage/MyOverduePage')) // 연체 정보 (라운드14)
 
 // 알림 및 리뷰 관련
 const NotificationPage = lazy(() => import('@/pages/notification/NotificationPage')) // 알림 페이지
@@ -198,6 +199,7 @@ export const router = createBrowserRouter(
             { path: '/mypage/wishes', element: <WishListPage /> },
             { path: '/users/:id', element: <UserProfilePage /> },
             { path: '/mypage/blocks', element: <BlockListPage /> },
+            { path: '/mypage/overdue', element: <MyOverduePage /> },
             { path: '/mypage/inquiries/:id', element: <MyInquiryDetailPage /> },
 
             { path: '/notifications', element: <NotificationPage /> },

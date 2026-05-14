@@ -10,7 +10,7 @@
 //   를 서버에서 한 번에 받아 표시. 자체 계산 + usePointBalance 조합 제거.
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, MapPin, Package, Receipt, Wallet } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, FileText, MapPin, Package, Receipt, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useEscrowApplicationDetail,
@@ -37,8 +37,18 @@ export default function EscrowPayPage() {
     balance: number
   } | null>(null)
 
+  // 라운드14 — 대여 거래대행은 결제 직전 연체 정책 약관 동의 필수 (buyer 한정).
+  //   buyer 가 반납 의무자이므로 보증금 차감/누적 채무 정책에 대한 명시적 동의 받음.
+  const [agreedOverdue, setAgreedOverdue] = useState(false)
+  const [termsOpen, setTermsOpen] = useState(false)
+
   const isBuyer  = !!app && !!currentUser && currentUser.id === app.buyerId
   const isSeller = !!app && !!currentUser && currentUser.id === app.sellerId
+
+  // 대여 거래 여부 — rentalEndAt 이 있으면 대여 거래대행 lifecycle. buyer 만 약관 게이팅.
+  const isRental = !!app?.rentalEndAt
+  const needsOverdueAgreement = isRental && isBuyer
+  const termsBlocked = needsOverdueAgreement && !agreedOverdue
 
   if (isLoading || previewLoading) {
     return <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>
@@ -95,6 +105,10 @@ export default function EscrowPayPage() {
   }
 
   const handlePay = async () => {
+    if (termsBlocked) {
+      toast.error('연체 정책 약관에 동의해 주세요.')
+      return
+    }
     if (myShare <= 0) {
       toast.info('이 거래에서는 결제할 금액이 없어요.')
       navigate(`/escrow/list/${applicationId}`)
@@ -186,6 +200,14 @@ export default function EscrowPayPage() {
           <Row icon={<Package size={14} />} label="거래" value={app.tradeMode === 'INTERNAL' ? '쓸랭 내 거래' : '외부 거래'} />
         </section>
 
+        {needsOverdueAgreement && (
+          <OverdueAgreementCard
+            agreed={agreedOverdue}
+            onChange={setAgreedOverdue}
+            onShowTerms={() => setTermsOpen(true)}
+          />
+        )}
+
         <p className="text-xs text-gray-400 leading-relaxed">
           · 결제 즉시 포인트가 차감되며, 양쪽 결제가 완료되면 라이더 매칭이 시작돼요.<br />
           · 라이더 매칭 후에는 본인 단독 취소가 불가능해요.
@@ -194,7 +216,7 @@ export default function EscrowPayPage() {
         <Button
           onClick={handlePay}
           isLoading={pay.isPending}
-          disabled={pay.isPending}
+          disabled={pay.isPending || termsBlocked}
           fullWidth
         >
           {myShare > 0 ? `${myShare.toLocaleString()}원 결제하기` : '확인'}
@@ -210,6 +232,99 @@ export default function EscrowPayPage() {
           onCharge={() => navigate('/point/charge')}
         />
       )}
+
+      {termsOpen && <OverdueTermsModal onClose={() => setTermsOpen(false)} />}
+    </div>
+  )
+}
+
+// ── 대여 거래대행 — 결제 직전 연체 정책 약관 동의 카드 ─────────────────
+function OverdueAgreementCard({
+  agreed, onChange, onShowTerms,
+}: {
+  agreed: boolean
+  onChange: (v: boolean) => void
+  onShowTerms: () => void
+}) {
+  return (
+    <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5">
+      <div className="flex items-start gap-2 mb-2">
+        <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={16} />
+        <p className="text-sm font-semibold text-amber-900">연체 정책 동의 (필수)</p>
+      </div>
+      <ul className="text-xs text-amber-800/90 leading-relaxed list-disc pl-5 space-y-1 mb-3">
+        <li>반납 기한이 지나면 1일 단위로 보증금에서 차감돼요.</li>
+        <li>보증금이 소진되면 누적 채무가 발생하고, 14일 경과 시 계정이 자동 정지돼요.</li>
+        <li>차감된 보증금과 누적 채무는 환불되지 않아요.</li>
+      </ul>
+      <button
+        type="button"
+        onClick={onShowTerms}
+        className="inline-flex items-center gap-1 text-xs text-amber-800 underline hover:text-amber-900 mb-3"
+      >
+        <FileText size={12} /> 약관 전문 보기
+      </button>
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-0.5 w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+        />
+        <span className="text-sm text-amber-900">
+          연체 정책 및 보증금 차감·누적 채무 발생 정책에 동의합니다.
+        </span>
+      </label>
+    </section>
+  )
+}
+
+// 약관 전문 — 모달 (docs/POLICY_OVERDUE §7 발췌)
+function OverdueTermsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <FileText size={16} className="text-amber-600" /> 대여 거래대행 연체 정책
+        </h3>
+        <div className="text-xs text-gray-700 leading-relaxed space-y-3">
+          <p className="font-semibold text-gray-900">1. 보증금 차감</p>
+          <p>
+            반납 기한이 지난 시점부터 1일 단위로 보증금에서 일정 비율이 차감됩니다.
+            차감된 금액은 환불되지 않습니다.
+          </p>
+
+          <p className="font-semibold text-gray-900">2. 단계별 처리</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><b>1단계 (D+1)</b> — 안내 알림 발송, 보증금 차감 시작</li>
+            <li><b>2단계 (D+3)</b> — 차감 누적, 신뢰지수 감점</li>
+            <li><b>3단계 (D+7)</b> — 보증금 소진 시 누적 채무 발생</li>
+            <li><b>4단계 (D+14)</b> — 계정 자동 정지, 법적 조치 검토 단계 진입</li>
+          </ul>
+
+          <p className="font-semibold text-gray-900">3. 누적 채무</p>
+          <p>
+            보증금 소진 후 발생한 채무는 회원의 본인 부담이며, 미해결 시
+            신뢰지수 차감·계정 정지·법적 조치(내용증명·분쟁조정·소송제기)의 사유가 됩니다.
+          </p>
+
+          <p className="font-semibold text-gray-900">4. 면책 / 예외</p>
+          <p>
+            천재지변, 운영사 귀책 사유 등으로 반납이 불가능한 경우 고객지원을 통해
+            관리자가 정당성을 검토한 후 채무를 면제하거나 재계산할 수 있습니다.
+          </p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-5 w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold transition-colors"
+        >
+          확인
+        </button>
+      </div>
     </div>
   )
 }

@@ -53,6 +53,12 @@ export interface AdminUser {
   suspendedUntil: string | null
   suspendDays: number | null
   lastLoginAt: string | null
+
+  // 라운드14 — 연체 채무 (PR②에서 회원 목록 행 강조용)
+  //   overdueDebt = 진행 중 record 의 extraDebtAmount 합계 (>0 이면 채무 있음).
+  //   activeOverdueRecordId = 진행 중 record 중 가장 최근 1건의 id (없으면 null).
+  overdueDebt?: number
+  activeOverdueRecordId?: number | null
 }
 
 // ── Banner (§10.8 + §11.3) ────────────────────────────────────────────────

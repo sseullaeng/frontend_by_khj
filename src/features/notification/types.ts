@@ -27,6 +27,7 @@ export type NotificationLinkType =
   | 'REVIEW'
   | 'PAYMENT'
   | 'INQUIRY'        // 라운드8: 고객지원 답변 알림
+  | 'OVERDUE'        // 라운드14: 연체 안내/단계 진입/계정 정지 → /mypage/overdue
 
 // 라운드13 PR #116 — 카테고리별 탭/필터용 high-level 그룹
 //   SYSTEM  : 시스템·공지·결제

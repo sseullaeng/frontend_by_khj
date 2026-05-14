@@ -19,6 +19,7 @@ const MENU_ITEMS = [
   { label: '찜 목록',     to: '/mypage/wishes' },
   { label: '리뷰 관리',   to: '/reviews' },
   { label: '차단 목록',   to: '/mypage/blocks' },
+  { label: '연체 정보',   to: '/mypage/overdue' },
 ]
 
 export default function MyPage() {
