@@ -236,9 +236,8 @@ export default function EscrowBuyerInfoPage() {
             fullWidth
             className="mt-3 bg-white"
             onClick={handlePreview}
-            isLoading={preview.isPending}
           >
-            수수료 계산해보기
+            {preview.isPending ? '계산 중... 다시 계산하기' : '수수료 계산해보기'}
           </Button>
         </div>
 

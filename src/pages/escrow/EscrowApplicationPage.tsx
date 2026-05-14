@@ -505,6 +505,7 @@ export default function EscrowApplicationPage() {
           itemPrice={isReceiverSeller ? itemPrice : (initiator?.itemPrice ?? 0)}
           fees={fees}
           isLoadingFees={preview.isPending}
+          readOnly={!isReceiverSeller}
         />
         <div className="lg:col-start-2">
           <Button
@@ -512,10 +513,9 @@ export default function EscrowApplicationPage() {
             variant="outline"
             fullWidth
             onClick={handlePreview}
-            isLoading={preview.isPending}
             disabled={submitting}
           >
-            수수료 계산해보기
+            {preview.isPending ? '계산 중... 다시 계산하기' : '수수료 계산해보기'}
           </Button>
           <p className="mt-2 text-xs text-gray-400 text-center">
             자동 계산이 늦으면 버튼을 눌러 다시 계산할 수 있어요.

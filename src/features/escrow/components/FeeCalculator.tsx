@@ -55,6 +55,8 @@ interface Props {
   isLoadingFees?: boolean
   /** preview 호출 불가 안내 (내부 draft 흐름) */
   showPreviewUnavailableHint?: boolean
+  /** 상대방이 입력한 옵션을 보여줄 때 선택 버튼을 읽기 전용으로 표시 */
+  readOnly?: boolean
 }
 
 export default function FeeCalculator({
@@ -62,6 +64,7 @@ export default function FeeCalculator({
   onWeightChange, onVolumeChange, onFragilityChange,
   itemPrice, fees, isLoadingFees,
   showPreviewUnavailableHint,
+  readOnly,
 }: Props) {
   const wOpt = WEIGHT_OPTIONS.find(o => o.value === weight)
   const vOpt = VOLUME_OPTIONS.find(o => o.value === volume)
@@ -110,14 +113,15 @@ export default function FeeCalculator({
               <button
                 key={opt.value}
                 type="button"
+                disabled={readOnly}
                 onClick={() => onWeightChange(opt.value)}
                 className={cn(
-                  'py-2 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5',
+                  'py-2 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
                   weight === opt.value
                     ? opt.isVan
                       ? 'bg-orange-500 text-white border-orange-500'
                       : 'bg-primary-500 text-white border-primary-500'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary-400',
+                    : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-primary-400'),
                 )}
               >
                 <span>{opt.label}</span>
@@ -137,14 +141,15 @@ export default function FeeCalculator({
               <button
                 key={opt.value}
                 type="button"
+                disabled={readOnly}
                 onClick={() => onVolumeChange(opt.value)}
                 className={cn(
-                  'py-2.5 px-2 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5',
+                  'py-2.5 px-2 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
                   volume === opt.value
                     ? opt.isVan
                       ? 'bg-orange-500 text-white border-orange-500'
                       : 'bg-primary-500 text-white border-primary-500'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary-400',
+                    : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-primary-400'),
                 )}
               >
                 <span className="font-semibold">{opt.label}</span>
@@ -172,10 +177,11 @@ export default function FeeCalculator({
                 <button
                   key={opt.value}
                   type="button"
+                  disabled={readOnly}
                   onClick={() => onFragilityChange(opt.value)}
                   className={cn(
-                    'py-2.5 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5',
-                    sel ? `${opt.color} text-white` : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400',
+                    'py-2.5 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
+                    sel ? `${opt.color} text-white` : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-gray-400'),
                   )}
                 >
                   <span className="font-semibold leading-tight text-center">{opt.label}</span>
