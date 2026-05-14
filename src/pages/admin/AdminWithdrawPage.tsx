@@ -27,13 +27,33 @@ const STATUS_TABS: { value: WithdrawalStatus | 'ALL'; label: string }[] = [
   { value: '환불완료', label: '환불완료' },
 ]
 
-const STATUS_BADGE: Record<WithdrawalStatus, { cls: string; icon: typeof Clock }> = {
+// 라운드14 — 백엔드가 영어 alias 추가 시 응답 status 가 한글/영어 혼재 가능.
+//   매핑 외 값이 와도 crash 안 나도록 fallback.
+type WithdrawBadge = { cls: string; icon: typeof Clock; label?: string }
+const STATUS_BADGE_BASE: Record<WithdrawalStatus, WithdrawBadge> = {
   신청:     { cls: 'text-amber-700 bg-amber-100',     icon: Clock },
   승인:     { cls: 'text-blue-700 bg-blue-100',       icon: AlertCircle },
   완료:     { cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
   실패:     { cls: 'text-red-700 bg-red-100',         icon: XCircle },
   취소:     { cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
   환불완료: { cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
+}
+// 영어 alias 호환 — 백엔드가 REQUESTED/APPROVED/... 같은 값을 보낼 때도 동일 뱃지
+const STATUS_BADGE: Record<string, WithdrawBadge> = {
+  ...STATUS_BADGE_BASE,
+  REQUESTED: STATUS_BADGE_BASE.신청,
+  PENDING:   STATUS_BADGE_BASE.신청,
+  APPROVED:  STATUS_BADGE_BASE.승인,
+  COMPLETED: STATUS_BADGE_BASE.완료,
+  FAILED:    STATUS_BADGE_BASE.실패,
+  CANCELLED: STATUS_BADGE_BASE.취소,
+  CANCELED:  STATUS_BADGE_BASE.취소,
+  REFUNDED:  STATUS_BADGE_BASE.환불완료,
+}
+const FALLBACK_BADGE: WithdrawBadge = {
+  cls: 'text-gray-500 bg-gray-100',
+  icon: AlertCircle,
+  label: '알 수 없음',
 }
 
 // 마스킹: 가운데 영역을 ●로 — 끝 4자리만 노출
@@ -90,7 +110,7 @@ export default function AdminWithdrawPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {data!.content.map((w) => {
-            const badge = STATUS_BADGE[w.status]
+            const badge = STATUS_BADGE[w.status as string] ?? FALLBACK_BADGE
             const Icon = badge.icon
             const canAct = w.status === '신청' || w.status === '승인'
             return (
@@ -99,7 +119,7 @@ export default function AdminWithdrawPage() {
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full', badge.cls)}>
                       <Icon size={11} />
-                      {w.status}
+                      {badge.label ?? w.status}
                     </span>
                     <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5">
                       <Hash size={10} />{w.id}
