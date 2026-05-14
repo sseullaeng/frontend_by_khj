@@ -37,6 +37,18 @@ export const FRAGILITY_OPTIONS = [
   { value: 'f5' as FragilityKey, label: '매우 높음', examples: '유리·미술품·앤티크', multiplier: 2.0, color: 'bg-red-500 border-red-500' },
 ] as const
 
+const normalizeWeight = (value: WeightKey | string | null): WeightKey | null => {
+  if (!value) return null
+  const normalized = String(value).toLowerCase()
+  return (normalized === 'over10' ? 'gt10' : normalized) as WeightKey
+}
+
+const normalizeVolume = (value: VolumeKey | string | null): VolumeKey | null =>
+  value ? String(value).toLowerCase() as VolumeKey : null
+
+const normalizeFragility = (value: FragilityKey | string | null): FragilityKey | null =>
+  value ? String(value).toLowerCase() as FragilityKey : null
+
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────
 
 interface Props {
@@ -66,9 +78,13 @@ export default function FeeCalculator({
   showPreviewUnavailableHint,
   readOnly,
 }: Props) {
-  const wOpt = WEIGHT_OPTIONS.find(o => o.value === weight)
-  const vOpt = VOLUME_OPTIONS.find(o => o.value === volume)
-  const fOpt = FRAGILITY_OPTIONS.find(o => o.value === fragility)
+  const selectedWeight = normalizeWeight(weight)
+  const selectedVolume = normalizeVolume(volume)
+  const selectedFragility = normalizeFragility(fragility)
+
+  const wOpt = WEIGHT_OPTIONS.find(o => o.value === selectedWeight)
+  const vOpt = VOLUME_OPTIONS.find(o => o.value === selectedVolume)
+  const fOpt = FRAGILITY_OPTIONS.find(o => o.value === selectedFragility)
 
   const isVan = (wOpt?.isVan ?? false) || (vOpt?.isVan ?? false)
 
@@ -117,16 +133,16 @@ export default function FeeCalculator({
                 onClick={() => onWeightChange(opt.value)}
                 className={cn(
                   'py-2 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
-                  weight === opt.value
+                  selectedWeight === opt.value
                     ? opt.isVan
                       ? 'bg-orange-500 text-white border-orange-500'
                       : 'bg-primary-500 text-white border-primary-500'
-                    : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-primary-400'),
+                    : cn('bg-white text-gray-600 border-gray-200', readOnly ? 'opacity-60' : 'hover:border-primary-400'),
                 )}
               >
                 <span>{opt.label}</span>
                 {opt.isVan && (
-                  <Truck size={11} className={weight === opt.value ? 'text-white' : 'text-orange-400'} />
+                  <Truck size={11} className={selectedWeight === opt.value ? 'text-white' : 'text-orange-400'} />
                 )}
               </button>
             ))}
@@ -145,19 +161,19 @@ export default function FeeCalculator({
                 onClick={() => onVolumeChange(opt.value)}
                 className={cn(
                   'py-2.5 px-2 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
-                  volume === opt.value
+                  selectedVolume === opt.value
                     ? opt.isVan
                       ? 'bg-orange-500 text-white border-orange-500'
                       : 'bg-primary-500 text-white border-primary-500'
-                    : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-primary-400'),
+                    : cn('bg-white text-gray-600 border-gray-200', readOnly ? 'opacity-60' : 'hover:border-primary-400'),
                 )}
               >
                 <span className="font-semibold">{opt.label}</span>
-                <span className={cn('text-[10px]', volume === opt.value ? 'text-white/80' : 'text-gray-400')}>
+                <span className={cn('text-[10px]', selectedVolume === opt.value ? 'text-white/80' : 'text-gray-400')}>
                   {opt.sub}
                 </span>
                 {opt.isVan && (
-                  <Truck size={11} className={volume === opt.value ? 'text-white' : 'text-orange-400'} />
+                  <Truck size={11} className={selectedVolume === opt.value ? 'text-white' : 'text-orange-400'} />
                 )}
               </button>
             ))}
@@ -172,7 +188,7 @@ export default function FeeCalculator({
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-2 xl:grid-cols-5 gap-1.5">
             {FRAGILITY_OPTIONS.map(opt => {
-              const sel = fragility === opt.value
+              const sel = selectedFragility === opt.value
               return (
                 <button
                   key={opt.value}
@@ -181,7 +197,7 @@ export default function FeeCalculator({
                   onClick={() => onFragilityChange(opt.value)}
                   className={cn(
                     'py-2.5 px-1 rounded-lg text-xs font-medium border transition-colors flex flex-col items-center gap-0.5 disabled:cursor-default',
-                    sel ? `${opt.color} text-white` : cn('bg-white text-gray-600 border-gray-200', !readOnly && 'hover:border-gray-400'),
+                    sel ? `${opt.color} text-white` : cn('bg-white text-gray-600 border-gray-200', readOnly ? 'opacity-60' : 'hover:border-gray-400'),
                   )}
                 >
                   <span className="font-semibold leading-tight text-center">{opt.label}</span>
