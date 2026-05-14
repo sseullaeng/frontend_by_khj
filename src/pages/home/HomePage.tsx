@@ -255,15 +255,19 @@ function PagedCarousel({ pages }: { pages: Item[][] }) {
   const atStart = active === 0
   const atEnd   = active === pages.length - 1
 
+  // ⚠ wrapper 에 'group' 두지 말 것 — ItemCard 가 본인 .group 으로 group-hover:scale-105
+  //   를 쓰는데, 상위에 .group 있으면 그쪽이 우선 잡혀 wrapper hover 시 모든 카드가 같이 반응.
+  //
+  // 화살표는 카드 영역 *바깥* (sm:px-10 패딩 안) 에 배치 — 카드와 시각 겹침 방지.
   return (
-    <div className="relative group">
-      {/* 좌측 화살표 — 모바일 hide */}
+    <div className="relative sm:px-10">
+      {/* 좌측 화살표 — 모바일 hide. 카드 영역 바깥 (padding 안) 에 위치 */}
       {!atStart && (
         <button
           type="button"
           onClick={() => goTo(active - 1)}
           aria-label="이전 페이지"
-          className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+          className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-gray-50 hover:shadow-lg transition-all"
         >
           <ChevronLeft size={18} />
         </button>
@@ -273,7 +277,7 @@ function PagedCarousel({ pages }: { pages: Item[][] }) {
           type="button"
           onClick={() => goTo(active + 1)}
           aria-label="다음 페이지"
-          className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+          className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-gray-50 hover:shadow-lg transition-all"
         >
           <ChevronRight size={18} />
         </button>
