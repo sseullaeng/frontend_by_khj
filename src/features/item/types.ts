@@ -48,6 +48,7 @@ export interface Item {
   title: string
   status: ItemStatus
   region: string | null
+  hashtags?: string[]
   thumbnailUrl: string | null
   wishlistCount: number
   isWishlisted: boolean   // 비로그인은 항상 false

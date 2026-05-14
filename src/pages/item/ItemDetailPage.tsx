@@ -270,13 +270,24 @@ export default function ItemDetailPage() {
                     </span>
                   </div>
                 )}
-                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (
-                  <span className="text-xs text-gray-500">
-                    {item.depositType === 'PERCENT'
-                      ? `보증금 ${item.deposit}% (대여가 기준)`
-                      : `보증금 ${item.deposit.toLocaleString()}원`}
-                  </span>
-                )}
+                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (() => {
+                  // 라운드14 B-1 — PERCENT 일 때 환산 base = salePrice ?? rentalPrice (백엔드 공식 일치)
+                  if (item.depositType !== 'PERCENT') {
+                    return (
+                      <span className="text-xs text-gray-500">
+                        보증금 {item.deposit.toLocaleString()}원
+                      </span>
+                    )
+                  }
+                  const base = item.salePrice ?? item.rentalPrice ?? 0
+                  const computed = Math.ceil(base * item.deposit / 100)
+                  return (
+                    <span className="text-xs text-gray-500">
+                      보증금 {item.deposit}% ≒ {computed.toLocaleString()}원
+                      <span className="text-gray-400"> (거래 시 자동 환산)</span>
+                    </span>
+                  )
+                })()}
               </>
             )}
           </div>

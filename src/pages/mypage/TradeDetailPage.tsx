@@ -78,12 +78,25 @@ export default function TradeDetailPage() {
   const typeColor = TYPE_COLOR[tx.tradeType] ?? 'bg-gray-100 text-gray-700'
 
   // 라운드 11 권한 매트릭스 + 라운드14 4-D 반납 흐름
-  const canReserve  = isSeller && tx.status === '채팅중'
-  const canHandover = isSeller && tx.status === '예약'
-  const canReceive  = isBuyer  && tx.status === '인계완료' && tx.tradeType !== '대여'
-  const canReturn   = isBuyer  && tx.status === '인계완료' && tx.tradeType === '대여'   // 대여만
-  const canConfirmReturn = isSeller && tx.status === '반납요청'
-  const canCancel   = (isSeller || isBuyer) && (tx.status === '채팅중' || tx.status === '예약')
+  //   거래대행 페어 있으면 일반 액션 모두 숨김 (escrow 측에서 처리, cascade 로 자동 완료)
+  const isRental      = tx.tradeType === '대여'
+  const hasEscrowPair = tx.escrowApplicationId != null
+  const showActions   = !hasEscrowPair
+
+  // 대여 — 예약/인계/반납/회신 단계 흐름
+  const canReserve       = showActions && isRental  && isSeller && tx.status === '채팅중'
+  const canHandover      = showActions && isRental  && isSeller && tx.status === '예약'
+  const canReturn        = showActions && isRental  && isBuyer  && tx.status === '인계완료'
+  const canConfirmReturn = showActions && isRental  && isSeller && tx.status === '반납요청'
+
+  // 직거래·나눔 — seller [거래 완료] 한 번에 (라운드13 PR #131 action='완료', hold 없음)
+  //   백엔드 가드: 대여 거부. status: 채팅중/예약/인계완료/반납요청 모두 OK (종료 상태만 거부).
+  const canComplete      = showActions && !isRental && isSeller
+    && tx.status !== '거래완료' && tx.status !== '취소'
+
+  // 취소 — 양쪽, 채팅중·예약까지 (인계완료 이후 차단)
+  const canCancel        = showActions && (isSeller || isBuyer)
+    && (tx.status === '채팅중' || tx.status === '예약')
 
   // buyer 본인 잔액이 가격보다 적으면 충전 유도 (채팅중 단계)
   const buyerNeedsCharge =
@@ -264,8 +277,24 @@ export default function TradeDetailPage() {
         </div>
       )}
 
+      {/* 거래대행 페어 안내 — 일반 액션 숨기고 escrow 페이지로 유도 */}
+      {hasEscrowPair && tx.status !== '거래완료' && tx.status !== '취소' && (
+        <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
+          <p className="text-sm font-semibold text-purple-700 mb-1">거래대행으로 진행 중이에요</p>
+          <p className="text-xs text-purple-700/80 mb-3 leading-relaxed">
+            이 거래는 거래대행으로 위임됐어요. 인계·반납·완료 처리는 거래대행 페이지에서 진행해요.
+          </p>
+          <Link
+            to={`/escrow/list/${tx.escrowApplicationId}`}
+            className="block w-full text-center py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl"
+          >
+            거래대행 페이지로 가기
+          </Link>
+        </div>
+      )}
+
       {/* 액션 버튼 */}
-      {(canReserve || canHandover || canReceive || canReturn || canConfirmReturn || canCancel) && (
+      {(canReserve || canHandover || canReturn || canConfirmReturn || canComplete || canCancel) && (
         <div className="flex gap-2 fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 lg:static lg:border-0 lg:px-0">
           {canCancel && (
             <Button
@@ -279,7 +308,7 @@ export default function TradeDetailPage() {
           )}
           {canReserve && (
             <Button fullWidth isLoading={isPatching} onClick={handleReserveClick}>
-              예약하기
+              예약 확정
             </Button>
           )}
           {canHandover && (
@@ -288,16 +317,7 @@ export default function TradeDetailPage() {
               isLoading={isPatching}
               onClick={() => patch({ action: '인계확인' })}
             >
-              인계 확인
-            </Button>
-          )}
-          {canReceive && (
-            <Button
-              fullWidth
-              isLoading={isPatching}
-              onClick={() => patch({ action: '인수확인' })}
-            >
-              인수 확인
+              인계 완료
             </Button>
           )}
           {canReturn && (
@@ -316,6 +336,15 @@ export default function TradeDetailPage() {
               onClick={() => patch({ action: '회신확인' })}
             >
               회신 확인 (거래 완료)
+            </Button>
+          )}
+          {canComplete && (
+            <Button
+              fullWidth
+              isLoading={isPatching}
+              onClick={() => patch({ action: '완료' })}
+            >
+              거래 완료
             </Button>
           )}
         </div>

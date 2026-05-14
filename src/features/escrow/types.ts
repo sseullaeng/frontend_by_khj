@@ -23,6 +23,9 @@ export type EscrowApplicationStatus =
   | '결제대기'
   | '결제완료'
   | '진행중'
+  | '사용중'
+  | '반납중'
+  | '취소대기'
   | '완료'
   | '취소'
 
@@ -179,6 +182,18 @@ export interface EscrowApplication {
   imageUrls: string[]
   status: EscrowApplicationStatus
 
+  // 대여 거래대행 lifecycle — 결제완료 → 진행중 → 사용중 → 반납중 → 완료
+  rentalEndAt?: string | null
+  depositAmount?: number | null
+  usingStartedAt?: string | null
+  returnRequestedAt?: string | null
+  returnConfirmedAt?: string | null
+
+  // 사용중 단계 취소 합의 흐름
+  cancelRequestedBy?: number | null
+  cancelRequestedAt?: string | null
+  cancelReason?: string | null
+
   // 라운드12 PR-B-2/B-4 — 신규 필드
   entryType?: EscrowEntryType        // INTERNAL = 채팅방 흐름 / EXTERNAL = 외부 link
   chatRoomId?: number | null         // INTERNAL 흐름만 값. EXTERNAL=null
@@ -251,6 +266,7 @@ export interface EscrowDraftRequest {
   feePayer:        FeePayer
   itemPrice:       number
   itemDescription: string
+  rentalEndAt?:    string
 
   pickupAddress: string
   pickupLat:     number

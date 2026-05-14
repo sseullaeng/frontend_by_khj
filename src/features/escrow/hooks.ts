@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { escrowApi } from './api'
+import { pointKeys } from '@/features/payment/keys'
 import type {
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
@@ -155,7 +156,7 @@ export function usePayEscrowApplication(id: number) {
       qc.invalidateQueries({ queryKey: escrowKeys.applicationDetail(id) })
       qc.invalidateQueries({ queryKey: escrowKeys.paymentPreview(id) })
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
-      qc.invalidateQueries({ queryKey: ['point'] })  // 포인트 잔액 갱신
+      qc.invalidateQueries({ queryKey: pointKeys.all() })  // 포인트 잔액 갱신
       if (data.status === '결제완료' || data.status === '진행중') {
         toast.success('양쪽 결제가 완료됐어요. 라이더 매칭이 시작돼요.')
       } else {
@@ -187,6 +188,7 @@ export function useCancelEscrowApplication() {
       escrowApi.applications.cancel(id, body).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: pointKeys.all() })
       toast.success('취소했어요.')
     },
   })
@@ -213,6 +215,69 @@ export function useConfirmEscrowHandover() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
       toast.success('물품 인계 확인 완료. 배달이 진행돼요.')
+    },
+  })
+}
+
+export function useRequestEscrowReturn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      escrowApi.applications.requestReturn(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: pointKeys.all() })
+      toast.success('반납 요청이 접수됐어요.')
+    },
+  })
+}
+
+export function useConfirmEscrowReturn() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      escrowApi.applications.confirmReturn(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: pointKeys.all() })
+      toast.success('반납 확인이 완료됐어요. 정산이 진행돼요.')
+    },
+  })
+}
+
+export function useRequestEscrowCancel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: EscrowCancelRequest }) =>
+      escrowApi.applications.requestCancel(id, body).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('취소 요청을 보냈어요.')
+    },
+  })
+}
+
+export function useConfirmEscrowCancel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      escrowApi.applications.confirmCancel(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: pointKeys.all() })
+      toast.success('취소 요청을 승인했어요.')
+    },
+  })
+}
+
+export function useWithdrawEscrowCancel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      escrowApi.applications.withdrawCancel(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      toast.success('취소 요청을 철회했어요.')
     },
   })
 }

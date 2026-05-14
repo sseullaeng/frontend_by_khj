@@ -44,6 +44,10 @@ export interface Transaction {
   canceledAt: string | null
   cancelReason: string | null
   escrowHoldAmount: number             // 라운드11: 예약 시 hold 금액 (환불 추적용)
+  // 라운드14 — 거래대행 페어인 경우 escrow application id (커밋 43d23ae)
+  //   페어 있으면 일반 tx 액션 (인계/인수/완료) 은 숨기고 escrow 측에서만 진행.
+  //   confirm-receipt/settle 시 백엔드가 cascade 로 tx 도 자동 거래완료 (단 대여 직거래 제외).
+  escrowApplicationId?: number | null
   createdAt: string
   updatedAt: string
 }
