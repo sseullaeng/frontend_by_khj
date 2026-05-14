@@ -379,7 +379,7 @@ function ChatRoomView({
   const handleStartTrade = async (dates?: { rentalStart: string; rentalEnd: string }) => {
     if (!room) return
     try {
-      const { id: txId } = await createTxAsync({
+      await createTxAsync({
         itemId: room.itemId,
         chatRoomId: room.id,
         transactionType: dates ? '대여' : isRental ? '대여' : (tradeMode ?? '판매'),
@@ -390,8 +390,6 @@ function ChatRoomView({
             }
           : {}),
       } as Parameters<typeof createTxAsync>[0])
-      close()
-      navigate(`/trades/${txId}`)
     } catch {
       // hook onError 토스트
     }
