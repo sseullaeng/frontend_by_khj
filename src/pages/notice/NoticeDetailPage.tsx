@@ -1,13 +1,25 @@
 // 공지/이벤트 상세 — 가이드 §10.9 (viewCount 자동 +1)
-import { useParams, Link } from 'react-router-dom'
-import { Calendar, Megaphone, ArrowLeft, Eye } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { Calendar, Megaphone, ArrowLeft, Eye, Pencil, Trash2 } from 'lucide-react'
 import { useNoticeDetail } from '@/features/notice/hooks'
+import { useDeleteNotice } from '@/features/admin/hooks'
+import { useAuthStore } from '@/features/auth/store'
 import { formatKst } from '@/shared/lib/date'
 
 export default function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const noticeId = Number(id)
+  const navigate = useNavigate()
+  const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN')
   const { data: notice, isLoading, isError } = useNoticeDetail(noticeId)
+  const { mutate: deleteNotice, isPending: deleting } = useDeleteNotice()
+
+  const handleDelete = () => {
+    if (!window.confirm('이 게시물을 삭제할까요? 되돌릴 수 없어요.')) return
+    deleteNotice(noticeId, {
+      onSuccess: () => navigate('/notices', { replace: true }),
+    })
+  }
 
   if (isLoading) {
     return <p className="text-center py-12 text-sm text-gray-400">불러오는 중...</p>
@@ -30,13 +42,32 @@ export default function NoticeDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto w-full space-y-6">
-      <Link
-        to="/notices"
-        className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-500 transition-colors"
-      >
-        <ArrowLeft size={20} />
-        <span>새소식/이벤트</span>
-      </Link>
+      <div className="flex items-center">
+        <Link
+          to="/notices"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-500 transition-colors"
+        >
+          <ArrowLeft size={20} />
+          <span>새소식/이벤트</span>
+        </Link>
+        {isAdmin && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <Link
+              to={`/notices/${noticeId}/edit`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Pencil size={12} /> 수정
+            </Link>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={12} /> {deleting ? '삭제 중' : '삭제'}
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
