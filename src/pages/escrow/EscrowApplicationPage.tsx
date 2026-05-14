@@ -439,18 +439,6 @@ export default function EscrowApplicationPage() {
               <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col gap-3">
                 <p className="text-sm font-semibold text-gray-900">물품 정보</p>
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block">물품 가격</label>
-                  <input
-                    type="text"
-                    value="0원"
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500"
-                  />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    외부 거래대행은 물품 대금 없이 대행 수수료와 배달비만 계산해요.
-                  </p>
-                </div>
-                <div>
                   <label className="text-xs text-gray-600 mb-1 block">
                     물품 설명 <span className="text-red-500">*</span>
                   </label>

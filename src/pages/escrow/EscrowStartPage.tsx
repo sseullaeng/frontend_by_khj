@@ -228,17 +228,7 @@ export default function EscrowStartPage() {
 
             <Section title="물품 정보 *">
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-gray-500">물품 가격</label>
-                <input
-                  type="text"
-                  value="0원"
-                  disabled
-                  className="h-10 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-500"
-                />
-                <p className="text-[11px] text-gray-400">
-                  외부 거래대행은 물품 대금 없이 대행 수수료와 배달비만 계산해요.
-                </p>
-                <label className="text-xs text-gray-500 mt-1">물품 설명</label>
+                <label className="text-xs text-gray-500">물품 설명</label>
                 <textarea
                   value={itemDescription}
                   onChange={(e) => setItemDescription(e.target.value)}
