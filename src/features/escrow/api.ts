@@ -12,6 +12,7 @@ import type {
   EscrowFeeSettings,
   EscrowFeeSettingsPatchResponse,
   EscrowFeeSettingsRequest,
+  EscrowFragilityCode,
   EscrowInternalApplicationRequest,
   EscrowLink,
   EscrowPaymentPreview,
@@ -19,7 +20,28 @@ import type {
   EscrowPreviewResponse,
   EscrowSellerInfoPatch,
   EscrowStartRequest,
+  EscrowVolumeCode,
+  EscrowWeightCode,
 } from './types'
+
+const normalizeWeightCode = (value: EscrowWeightCode | string): EscrowWeightCode => {
+  const normalized = String(value).toLowerCase()
+  return (normalized === 'over10' ? 'gt10' : normalized) as EscrowWeightCode
+}
+
+const normalizeVolumeCode = (value: EscrowVolumeCode | string): EscrowVolumeCode =>
+  String(value).toLowerCase() as EscrowVolumeCode
+
+const normalizeFragilityCode = (value: EscrowFragilityCode | string): EscrowFragilityCode =>
+  String(value).toLowerCase() as EscrowFragilityCode
+
+const normalizePreviewRequest = (body: EscrowPreviewRequest): EscrowPreviewRequest => ({
+  ...body,
+  weight: normalizeWeightCode(body.weight),
+  volume: normalizeVolumeCode(body.volume),
+  fragility: normalizeFragilityCode(body.fragility),
+  feePayer: body.feePayer.toLowerCase() as EscrowPreviewRequest['feePayer'],
+})
 
 export const escrowApi = {
   // ── 사용자 ────────────────────────────────────────────────────────────
@@ -42,7 +64,7 @@ export const escrowApi = {
 
     // 라운드12 PR #102 — 수수료/배달비 미리보기 (폼 작성 중 실시간 호출)
     preview: (body: EscrowPreviewRequest) =>
-      api.post<EscrowPreviewResponse>('/api/v1/escrow/applications/preview', body),
+      api.post<EscrowPreviewResponse>('/api/v1/escrow/applications/preview', normalizePreviewRequest(body)),
 
     // 라운드12 PR #105 — 채팅방 내부 신청 (한 번에 입력, deprecated 권장)
     createInternal: (body: EscrowInternalApplicationRequest) =>
