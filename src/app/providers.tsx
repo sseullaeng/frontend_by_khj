@@ -49,7 +49,7 @@ export function AppProviders({ children }: AppProvidersProps) {
 
       {/* 토스트 알림 컴포넌트 */}
       <Toaster
-        position="top-center"
+        position="bottom-right"
         richColors
         closeButton
         duration={4000}
