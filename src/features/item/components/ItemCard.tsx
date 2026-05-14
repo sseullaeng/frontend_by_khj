@@ -39,7 +39,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
 
   return (
     <Link to={`/items/${item.id}`} className={cn('block group', className)}>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+      <div className="relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
         {/* 썸네일 */}
         <div className="relative aspect-square bg-gray-100">
           {item.thumbnailUrl ? (
@@ -48,7 +48,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
               alt={item.title}
               className={cn(
                 'w-full h-full object-cover transition-transform duration-200',
-                isCompleted ? 'grayscale opacity-70' : 'group-hover:scale-105',
+                isCompleted ? 'grayscale' : 'group-hover:scale-105',
               )}
             />
           ) : (
@@ -56,8 +56,6 @@ export default function ItemCard({ item, className }: ItemCardProps) {
               <div className="w-12 h-12 bg-gray-200 rounded-full" />
             </div>
           )}
-          {/* 거래완료 — 회색 커버 */}
-          {isCompleted && <div className="absolute inset-0 bg-gray-900/30 pointer-events-none" />}
 
           {/* 거래 유형 태그 — 다중 등록이면 여러 개 */}
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
@@ -89,8 +87,8 @@ export default function ItemCard({ item, className }: ItemCardProps) {
             />
           </button>
 
-          {/* 상태 배지 (판매중 외) */}
-          {status && (
+          {/* 상태 배지 (판매중·거래완료 외) — 거래완료는 카드 전체 오버레이에서 처리 */}
+          {status && !isCompleted && (
             <div className="absolute bottom-2 left-2">
               <span className={cn('px-2 py-1 rounded-lg text-xs font-medium', status.color)}>
                 {status.label}
@@ -99,9 +97,29 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           )}
         </div>
 
-        {/* 정보 — 영역별 고정 높이로 카드 전체 크기 통일 */}
-        <div className="p-3 h-[8.5rem] flex flex-col">
-          <h3 className="font-medium text-gray-900 line-clamp-2 mb-1 h-[2.5rem] group-hover:text-primary-600 transition-colors">
+        {/* 거래완료 — 카드 전체 회색 + 중앙 텍스트 + 우상→좌하 평행 두 줄 */}
+        {isCompleted && (
+          <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center bg-gray-300/55">
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              <line x1="100" y1="0"  x2="0" y2="100" stroke="#4b5563" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              <line x1="100" y1="25" x2="0" y2="125" stroke="#4b5563" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <span className="relative px-3 py-1 rounded-lg bg-gray-900/85 text-white text-sm font-bold tracking-wide">
+              거래완료
+            </span>
+          </div>
+        )}
+
+        {/* 정보 — 영역별 고정 높이로 카드 전체 크기 통일.
+            자식 합 = 제목(40) + 해시태그(16) + 가격(40) + 메타(16) + gap(12) + padding(24) = ~148px
+            여유 두고 h-[10rem](160px) */}
+        <div className="p-3 h-[10rem] flex flex-col">
+          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 leading-5 mb-1 h-[2.5rem] group-hover:text-primary-600 transition-colors">
             {item.title}
           </h3>
 
@@ -109,7 +127,7 @@ export default function ItemCard({ item, className }: ItemCardProps) {
           <p className="text-[11px] text-primary-600 truncate mb-1 h-[1rem] leading-4">
             {item.hashtags && item.hashtags.length > 0
               ? item.hashtags.slice(0, 5).map((t) => `#${t}`).join(' ')
-              : ''}
+              : ' '}
           </p>
 
           {/* 가격 영역 — 모드별 한 줄씩, 2 줄 고정 높이 */}

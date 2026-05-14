@@ -9,13 +9,14 @@
 // link.initiatorRole === 'seller' → 발급자가 판매자, 수신자는 buyer (delivery + 연락처 입력)
 // link.initiatorRole === 'buyer'  → 발급자가 구매자, 수신자는 seller (pickup + 물품 + 옵션 입력)
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Upload, X, MapPin, AlertTriangle, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/shared/ui/Button'
 import KakaoAddressSearch from '@/shared/ui/KakaoAddressSearch'
 import type { AddressResult } from '@/shared/ui/KakaoAddressSearch'
 import { uploadImages, validateImageFile } from '@/shared/api/upload'
+import { useAuthStore } from '@/features/auth/store'
 import {
   useCreateEscrowByLink,
   useEscrowLink,
@@ -40,6 +41,14 @@ export default function EscrowApplicationPage() {
   const location = useLocation()
   const { linkId } = useParams<{ linkId: string }>()
   const linkToken = linkId ?? ''
+
+  // 로그인 가드 — 외부 링크 받은 사용자가 비로그인 상태면 먼저 로그인.
+  //   sessionStorage 에 next 저장해서 SocialCallbackPage (OAuth redirect 후) 도 복귀 가능.
+  const isLoggedIn = useAuthStore((s) => !!s.user)
+  const next = `${location.pathname}${location.search}`
+  useEffect(() => {
+    if (!isLoggedIn) sessionStorage.setItem('postLoginNext', next)
+  }, [isLoggedIn, next])
 
   const stateLink = (location.state as { link?: EscrowLink } | null)?.link
   const { data: fetchedLink } = useEscrowLink(stateLink ? undefined : linkToken)
@@ -248,6 +257,11 @@ export default function EscrowApplicationPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // 로그인 가드 — 모든 hook 호출 이후의 안전한 위치에서 redirect
+  if (!isLoggedIn) {
+    return <Navigate to="/login" state={{ next }} replace />
   }
 
   if (!link) {

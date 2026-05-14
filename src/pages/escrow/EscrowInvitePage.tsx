@@ -1,9 +1,11 @@
 // 거래대행 초대 진입 — 수신자가 링크 클릭 후 신청자 정보 확인
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/shared/ui/Button'
 import { Shield, AlertCircle, CheckCircle, Users } from 'lucide-react'
 import { useEscrowLink } from '@/features/escrow/hooks'
 import type { EscrowRole, FeePayer, TradeMode } from '@/features/escrow/types'
+import { useAuthStore } from '@/features/auth/store'
 import { formatKst } from '@/shared/lib/date'
 import { BusinessError } from '@/shared/types/api'
 
@@ -13,10 +15,24 @@ const MODE_LABEL: Record<TradeMode, string>  = { INTERNAL: '쓸랭 거래', EXTE
 
 export default function EscrowInvitePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { linkId } = useParams<{ linkId: string }>()  // = linkToken (URL 호환성 위해 :linkId 유지)
   const linkToken = linkId
 
-  const { data: link, isLoading, error } = useEscrowLink(linkToken)
+  // 로그인 가드 — 비로그인 상태면 로그인 후 같은 링크로 돌아오게 next 전달
+  const isLoggedIn = useAuthStore((s) => !!s.user)
+  const next = `${location.pathname}${location.search}`
+  // SocialCallbackPage 가 OAuth redirect 후 sessionStorage 의 next 로 복귀할 수 있도록 저장
+  useEffect(() => {
+    if (!isLoggedIn) sessionStorage.setItem('postLoginNext', next)
+  }, [isLoggedIn, next])
+
+  // hook 은 early return 위에서 호출 — 비로그인이면 enabled=false 가 처리
+  const { data: link, isLoading, error } = useEscrowLink(isLoggedIn ? linkToken : undefined)
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" state={{ next }} replace />
+  }
 
   if (isLoading) {
     return <p className="py-20 text-center text-sm text-gray-400">불러오는 중...</p>

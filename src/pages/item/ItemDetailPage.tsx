@@ -63,6 +63,8 @@ export default function ItemDetailPage() {
   const [chatModalOpen, setChatModalOpen] = useState(false)
   const [chatModalStep, setChatModalStep] = useState<'mode' | 'rentalDate'>('mode')
   const [imageIndex, setImageIndex] = useState(0)
+  // 라운드14 — 대여 가능 기간 오버레이 토글 (정보 패널 위로 덮음)
+  const [rentalCalOverlayOpen, setRentalCalOverlayOpen] = useState(false)
 
   // 라운드14 4-C — 대여 달력 + 신청
   //   hook 은 early return 위에서 호출 (React error #310 회피)
@@ -247,8 +249,8 @@ export default function ItemDetailPage() {
           )}
         </div>
 
-        {/* 정보 영역 */}
-        <div className="flex flex-col gap-5">
+        {/* 정보 영역 — relative: 대여 가능 기간 오버레이가 이 패널만 덮음 */}
+        <div className="relative flex flex-col gap-5">
           {/* 거래 방식 태그 — 다중 등록이면 여러 개 */}
           <div className="flex items-center gap-2 flex-wrap">
             {modes.map((m) => (
@@ -342,20 +344,16 @@ export default function ItemDetailPage() {
 
           <hr className="border-gray-100" />
 
-          {/* 라운드14 4-C — 대여 가능 기간 안내 (읽기 전용, 시각화)
-             실제 기간 선택·신청은 [채팅하기] 모달에서 처리. */}
+          {/* 라운드14 4-C — 대여 가능 기간 — 토글 진입 버튼 (오버레이 펼침) */}
           {modes.includes('대여') && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">대여 가능 기간</h3>
-              <RentalDatePicker
-                blocks={rentalBlocksQ.data?.blocks ?? []}
-                value={null}
-                onChange={() => {/* 읽기 전용 */}}
-              />
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                회색 날짜는 이미 다른 사용자가 예약한 기간이에요. [채팅하기] 를 누르면 기간을 정해 신청할 수 있어요.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setRentalCalOverlayOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-sm text-gray-700"
+            >
+              <span className="font-medium">대여 가능 기간 보기</span>
+              <span className="text-xs text-primary-500">달력 열기 ›</span>
+            </button>
           )}
 
           <hr className="border-gray-100" />
@@ -454,6 +452,38 @@ export default function ItemDetailPage() {
               </>
             )}
           </div>
+
+          {/* 라운드14 — 대여 가능 기간 오버레이 (정보 패널 위로 덮음, 닫기 버튼 제공) */}
+          {rentalCalOverlayOpen && modes.includes('대여') && (
+            <div className="absolute inset-0 z-20 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">대여 가능 기간</h3>
+                <button
+                  type="button"
+                  onClick={() => setRentalCalOverlayOpen(false)}
+                  aria-label="닫기"
+                  className="p-1 text-gray-400 hover:text-gray-700"
+                >
+                  <ChevronRight className="rotate-180" size={18} />
+                </button>
+              </div>
+              <RentalDatePicker
+                blocks={rentalBlocksQ.data?.blocks ?? []}
+                value={null}
+                onChange={() => {/* 읽기 전용 */}}
+              />
+              <p className="text-[11px] text-gray-400 leading-relaxed mt-2">
+                회색 날짜는 이미 다른 사용자가 예약한 기간이에요. 닫고 [채팅하기] 를 누르면 기간을 정해 신청할 수 있어요.
+              </p>
+              <button
+                type="button"
+                onClick={() => setRentalCalOverlayOpen(false)}
+                className="mt-3 w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700"
+              >
+                닫기
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

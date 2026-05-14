@@ -13,6 +13,7 @@ import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
 import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
+import { useBlock, useReportUser } from '@/features/block/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
@@ -277,7 +278,10 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         clearPendingImage()
         sendMessage(content, [getUrl])
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : '이미지 업로드에 실패했어요.')
+        // 진단 로그 — presigned 발급 / S3 PUT / send 중 어디서 실패하는지 콘솔로 확인 가능
+        console.error('chat image upload failed', err)
+        const msg = err instanceof Error ? err.message : '이미지 업로드에 실패했어요.'
+        toast.error(msg)
       } finally {
         setUploading(false)
       }
@@ -302,13 +306,34 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     })
   }
 
+  // 라운드14 — 신고/차단 실제 API 호출 (이전엔 모달만 닫고 동작 없었음)
+  const reportMut = useReportUser()
+  const blockMut  = useBlock()
+
   const handleReport = () => {
-    setReportOpen(false)
-    setReportReason('')
+    if (!room || !reportReason) {
+      toast.error('신고 사유를 선택해 주세요.')
+      return
+    }
+    reportMut.mutate(
+      { userId: room.opponentId, reason: reportReason },
+      {
+        onSuccess: () => {
+          toast.success('신고가 접수됐어요. 검토 후 조치됩니다.')
+          setReportOpen(false)
+          setReportReason('')
+        },
+        onError: () => toast.error('신고 접수에 실패했어요.'),
+      },
+    )
   }
 
   const handleBlock = () => {
-    setBlockOpen(false)
+    if (!room) return
+    blockMut.mutate(room.opponentId, {
+      onSuccess: () => setBlockOpen(false),
+      onError: () => toast.error('차단에 실패했어요.'),
+    })
   }
 
   return (

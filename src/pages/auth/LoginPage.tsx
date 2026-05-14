@@ -1,11 +1,13 @@
 // 로그인 페이지 컴포넌트: 사용자 인증 처리 및 로그인 기능 제공
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'  // React Hook Form 라이브러리
 import { zodResolver } from '@hookform/resolvers/zod'  // Zod 리졸버
-import { Link } from 'react-router-dom'  // React Router의 Link 컴포넌트
+import { Link, useLocation, useNavigate } from 'react-router-dom'  // React Router
 import { toast } from 'sonner'  // 토스트 알림
 import { loginSchema, type LoginRequest } from '@/features/auth/types'  // 인증 관련 타입
 import { useLogin } from '@/features/auth/hooks'  // 로그인 훅
 import { loginWithKakao, loginWithGoogle } from '@/features/auth/oauth'  // 소셜 로그인 SDK
+import { useAuthStore } from '@/features/auth/store'
 import { Button } from '@/shared/ui/Button'  // 버튼 컴포넌트
 import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
 
@@ -27,13 +29,34 @@ import { Input } from '@/shared/ui/Input'  // 입력 필드 컴포넌트
  */
 export default function LoginPage() {
   const { mutate: login, isPending } = useLogin()  // 로그인 뮤테이션 훅
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isLoggedIn = useAuthStore((s) => !!s.user)
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginRequest>({ resolver: zodResolver(loginSchema) })  // 폼 상태 관리
 
-  // 카카오/구글 모두 redirect 흐름 — 페이지가 provider 로 이동, 콜백은 SocialCallbackPage 가 처리
+  // 라운드14 — 가드 redirect 시 location.state.next 로 들어옴.
+  //   OAuth flow (페이지 이탈) 도 같이 처리하려면 sessionStorage 에도 저장.
+  const stateNext = (location.state as { next?: string } | null)?.next
+  const nextPath = stateNext ?? sessionStorage.getItem('postLoginNext') ?? '/'
+  useEffect(() => {
+    if (stateNext) sessionStorage.setItem('postLoginNext', stateNext)
+  }, [stateNext])
+
+  // 이미 로그인된 상태로 LoginPage 진입 시 즉시 next 로 이동
+  useEffect(() => {
+    if (isLoggedIn) {
+      sessionStorage.removeItem('postLoginNext')
+      navigate(nextPath, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn])
+
+  // 카카오/구글 모두 redirect 흐름 — 페이지가 provider 로 이동, 콜백은 SocialCallbackPage 가 처리.
+  //   SocialCallbackPage 는 sessionStorage('postLoginNext') 를 읽어 복귀.
   const handleKakao = () => {
     loginWithKakao().catch((err) => {
       toast.error(err instanceof Error ? err.message : '카카오 로그인에 실패했어요.')
