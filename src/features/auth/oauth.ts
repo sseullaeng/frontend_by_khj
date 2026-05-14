@@ -72,13 +72,16 @@ function stateFor(mode: OAuthAuthorizeMode): string | undefined {
 }
 
 // 카카오 로그인 시작 — 페이지가 카카오로 redirect 됨
+//   ⚠ Kakao SDK 는 state 가 undefined 일 때 명시 전달 시 "Illegal argument for state" 던짐.
+//      → mode 가 link 일 때만 state 키를 포함, 그 외엔 키 자체 생략.
 export async function loginWithKakao(mode: OAuthAuthorizeMode = 'login'): Promise<never> {
   await ensureKakaoSDK()
   if (!window.Kakao) throw new Error('Kakao SDK 미로드')
+  const stateVal = stateFor(mode)
   window.Kakao.Auth.authorize({
     redirectUri: KAKAO_REDIRECT_URI,
     scope: 'account_email',
-    state: stateFor(mode),
+    ...(stateVal ? { state: stateVal } : {}),
   })
   // page is redirecting; this promise never resolves
   return new Promise(() => {})
