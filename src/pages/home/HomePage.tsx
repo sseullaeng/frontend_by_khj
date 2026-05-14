@@ -1,6 +1,7 @@
-// 메인 홈페이지 — 배너 + HOT/대여/판매 섹션 (각 5×2 그리드 + 좌우 드래그 오버플로)
-import { useRef } from 'react'
+// 메인 홈페이지 — 배너 + HOT/대여/판매 섹션 (각 10개 단위 페이지 가로 캐러셀)
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import BannerSlider from '@/shared/ui/BannerSlider'
 import ItemCard from '@/features/item/components/ItemCard'
 import { itemApi } from '@/features/item/api'
@@ -8,6 +9,7 @@ import { itemKeys } from '@/features/item/keys'
 import type { Item } from '@/features/item/types'
 import { bannerApi } from '@/features/banner/api'
 import { bannerKeys } from '@/features/banner/keys'
+import { cn } from '@/shared/lib/cn'
 
 const FETCH_SIZE = 24
 const GRID_COUNT = 10  // 한 줄 5개 × 2줄
@@ -149,61 +151,99 @@ function ItemSectionBody({
   if (isLoading) return <p className="text-center text-sm text-gray-400 py-10">불러오는 중...</p>
   if (items.length === 0) return <p className="text-center text-sm text-gray-400 py-10">{emptyMessage}</p>
 
-  const gridItems = items.slice(0, GRID_COUNT)
-  const overflowItems = items.slice(GRID_COUNT)
+  // 10개 단위로 페이지화. 한 페이지가 그 자체로 그리드 (2~5 cols, 2줄).
+  const pages: Item[][] = []
+  for (let i = 0; i < items.length; i += GRID_COUNT) {
+    pages.push(items.slice(i, i + GRID_COUNT))
+  }
 
+  if (pages.length === 1) {
+    // 페이지 1개 — 슬라이드 / 도트 / 화살표 모두 불필요
+    return <PageGrid items={pages[0]} />
+  }
+
+  return <PagedCarousel pages={pages} />
+}
+
+function PageGrid({ items }: { items: Item[] }) {
   return (
-    <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-        {gridItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
-        ))}
-      </div>
-      {overflowItems.length > 0 && (
-        <DragScrollRow>
-          {overflowItems.map((item) => (
-            <ItemCard key={item.id} item={item} className="w-40 sm:w-44 md:w-48 shrink-0" />
-          ))}
-        </DragScrollRow>
-      )}
-    </>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      {items.map((item) => (
+        <ItemCard key={item.id} item={item} />
+      ))}
+    </div>
   )
 }
 
-/** 좌우 드래그 가로 스크롤 — 터치는 native, 데스크탑은 pointer drag */
-function DragScrollRow({ children }: { children: React.ReactNode }) {
+/**
+ * 페이지 단위 가로 슬라이드 캐러셀.
+ *   - 각 페이지가 viewport 폭을 가득 차지 (w-full shrink-0 snap-start)
+ *   - snap-x snap-mandatory 로 한 페이지 단위로 정착
+ *   - 데스크탑: 좌우 화살표 + 마우스 드래그
+ *   - 모바일: 화살표 숨김, 터치 native 스크롤 + snap
+ *   - 하단 도트 인디케이터 (현재 페이지 강조, 클릭 시 해당 페이지로 이동)
+ */
+function PagedCarousel({ pages }: { pages: Item[][] }) {
   const ref = useRef<HTMLDivElement>(null)
   const startXRef = useRef(0)
   const scrollLeftRef = useRef(0)
   const movedRef = useRef(false)
   const draggingRef = useRef(false)
 
+  const [active, setActive] = useState(0)
+
+  const updateActive = () => {
+    const el = ref.current
+    if (!el) return
+    const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
+    setActive(Math.min(pages.length - 1, Math.max(0, idx)))
+  }
+
+  useEffect(() => {
+    updateActive()
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      // viewport 변경 시 현재 페이지가 어색하게 걸치지 않도록 강제 재정렬
+      el.scrollTo({ left: active * el.clientWidth, behavior: 'instant' as ScrollBehavior })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const goTo = (idx: number) => {
+    const el = ref.current
+    if (!el) return
+    const clamped = Math.min(pages.length - 1, Math.max(0, idx))
+    el.scrollTo({ left: clamped * el.clientWidth, behavior: 'smooth' })
+  }
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!ref.current) return
-    // 터치는 native scroll 그대로 (관성/스냅 유지). 마우스만 잡아서 drag scroll.
-    if (e.pointerType === 'touch') return
+    if (e.pointerType === 'touch') return  // 터치는 native (관성/snap 유지)
     draggingRef.current = true
     movedRef.current = false
     startXRef.current = e.clientX
     scrollLeftRef.current = ref.current.scrollLeft
     ref.current.setPointerCapture(e.pointerId)
   }
-
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current || !ref.current) return
     const dx = e.clientX - startXRef.current
     if (Math.abs(dx) > 4) movedRef.current = true
     ref.current.scrollLeft = scrollLeftRef.current - dx
   }
-
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current || !ref.current) return
     draggingRef.current = false
-    if (ref.current?.hasPointerCapture(e.pointerId)) {
+    if (ref.current.hasPointerCapture(e.pointerId)) {
       ref.current.releasePointerCapture(e.pointerId)
     }
+    // 드래그 종료 시 가장 가까운 페이지로 snap
+    const idx = Math.round(ref.current.scrollLeft / Math.max(1, ref.current.clientWidth))
+    goTo(idx)
   }
-
-  // drag 중에 카드(Link) 클릭이 발생하지 않도록 capture 단계에서 차단
   const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
     if (movedRef.current) {
       e.preventDefault()
@@ -212,17 +252,67 @@ function DragScrollRow({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const atStart = active === 0
+  const atEnd   = active === pages.length - 1
+
   return (
-    <div
-      ref={ref}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onClickCapture={onClickCapture}
-      className="mt-6 flex gap-4 overflow-x-auto pb-2 select-none cursor-grab active:cursor-grabbing [scrollbar-width:thin]"
-    >
-      {children}
+    <div className="relative group">
+      {/* 좌측 화살표 — 모바일 hide */}
+      {!atStart && (
+        <button
+          type="button"
+          onClick={() => goTo(active - 1)}
+          aria-label="이전 페이지"
+          className="hidden sm:flex absolute left-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+      {!atEnd && (
+        <button
+          type="button"
+          onClick={() => goTo(active + 1)}
+          aria-label="다음 페이지"
+          className="hidden sm:flex absolute right-1 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-gray-200 shadow-md text-gray-700 items-center justify-center hover:bg-white hover:shadow-lg transition-all"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
+
+      <div
+        ref={ref}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+        onScroll={updateActive}
+        className="flex overflow-x-auto select-none cursor-grab active:cursor-grabbing snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {pages.map((page, idx) => (
+          <div key={idx} className="w-full shrink-0 snap-start">
+            <PageGrid items={page} />
+          </div>
+        ))}
+      </div>
+
+      {/* 도트 인디케이터 */}
+      <div className="flex items-center justify-center gap-1.5 mt-4">
+        {pages.map((_, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => goTo(idx)}
+            aria-label={`${idx + 1}페이지로 이동`}
+            className={cn(
+              'rounded-full transition-all',
+              idx === active
+                ? 'w-5 h-2 bg-primary-500'
+                : 'w-2 h-2 bg-gray-300 hover:bg-gray-400',
+            )}
+          />
+        ))}
+      </div>
     </div>
   )
 }
