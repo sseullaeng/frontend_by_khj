@@ -11,14 +11,33 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import type { InfiniteData } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { notificationApi } from './api'
-import type { Notification } from './types'
+import type { Notification, NotificationLinkType } from './types'
 import type { PageResponse } from '@/shared/types'
 import { useAuthStore } from '@/features/auth/store'
 import { subscribeStomp } from '@/shared/lib/stomp'
 
 const NOTI_QUEUE = '/user/queue/notifications'
+
+function notificationToHref(noti: Notification): string {
+  if (!noti.linkType || noti.linkId == null) return '/notifications'
+
+  const map: Record<NotificationLinkType, string> = {
+    CHAT_ROOM: '/notifications',
+    TRANSACTION: `/mypage/trades/${noti.linkId}`,
+    ESCROW: `/escrow/${noti.linkId}/buyer-info`,
+    DELIVERY: `/deliveries/${noti.linkId}`,
+    ITEM: `/items/${noti.linkId}`,
+    REVIEW: '/reviews',
+    PAYMENT: '/points',
+    INQUIRY: `/mypage/inquiries/${noti.linkId}`,
+    OVERDUE: '/mypage/overdue',
+  }
+
+  return map[noti.linkType] ?? '/notifications'
+}
 
 export const notificationKeys = {
   all:         ()                       => ['notifications'] as const,
@@ -116,13 +135,47 @@ export function useMarkAllRead() {
  */
 export function useNotificationStream() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const unsubscribe = subscribeStomp(NOTI_QUEUE, (frame) => {
       try {
         const noti: Notification = JSON.parse(frame.body)
 
-        toast(noti.title, { description: noti.content })
+        toast(noti.title, {
+          description: noti.content,
+          position: 'bottom-center',
+          duration: 5000,
+          action: {
+            label: '보기',
+            onClick: () => {
+              notificationApi.markRead(noti.id).catch(() => undefined)
+              qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
+                notificationKeys.list(),
+                (old) => {
+                  if (!old) return old
+                  return {
+                    ...old,
+                    pages: old.pages.map((page) => ({
+                      ...page,
+                      content: page.content.map((item) =>
+                        item.id === noti.id ? { ...item, read: true } : item
+                      ),
+                    })),
+                  }
+                }
+              )
+              if (!noti.read) {
+                qc.setQueryData<{ unread: number } | undefined>(
+                  notificationKeys.unreadCount(),
+                  (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev)
+                )
+              }
+              qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
+              navigate(notificationToHref(noti))
+            },
+          },
+        })
 
         // 목록 캐시 맨 앞에 prepend
         qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
@@ -149,5 +202,5 @@ export function useNotificationStream() {
       }
     })
     return unsubscribe
-  }, [qc])
+  }, [navigate, qc])
 }
