@@ -22,11 +22,28 @@ const STATUS_TABS: { value: AdminReportStatus | 'ALL'; label: string }[] = [
   { value: 'REJECTED',    label: '반려' },
 ]
 
-const STATUS_BADGE: Record<AdminReportStatus, { label: string; cls: string; icon: typeof Clock }> = {
+// 라운드14 — 백엔드가 응답 status 에 영어 alias 추가 + 한글 enum 도 혼재 가능.
+//   프론트 enum 외 값이 와도 crash 안 나도록 fallback 처리.
+type StatusBadge = { label: string; cls: string; icon: typeof Clock }
+const STATUS_BADGE_BASE: Record<AdminReportStatus, StatusBadge> = {
   PENDING:     { label: '대기',    cls: 'text-amber-700 bg-amber-100',     icon: Clock },
   IN_PROGRESS: { label: '처리 중', cls: 'text-blue-700 bg-blue-100',       icon: AlertTriangle },
   COMPLETED:   { label: '완료',    cls: 'text-emerald-700 bg-emerald-100', icon: CheckCircle },
   REJECTED:    { label: '반려',    cls: 'text-gray-600 bg-gray-100',       icon: XCircle },
+}
+// 한글 alias (구버전 응답 호환)
+const STATUS_BADGE: Record<string, StatusBadge> = {
+  ...STATUS_BADGE_BASE,
+  '대기':    STATUS_BADGE_BASE.PENDING,
+  '처리중':  STATUS_BADGE_BASE.IN_PROGRESS,
+  '처리 중': STATUS_BADGE_BASE.IN_PROGRESS,
+  '완료':    STATUS_BADGE_BASE.COMPLETED,
+  '반려':    STATUS_BADGE_BASE.REJECTED,
+}
+const FALLBACK_BADGE: StatusBadge = {
+  label: '알 수 없음',
+  cls: 'text-gray-500 bg-gray-100',
+  icon: AlertTriangle,
 }
 
 export default function AdminReportPage() {
@@ -76,7 +93,7 @@ export default function AdminReportPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {data!.content.map((r) => {
-            const badge = STATUS_BADGE[r.status]
+            const badge = STATUS_BADGE[r.status as string] ?? FALLBACK_BADGE
             const Icon = badge.icon
             return (
               <li
