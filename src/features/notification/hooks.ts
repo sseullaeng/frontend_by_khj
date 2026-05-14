@@ -3,7 +3,7 @@
 // 실시간: /user/queue/notifications 구독 (Spring 자동 라우팅, 본인 한정)
 // 안 읽은 개수 / 모두 읽음 — 백엔드 endpoint 미제공 → 클라이언트 derive
 
-import { useEffect, useRef } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
@@ -20,6 +20,28 @@ import { useAuthStore } from '@/features/auth/store'
 import { subscribeStomp } from '@/shared/lib/stomp'
 
 const NOTI_QUEUE = '/user/queue/notifications'
+
+function notificationTone(noti: Notification): { label: string; icon: string; color: string; badge: string } {
+  if (noti.linkType === 'INQUIRY') {
+    return { label: '문의', icon: 'Q', color: 'text-violet-700 bg-violet-50 border-violet-200', badge: 'bg-violet-100 text-violet-700' }
+  }
+  if (noti.type === 'DELIVERY' || noti.linkType === 'DELIVERY') {
+    return { label: '배달', icon: 'D', color: 'text-sky-700 bg-sky-50 border-sky-200', badge: 'bg-sky-100 text-sky-700' }
+  }
+  if (noti.type === 'ESCROW' || noti.linkType === 'ESCROW') {
+    return { label: '거래대행', icon: 'E', color: 'text-orange-700 bg-orange-50 border-orange-200', badge: 'bg-orange-100 text-orange-700' }
+  }
+  if (noti.type === 'TRANSACTION' || noti.linkType === 'TRANSACTION') {
+    return { label: '거래', icon: 'T', color: 'text-amber-700 bg-amber-50 border-amber-200', badge: 'bg-amber-100 text-amber-700' }
+  }
+  if (noti.type === 'REVIEW' || noti.linkType === 'REVIEW') {
+    return { label: '리뷰', icon: 'R', color: 'text-pink-700 bg-pink-50 border-pink-200', badge: 'bg-pink-100 text-pink-700' }
+  }
+  if (noti.type === 'CHAT' || noti.type === 'MESSAGE' || noti.linkType === 'CHAT_ROOM') {
+    return { label: '채팅', icon: 'C', color: 'text-blue-700 bg-blue-50 border-blue-200', badge: 'bg-blue-100 text-blue-700' }
+  }
+  return { label: '알림', icon: 'N', color: 'text-gray-700 bg-gray-50 border-gray-200', badge: 'bg-gray-100 text-gray-700' }
+}
 
 function notificationToHref(noti: Notification): string {
   if (!noti.linkType || noti.linkId == null) return '/notifications'
@@ -142,39 +164,99 @@ export function useNotificationStream() {
     if (poppedIdsRef.current.has(noti.id)) return
     poppedIdsRef.current.add(noti.id)
 
-    toast(noti.title, {
-      description: noti.content,
-      duration: 5000,
-      action: {
-        label: '보기',
-        onClick: () => {
-          notificationApi.markRead(noti.id).catch(() => undefined)
-          qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
-            notificationKeys.list(),
-            (old) => {
-              if (!old) return old
-              return {
-                ...old,
-                pages: old.pages.map((page) => ({
-                  ...page,
-                  content: page.content.map((item) =>
-                    item.id === noti.id ? { ...item, read: true } : item
-                  ),
-                })),
-              }
-            }
-          )
-          if (!noti.read) {
-            qc.setQueryData<{ unread: number } | undefined>(
-              notificationKeys.unreadCount(),
-              (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev)
-            )
+    const openNotification = () => {
+      notificationApi.markRead(noti.id).catch(() => undefined)
+      qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
+        notificationKeys.list(),
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              content: page.content.map((item) =>
+                item.id === noti.id ? { ...item, read: true } : item
+              ),
+            })),
           }
-          qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
-          navigate(notificationToHref(noti))
+        }
+      )
+      if (!noti.read) {
+        qc.setQueryData<{ unread: number } | undefined>(
+          notificationKeys.unreadCount(),
+          (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev)
+        )
+      }
+      qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
+      navigate(notificationToHref(noti))
+    }
+
+    const tone = notificationTone(noti)
+    toast.custom((id) =>
+      createElement(
+        'div',
+        {
+          className:
+            'w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/15 ring-1 ring-black/5',
         },
+        createElement(
+          'div',
+          { className: 'flex gap-3 p-4' },
+          createElement(
+            'div',
+            {
+              className: `mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${tone.color}`,
+            },
+            tone.icon,
+          ),
+          createElement(
+            'div',
+            { className: 'min-w-0 flex-1' },
+            createElement(
+              'div',
+              { className: 'mb-1 flex items-center gap-2' },
+              createElement(
+                'span',
+                { className: `rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone.badge}` },
+                tone.label,
+              ),
+              createElement('span', { className: 'h-1 w-1 rounded-full bg-gray-300' }),
+              createElement('span', { className: 'text-[11px] text-gray-400' }, '새 알림'),
+            ),
+            createElement('p', { className: 'truncate text-sm font-semibold text-gray-950' }, noti.title),
+            createElement('p', { className: 'mt-1 line-clamp-2 text-sm leading-5 text-gray-500' }, noti.content),
+            createElement(
+              'div',
+              { className: 'mt-3 flex items-center justify-end gap-2' },
+              createElement(
+                'button',
+                {
+                  type: 'button',
+                  className: 'rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700',
+                  onClick: () => toast.dismiss(id),
+                },
+                '닫기',
+              ),
+              createElement(
+                'button',
+                {
+                  type: 'button',
+                  className: 'rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600',
+                  onClick: () => {
+                    toast.dismiss(id)
+                    openNotification()
+                  },
+                },
+                '보기',
+              ),
+            ),
+          ),
+        ),
+      ),
+      {
+        duration: 6000,
       },
-    })
+    )
   }
 
   useEffect(() => {
