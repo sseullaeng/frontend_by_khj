@@ -31,9 +31,9 @@ import { cn } from '@/shared/lib/cn'
 import FeeCalculator from '@/features/escrow/components/FeeCalculator'
 
 const FEE_PAYER_OPTIONS: { code: FeePayer; label: string }[] = [
-  { code: 'both',   label: '50:50 부담' },
+  { code: 'both', label: '50:50 부담' },
   { code: 'seller', label: '판매자 전액' },
-  { code: 'buyer',  label: '구매자 전액' },
+  { code: 'buyer', label: '구매자 전액' },
 ]
 
 const MAX_IMAGES = 5
@@ -42,19 +42,19 @@ export default function EscrowInternalApplicationPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const chatRoomId = Number(params.get('chatRoomId'))
-  const itemId     = Number(params.get('itemId'))
+  const itemId = Number(params.get('itemId'))
 
-  const [itemPrice,       setItemPrice]       = useState<number>(0)
+  const [itemPrice, setItemPrice] = useState<number>(0)
   const [itemDescription, setItemDescription] = useState('')
-  const [rentalStartAt,   setRentalStartAt]   = useState('')   // 라운드14 V43
-  const [rentalEndAt,     setRentalEndAt]     = useState('')
-  const [feePayer,        setFeePayer]        = useState<FeePayer>('both')
+  const [rentalStartAt, setRentalStartAt] = useState('') // 라운드14 V43
+  const [rentalEndAt, setRentalEndAt] = useState('')
+  const [feePayer, setFeePayer] = useState<FeePayer>('both')
 
-  const [pickupAddr,  setPickupAddr]  = useState<AddressResult | null>(null)
+  const [pickupAddr, setPickupAddr] = useState<AddressResult | null>(null)
   const [addressOpen, setAddressOpen] = useState(false)
 
-  const [weight,    setWeight]    = useState<EscrowWeightCode | null>('1to3')
-  const [volume,    setVolume]    = useState<EscrowVolumeCode | null>('m')
+  const [weight, setWeight] = useState<EscrowWeightCode | null>('1to3')
+  const [volume, setVolume] = useState<EscrowVolumeCode | null>('m')
   const [fragility, setFragility] = useState<EscrowFragilityCode | null>('f1')
   const [deliveryNotes, setDeliveryNotes] = useState('')
 
@@ -70,15 +70,21 @@ export default function EscrowInternalApplicationPage() {
   const { data: chatRoom } = useChatRoom(chatRoomId || 0)
   const { data: item } = useItemDetail(itemId || 0)
   const [prefilled, setPrefilled] = useState(false)
-  // 반납 기한 입력은 백엔드 spec 기준 — item.tradeTypes 에 '대여' 가 포함된 모든 신청 폼에 노출.
-  //   (대여+판매 겸용 item 이라도 백엔드가 대여 거래대행 lifecycle 을 적용할 수 있도록)
-  const isRentalEscrow = item?.tradeTypes?.includes('대여') ?? false
+  // 반납 기한 입력은 채팅방의 실제 거래 모드가 대여이거나, 물품이 대여 가능할 때 노출.
+  //   tradeTypes 누락/legacy 응답도 tradeType 으로 보정한다.
+  const isRentalEscrow =
+    chatRoom?.tradeMode === '대여' ||
+    item?.tradeTypes?.includes('대여') ||
+    item?.tradeType === '대여' ||
+    false
 
   // 라운드14 V43 통합 — buyer 의 사전 대여 신청이 chatRoom 에 있으면 백엔드가 그 기간을 자동 재사용.
   //   ChatRoomCard.rentalStart/End 가 채워져 있으면 picker 비활성화 + 사전 기간 안내.
   const presetStart = chatRoom?.card?.rentalStart ?? null
-  const presetEnd   = chatRoom?.card?.rentalEnd ?? null
+  const presetEnd = chatRoom?.card?.rentalEnd ?? null
   const hasPresetPeriod = !!(isRentalEscrow && presetStart && presetEnd)
+  const effectiveRentalStart = hasPresetPeriod ? presetStart! : rentalStartAt
+  const effectiveRentalEnd = hasPresetPeriod ? presetEnd! : rentalEndAt
 
   // 라운드14 V43 — 대여 itemPrice 는 백엔드가 rentalPrice × duration 으로 자동 산정·검증.
   //   FE 가 임의 가격 못 보냄 (위변조 차단). 사용자에게는 미리 계산해서 표시만.
@@ -86,11 +92,20 @@ export default function EscrowInternalApplicationPage() {
   const rentalAuto = useMemo(() => {
     if (!isRentalEscrow) return null
     if (!item?.rentalUnit || !item.rentalPrice) return null
-    const s = hasPresetPeriod ? presetStart! : rentalStartAt
-    const e = hasPresetPeriod ? presetEnd!   : rentalEndAt
-    if (!s || !e) return null
-    return computeRentalPrice(s, e, item.rentalUnit, item.rentalPrice)
-  }, [isRentalEscrow, hasPresetPeriod, presetStart, presetEnd, rentalStartAt, rentalEndAt, item?.rentalUnit, item?.rentalPrice])
+    if (!effectiveRentalStart || !effectiveRentalEnd) return null
+    return computeRentalPrice(
+      effectiveRentalStart,
+      effectiveRentalEnd,
+      item.rentalUnit,
+      item.rentalPrice
+    )
+  }, [
+    isRentalEscrow,
+    effectiveRentalStart,
+    effectiveRentalEnd,
+    item?.rentalUnit,
+    item?.rentalPrice,
+  ])
 
   // 자동 산정 결과를 itemPrice state 에 반영 (송신용 — 백엔드는 무시하지만 정합성 유지)
   useEffect(() => {
@@ -104,9 +119,11 @@ export default function EscrowInternalApplicationPage() {
     // 채팅방의 tradeMode 기준으로 가격 선택 (판매 → salePrice, 대여 → rentalPrice, 나눔 → 0)
     const mode = chatRoom.tradeMode
     const price =
-      mode === '나눔' ? 0 :
-      mode === '대여' ? (item.rentalPrice ?? item.price ?? 0) :
-                        (item.salePrice   ?? item.price ?? 0)
+      mode === '나눔'
+        ? 0
+        : mode === '대여'
+          ? (item.rentalPrice ?? item.price ?? 0)
+          : (item.salePrice ?? item.price ?? 0)
 
     setItemPrice(price)
     // 물품 설명 — Item 의 description 우선, 없으면 title
@@ -127,25 +144,45 @@ export default function EscrowInternalApplicationPage() {
       return
     }
     // 라운드13 PR #128 — 나눔 거래는 0원 허용. 음수만 거부.
-    if (itemPrice < 0)                       { toast.error('물품 가격은 0원 이상이어야 해요.'); return }
-    if (!itemDescription.trim())              { toast.error('물품 설명을 입력해 주세요.'); return }
+    if (itemPrice < 0) {
+      toast.error('물품 가격은 0원 이상이어야 해요.')
+      return
+    }
+    if (!itemDescription.trim()) {
+      toast.error('물품 설명을 입력해 주세요.')
+      return
+    }
     // 라운드14 V43 — 대여 거래는 rentalStartAt + rentalEndAt 둘 다 필수, start < end
     //   (chatRoom 에 buyer 사전 신청이 있으면 백엔드가 그 기간을 자동 재사용하지만,
     //    FE 는 입력값 보내고 백엔드가 우선순위에 따라 처리한다.)
     if (isRentalEscrow && !hasPresetPeriod) {
       // 사전 신청 기간이 chatRoom 에 있으면 picker 누락 가능 (백엔드가 그 기간 자동 사용)
-      if (!rentalStartAt)              { toast.error('대여 시작 일시를 입력해 주세요.'); return }
-      if (!rentalEndAt)                { toast.error('반납 예정 일시를 입력해 주세요.'); return }
-      if (rentalStartAt >= rentalEndAt) { toast.error('반납 일시는 시작 일시보다 늦어야 해요.'); return }
+      if (!rentalStartAt) {
+        toast.error('대여 시작 일시를 입력해 주세요.')
+        return
+      }
+      if (!rentalEndAt) {
+        toast.error('반납 예정 일시를 입력해 주세요.')
+        return
+      }
+      if (rentalStartAt >= rentalEndAt) {
+        toast.error('반납 일시는 시작 일시보다 늦어야 해요.')
+        return
+      }
     }
-    if (!pickupAddr)                          { toast.error('픽업 주소를 검색해 주세요.'); return }
-    if (!weight || !volume || !fragility)     { toast.error('옵션을 모두 선택해 주세요.'); return }
+    if (!pickupAddr) {
+      toast.error('픽업 주소를 검색해 주세요.')
+      return
+    }
+    if (!weight || !volume || !fragility) {
+      toast.error('옵션을 모두 선택해 주세요.')
+      return
+    }
 
     try {
       // 새로 추가한 사진 업로드 + 기존 Item 이미지 URL 합치기
-      const uploaded = imageFiles.length > 0
-        ? (await uploadImages('ESCROW', imageFiles)).map((u) => u.getUrl)
-        : []
+      const uploaded =
+        imageFiles.length > 0 ? (await uploadImages('ESCROW', imageFiles)).map((u) => u.getUrl) : []
       const imageUrls = [...keepImageUrls, ...uploaded].slice(0, MAX_IMAGES)
 
       const app = await create.mutateAsync({
@@ -155,11 +192,11 @@ export default function EscrowInternalApplicationPage() {
         feePayer,
         itemPrice,
         itemDescription: itemDescription.trim(),
-        rentalStartAt: isRentalEscrow ? toApiLocalDateTime(rentalStartAt) : undefined,
-        rentalEndAt:   isRentalEscrow ? toApiLocalDateTime(rentalEndAt)   : undefined,
+        rentalStartAt: isRentalEscrow ? toApiLocalDateTime(effectiveRentalStart) : undefined,
+        rentalEndAt: isRentalEscrow ? toApiLocalDateTime(effectiveRentalEnd) : undefined,
         pickupAddress: pickupAddr.address,
-        pickupLat:     pickupAddr.lat,
-        pickupLng:     pickupAddr.lng,
+        pickupLat: pickupAddr.lat,
+        pickupLng: pickupAddr.lng,
         weight,
         volume,
         fragility,
@@ -169,32 +206,37 @@ export default function EscrowInternalApplicationPage() {
       navigate(`/escrow/list?highlight=${app.id}`)
     } catch (err) {
       if (err instanceof BusinessError) toast.error(err.message)
-      else if (err instanceof Error)    toast.error(err.message)
+      else if (err instanceof Error) toast.error(err.message)
     }
   }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-12">
       <div className="flex items-center gap-2 mb-2">
-        <button onClick={() => navigate(-1)} className="p-1 text-gray-400 hover:text-gray-600" aria-label="뒤로">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-1 text-gray-400 hover:text-gray-600"
+          aria-label="뒤로"
+        >
           <ChevronLeft size={22} />
         </button>
         <h1 className="text-xl font-bold text-gray-900">거래대행 신청 (판매자)</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-6">채팅방 #{chatRoomId} · 물품 #{itemId}</p>
+      <p className="text-sm text-gray-500 mb-6">
+        채팅방 #{chatRoomId} · 물품 #{itemId}
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-
         {/* ── 좌측: 판매자 입력 ──────────────────────────────────── */}
         <div className="flex flex-col gap-6">
-
           {/* 안내 */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2">
             <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-semibold text-amber-900 mb-1">판매자 단계예요</p>
               <p className="text-xs text-amber-700/90 leading-relaxed">
-                여기서는 픽업 주소·물품 정보까지만 입력해요.<br />
+                여기서는 픽업 주소·물품 정보까지만 입력해요.
+                <br />
                 제출 후 구매자가 수령지를 입력하면 정확한 거리·배달비가 자동 산정돼요.
               </p>
             </div>
@@ -213,7 +255,7 @@ export default function EscrowInternalApplicationPage() {
                     'py-2 rounded-lg text-xs font-medium border transition-colors',
                     feePayer === o.code
                       ? 'bg-primary-500 text-white border-primary-500'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300',
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
                   )}
                 >
                   {o.label}
@@ -238,7 +280,10 @@ export default function EscrowInternalApplicationPage() {
                       <b>{(item?.rentalPrice ?? 0).toLocaleString()}원</b>
                       <span className="text-xs text-sky-700"> / {item?.rentalUnit}</span>
                       <span className="text-sky-700 mx-1">×</span>
-                      <b>{rentalAuto.duration}{item?.rentalUnit}</b>
+                      <b>
+                        {rentalAuto.duration}
+                        {item?.rentalUnit}
+                      </b>
                       <span className="text-sky-700 mx-1">=</span>
                       <b className="text-base">{rentalAuto.total.toLocaleString()}원</b>
                     </p>
@@ -262,7 +307,9 @@ export default function EscrowInternalApplicationPage() {
                   inputMode="numeric"
                   value={itemPrice || ''}
                   onChange={(e) => setItemPrice(Number(e.target.value) || 0)}
-                  onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault() }}
+                  onKeyDown={(e) => {
+                    if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault()
+                  }}
                   placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:border-primary-500"
                 />
@@ -335,7 +382,8 @@ export default function EscrowInternalApplicationPage() {
               )}
               {item?.deposit != null && item.deposit > 0 && (
                 <p className="mt-3 text-xs text-gray-500">
-                  물품 보증금: {item.deposit.toLocaleString()}{item.depositType === 'PERCENT' ? '%' : '원'}
+                  물품 보증금: {item.deposit.toLocaleString()}
+                  {item.depositType === 'PERCENT' ? '%' : '원'}
                   <span className="text-gray-400 ml-1">(결제 시 자동 hold)</span>
                 </p>
               )}
@@ -363,11 +411,17 @@ export default function EscrowInternalApplicationPage() {
           {/* 사진 — 기존 Item 사진(URL) + 새로 추가한 사진(File) */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
             <p className="text-sm font-semibold text-gray-900 mb-3">
-              물품 사진 <span className="text-xs font-normal text-gray-400">({keepImageUrls.length + imageFiles.length}/{MAX_IMAGES}, 선택)</span>
+              물품 사진{' '}
+              <span className="text-xs font-normal text-gray-400">
+                ({keepImageUrls.length + imageFiles.length}/{MAX_IMAGES}, 선택)
+              </span>
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {keepImageUrls.map((url, index) => (
-                <div key={`url-${index}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                <div
+                  key={`url-${index}`}
+                  className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden"
+                >
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
@@ -380,8 +434,15 @@ export default function EscrowInternalApplicationPage() {
                 </div>
               ))}
               {imageFiles.map((file, index) => (
-                <div key={`new-${index}`} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                <div
+                  key={`new-${index}`}
+                  className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden"
+                >
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))}
@@ -392,7 +453,7 @@ export default function EscrowInternalApplicationPage() {
                   </button>
                 </div>
               ))}
-              {(keepImageUrls.length + imageFiles.length) < MAX_IMAGES && (
+              {keepImageUrls.length + imageFiles.length < MAX_IMAGES && (
                 <label className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-200">
                   <input
                     ref={fileInputRef}
@@ -405,7 +466,10 @@ export default function EscrowInternalApplicationPage() {
                       const valid: File[] = []
                       for (const f of files) {
                         const err = validateImageFile(f)
-                        if (err) { toast.error(err); continue }
+                        if (err) {
+                          toast.error(err)
+                          continue
+                        }
                         valid.push(f)
                       }
                       const slots = MAX_IMAGES - keepImageUrls.length
@@ -421,7 +485,9 @@ export default function EscrowInternalApplicationPage() {
 
           {/* 배달 메모 */}
           <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
-            <label className="text-sm font-semibold text-gray-900 mb-2 block">배달 메모 (선택)</label>
+            <label className="text-sm font-semibold text-gray-900 mb-2 block">
+              배달 메모 (선택)
+            </label>
             <textarea
               value={deliveryNotes}
               onChange={(e) => setDeliveryNotes(e.target.value)}
@@ -442,7 +508,7 @@ export default function EscrowInternalApplicationPage() {
           onVolumeChange={setVolume}
           onFragilityChange={setFragility}
           itemPrice={itemPrice}
-          fees={null}                         // draft 단계엔 delivery 없어 preview 호출 불가
+          fees={null} // draft 단계엔 delivery 없어 preview 호출 불가
           settings={feeSettings}
           showPreviewUnavailableHint
         />
@@ -460,7 +526,10 @@ export default function EscrowInternalApplicationPage() {
       <KakaoAddressSearch
         open={addressOpen}
         onClose={() => setAddressOpen(false)}
-        onSelect={(r) => { setPickupAddr(r); setAddressOpen(false) }}
+        onSelect={(r) => {
+          setPickupAddr(r)
+          setAddressOpen(false)
+        }}
       />
     </div>
   )
@@ -479,19 +548,19 @@ function nowLocalInputValue(): string {
 // 라운드14 V43 — 백엔드 RentalDurationCalculator 와 동일 공식 (사용자 미리보기용).
 //   duration = ceil((end - start) / unit), 최소 1.  단위: 시간 / 일 / 주 / 월(=30일 근사)
 const UNIT_MS: Record<RentalUnit, number> = {
-  '시간':           60 * 60 * 1000,
-  '일':        24 * 60 * 60 * 1000,
-  '주':    7 * 24 * 60 * 60 * 1000,
-  '월':   30 * 24 * 60 * 60 * 1000,
+  시간: 60 * 60 * 1000,
+  일: 24 * 60 * 60 * 1000,
+  주: 7 * 24 * 60 * 60 * 1000,
+  월: 30 * 24 * 60 * 60 * 1000,
 }
 function computeRentalPrice(
   startInput: string,
   endInput: string,
   unit: RentalUnit,
-  rentalPrice: number,
+  rentalPrice: number
 ): { duration: number; total: number } {
   const start = new Date(startInput).getTime()
-  const end   = new Date(endInput).getTime()
+  const end = new Date(endInput).getTime()
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
     return { duration: 0, total: 0 }
   }

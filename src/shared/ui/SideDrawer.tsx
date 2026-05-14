@@ -1,7 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
-import { X, MessageCircle, Bell, CheckCheck, ChevronLeft, Send, Flag, Ban, Star, Image as ImageIcon, Receipt, LogOut, Truck } from 'lucide-react'
+import UserProfileFloat from '@/shared/ui/UserProfileFloat' // 유저 프로필 플로팅 패널
+import {
+  X,
+  MessageCircle,
+  Bell,
+  CheckCheck,
+  ChevronLeft,
+  Send,
+  Flag,
+  Ban,
+  Star,
+  Image as ImageIcon,
+  Receipt,
+  LogOut,
+  Truck,
+} from 'lucide-react'
 import { uploadSingleImage, validateImageFile } from '@/shared/api/upload'
 import { compressImage } from '@/shared/lib/imageCompress'
 import { toast } from 'sonner'
@@ -23,14 +37,18 @@ export default function SideDrawer() {
   const isOpen = activeTab !== null
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
+    }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [close])
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
+    return () => {
+      document.body.style.overflow = ''
+    }
   }, [isOpen])
 
   return (
@@ -83,7 +101,7 @@ export default function SideDrawer() {
 
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          {activeTab === 'chat'         && <ChatPanel />}
+          {activeTab === 'chat' && <ChatPanel />}
           {activeTab === 'notification' && <NotificationPanel />}
         </div>
       </aside>
@@ -97,24 +115,23 @@ function ChatPanel() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['chat', 'rooms'],
-    queryFn: () => chatApi.getRooms().then(r => r.data),
+    queryFn: () => chatApi.getRooms().then((r) => r.data),
   })
   const rooms = data?.content ?? []
 
   if (activeChatRoomId) {
-    const room = rooms.find(r => r.id === activeChatRoomId)
+    const room = rooms.find((r) => r.id === activeChatRoomId)
     return <ChatRoomView roomId={activeChatRoomId} room={room} onBack={closeChatRoom} />
   }
 
   if (isLoading) return <p className="py-16 text-center text-sm text-gray-400">불러오는 중...</p>
 
-  if (!rooms.length) return (
-    <p className="py-16 text-center text-sm text-gray-400">진행 중인 채팅이 없어요</p>
-  )
+  if (!rooms.length)
+    return <p className="py-16 text-center text-sm text-gray-400">진행 중인 채팅이 없어요</p>
 
   return (
     <ul className="divide-y divide-gray-100 overflow-y-auto flex-1">
-      {rooms.map(room => (
+      {rooms.map((room) => (
         <li key={room.id}>
           <button
             onClick={() => openChatRoom(room.id)}
@@ -122,14 +139,20 @@ function ChatPanel() {
           >
             <div className="w-11 h-11 rounded-full bg-gray-200 shrink-0 overflow-hidden">
               {room.opponentProfileImage && (
-                <img src={room.opponentProfileImage} alt={room.opponentNickname} className="w-full h-full object-cover" />
+                <img
+                  src={room.opponentProfileImage}
+                  alt={room.opponentNickname}
+                  className="w-full h-full object-cover"
+                />
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-baseline">
                 <span className="font-medium text-sm text-gray-900">{room.opponentNickname}</span>
                 {room.lastMessageAt && (
-                  <span className="text-xs text-gray-400 shrink-0 ml-2">{fromNow(room.lastMessageAt)}</span>
+                  <span className="text-xs text-gray-400 shrink-0 ml-2">
+                    {fromNow(room.lastMessageAt)}
+                  </span>
                 )}
               </div>
               <p className="text-sm text-gray-500 truncate mt-0.5">{room.lastMessage ?? ''}</p>
@@ -157,9 +180,17 @@ const REPORT_REASONS = [
 ]
 
 /* ── 채팅방 뷰 ── */
-function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoom; onBack: () => void }) {
+function ChatRoomView({
+  roomId,
+  room,
+  onBack,
+}: {
+  roomId: number
+  room?: ChatRoom
+  onBack: () => void
+}) {
   const navigate = useNavigate()
-  const currentUser = useAuthStore(s => s.user)
+  const currentUser = useAuthStore((s) => s.user)
   const { close } = useDrawerStore()
   const { messages, sendMessage } = useChatMessages(roomId)
   // 라운드9: ChatRoom.isSeller 백엔드 응답 사용 (이전엔 useItemDetail 추가 호출)
@@ -186,48 +217,55 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   // 라운드12 — 채팅방 leave 상태 + 거래 시작 mutation
   const opponentLeft = room?.opponentLeft ?? false
   const iLeft = room?.iLeft ?? false
-  const chatBlocked = opponentLeft || iLeft   // 입력 / 액션 버튼 모두 disable
+  const chatBlocked = opponentLeft || iLeft // 입력 / 액션 버튼 모두 disable
   const { mutateAsync: leaveAsync, isPending: isLeaving } = useLeaveChatRoom()
   const { mutateAsync: createTxAsync, isPending: isCreatingTx } = useCreateTransaction()
 
   // 라운드13 PR #131 — 거래 상태 (room.card 에서) + [거래 완료] action='완료'
-  const txId     = room?.card?.transactionId ?? null
+  const txId = room?.card?.transactionId ?? null
   const txStatus = room?.card?.transactionStatus ?? null
-  const isTxStarted   = !!txId && txStatus !== '거래완료' && txStatus !== '취소'
+  const isTxStarted = !!txId && txStatus !== '거래완료' && txStatus !== '취소'
   const isTxCompleted = txStatus === '거래완료'
   const patchTx = usePatchTransaction(txId ?? 0)
 
   // 라운드13 PR #132 — 거래대행 카드 (INTERNAL 거래대행 진행 중일 때)
-  const cardKind     = room?.card?.cardKind
-  const escrowAppId  = room?.card?.escrowApplicationId ?? null
+  const cardKind = room?.card?.cardKind
+  const escrowAppId = room?.card?.escrowApplicationId ?? null
   const escrowStatus = room?.card?.escrowStatus ?? null
   const isEscrowCard = cardKind === 'EscrowApplication'
-  const isEscrowCompleted  = isEscrowCard && escrowStatus === '완료'
-  const isEscrowCanceled   = isEscrowCard && escrowStatus === '취소'
+  const isEscrowCompleted = isEscrowCard && escrowStatus === '완료'
+  const isEscrowCanceled = isEscrowCard && escrowStatus === '취소'
 
   // 라운드14 — 거래대행 페어 시 단일 진입 (액션은 모두 EscrowDetailPage 에서)
   //   채팅방엔 [거래대행 페이지로] 한 줄만 노출.
 
   // 라운드14 — 대여 거래 매트릭스 (예약 → 인계 → 반납 → 회신)
-  const tradeMode = room?.tradeMode
-  const isRental  = tradeMode === '대여'
+  const tradeMode = room?.card?.tradeMode ?? room?.tradeMode
+  const isRental = tradeMode === '대여'
+  const presetRentalStart = room?.card?.rentalStart ?? null
+  const presetRentalEnd = room?.card?.rentalEnd ?? null
+  const hasPresetRentalPeriod = !!(presetRentalStart && presetRentalEnd)
 
   // 직거래 매트릭스 권한
-  const canStartTrade  = isSeller && !isTxStarted && !isTxCompleted && !isEscrowCard
+  const canStartTrade = isSeller && !isTxStarted && !isTxCompleted && !isEscrowCard
+  const canStartRequestedRental = canStartTrade && isRental && hasPresetRentalPeriod
   // 대여 단계별
-  const canReserve       = isSeller && isRental && txStatus === '채팅중'
-  const canHandover      = isSeller && isRental && txStatus === '예약'
-  const canReturn        = !isSeller && isRental && txStatus === '인계완료'
+  const canReserve = isSeller && isRental && txStatus === '채팅중'
+  const canHandover = isSeller && isRental && txStatus === '예약'
+  const canReturn = !isSeller && isRental && txStatus === '인계완료'
   const canConfirmReturn = isSeller && isRental && txStatus === '반납요청'
   // 직거래·나눔 — [거래 완료] 한 번에 (action='완료', 백엔드 가드: 대여 거부)
-  const canComplete      = isSeller && !isRental && isTxStarted
+  const canComplete = isSeller && !isRental && isTxStarted
   // 취소 — 양쪽, 채팅중·예약 까지 (인계완료 이후 차단)
-  const canCancel        = isTxStarted
-    && (txStatus === '채팅중' || txStatus === '예약')
-  // 거래대행 시작 — seller, 거래 시작됐고 채팅중 단계까지
-  const canStartEscrow   = isSeller && isTxStarted && txStatus === '채팅중' && !isEscrowCard
+  const canCancel = isTxStarted && (txStatus === '채팅중' || txStatus === '예약')
+  // 거래대행 시작 — 일반 거래는 채팅중, 대여는 판매자가 예약 확정한 뒤부터 노출.
+  const canStartEscrow =
+    isSeller &&
+    isTxStarted &&
+    !isEscrowCard &&
+    (isRental ? txStatus === '예약' : txStatus === '채팅중')
   // 거래 진행 중에는 [나가기] 숨김
-  const showLeaveButton  = !isTxStarted && !(isEscrowCard && !isEscrowCompleted && !isEscrowCanceled)
+  const showLeaveButton = !isTxStarted && !(isEscrowCard && !isEscrowCompleted && !isEscrowCanceled)
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -265,7 +303,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     const content = text.trim()
     if (!content && !pendingImage) return
     if (chatBlocked) {
-      toast.error(opponentLeft ? '상대방이 채팅방을 나갔어요.' : '나간 채팅방에는 메시지를 보낼 수 없어요.')
+      toast.error(
+        opponentLeft ? '상대방이 채팅방을 나갔어요.' : '나간 채팅방에는 메시지를 보낼 수 없어요.'
+      )
       return
     }
 
@@ -300,7 +340,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     navigate('/reviews/write', {
       state: {
         transactionId: txId,
-        itemId: room.itemId,                    // 거래대행은 null 가능 (EXTERNAL)
+        itemId: room.itemId, // 거래대행은 null 가능 (EXTERNAL)
         revieweeId: room.opponentId,
       },
     })
@@ -308,7 +348,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
   // 라운드14 — 신고/차단 실제 API 호출 (이전엔 모달만 닫고 동작 없었음)
   const reportMut = useReportUser()
-  const blockMut  = useBlock()
+  const blockMut = useBlock()
 
   const handleReport = () => {
     if (!room || !reportReason) {
@@ -324,7 +364,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           setReportReason('')
         },
         onError: () => toast.error('신고 접수에 실패했어요.'),
-      },
+      }
     )
   }
 
@@ -336,14 +376,40 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
     })
   }
 
+  const toBackendDateTime = (v: string) => (v.length === 16 ? `${v}:00` : v)
+
+  const handleStartTrade = async (dates?: { rentalStart: string; rentalEnd: string }) => {
+    if (!room) return
+    try {
+      const { id: txId } = await createTxAsync({
+        itemId: room.itemId,
+        chatRoomId: room.id,
+        transactionType: dates ? '대여' : isRental ? '대여' : (tradeMode ?? '판매'),
+        ...(dates
+          ? {
+              rentalStart: toBackendDateTime(dates.rentalStart),
+              rentalEnd: toBackendDateTime(dates.rentalEnd),
+            }
+          : {}),
+      } as Parameters<typeof createTxAsync>[0])
+      setRentalOpen(false)
+      close()
+      navigate(`/trades/${txId}`)
+    } catch {
+      // hook onError 토스트
+    }
+  }
+
   return (
     <div className="relative flex flex-col h-full overflow-hidden">
-
       {/* ── 신고 모달 ── */}
       {reportOpen && (
         <div className="absolute inset-0 z-10 bg-white flex flex-col">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-            <button onClick={() => setReportOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+            <button
+              onClick={() => setReportOpen(false)}
+              className="text-gray-400 hover:text-gray-600 p-1"
+            >
               <ChevronLeft size={20} />
             </button>
             <p className="text-sm font-semibold text-gray-900">신고 사유 선택</p>
@@ -355,7 +421,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   onClick={() => setReportReason(reason)}
                   className={cn(
                     'w-full flex items-center justify-between px-5 py-4 text-sm transition-colors',
-                    reportReason === reason ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                    reportReason === reason
+                      ? 'bg-red-50 text-red-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-50'
                   )}
                 >
                   {reason}
@@ -385,7 +453,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               <h3 className="text-base font-bold text-gray-900">차단하시겠어요?</h3>
             </div>
             <p className="text-sm text-gray-500 mb-5">
-              <span className="font-medium text-gray-700">{room?.opponentNickname}</span> 님을 차단하면 이 사용자의 글을 볼 수 없게 돼요.
+              <span className="font-medium text-gray-700">{room?.opponentNickname}</span> 님을
+              차단하면 이 사용자의 글을 볼 수 없게 돼요.
             </p>
             <div className="flex gap-2">
               <button
@@ -428,7 +497,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   try {
                     await leaveAsync(roomId)
                     setLeaveConfirmOpen(false)
-                    onBack()  // 채팅방 목록으로 복귀
+                    onBack() // 채팅방 목록으로 복귀
                   } catch (err) {
                     toast.error(err instanceof Error ? err.message : '나가지 못했어요.')
                   }
@@ -452,7 +521,8 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               <h3 className="text-base font-bold text-gray-900">거래 시작</h3>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              대여 거래라면 시작·종료 일시를 입력해 주세요. 판매·나눔 거래는 비워두고 [시작] 누르세요.
+              대여 거래라면 시작·종료 일시를 입력해 주세요. 판매·나눔 거래는 비워두고 [시작]
+              누르세요.
             </p>
             <div className="flex flex-col gap-2 mb-4">
               <div>
@@ -477,7 +547,11 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => { setRentalOpen(false); setRentalStart(''); setRentalEnd('') }}
+                onClick={() => {
+                  setRentalOpen(false)
+                  setRentalStart('')
+                  setRentalEnd('')
+                }}
                 className="flex-1 py-2 border border-gray-200 rounded-xl text-xs text-gray-600"
               >
                 취소
@@ -494,24 +568,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   }
                   // ChatRoom 응답에 한국어 tradeType 이 없어서 대여 일시 입력 여부로 추정.
                   //   대여 일시 있음 → '대여' / 없음 → '판매' (정확한 분기는 백엔드가 검증)
-                  const transactionType: '판매' | '대여' = (rentalStart && rentalEnd) ? '대여' : '판매'
-                  try {
-                    const toBackendDateTime = (v: string) => v.length === 16 ? `${v}:00` : v
-                    const { id: txId } = await createTxAsync({
-                      itemId: room.itemId,
-                      chatRoomId: room.id,
-                      transactionType,
-                      ...(rentalStart && rentalEnd ? {
-                        rentalStart: toBackendDateTime(rentalStart),
-                        rentalEnd:   toBackendDateTime(rentalEnd),
-                      } : {}),
-                    } as Parameters<typeof createTxAsync>[0])
-                    setRentalOpen(false)
-                    close()
-                    navigate(`/trades/${txId}`)
-                  } catch {
-                    // hook onError 토스트
-                  }
+                  const transactionType = rentalStart && rentalEnd ? '대여' : tradeMode
+                  await handleStartTrade(
+                    rentalStart && rentalEnd
+                      ? { rentalStart, rentalEnd }
+                      : transactionType === '대여' && presetRentalStart && presetRentalEnd
+                        ? { rentalStart: presetRentalStart, rentalEnd: presetRentalEnd }
+                        : undefined
+                  )
                 }}
                 disabled={isCreatingTx}
                 className="flex-1 py-2 bg-primary-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50"
@@ -525,7 +589,10 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
       {/* 채팅방 헤더 */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-gray-100 shrink-0">
-        <button onClick={onBack} className="text-gray-400 hover:text-gray-600 transition-colors p-1 shrink-0">
+        <button
+          onClick={onBack}
+          className="text-gray-400 hover:text-gray-600 transition-colors p-1 shrink-0"
+        >
           <ChevronLeft size={20} />
         </button>
 
@@ -538,9 +605,15 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
             >
               <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
                 {room.opponentProfileImage ? (
-                  <img src={room.opponentProfileImage} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={room.opponentProfileImage}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <span className="text-xs font-bold text-gray-500">{room.opponentNickname[0]}</span>
+                  <span className="text-xs font-bold text-gray-500">
+                    {room.opponentNickname[0]}
+                  </span>
                 )}
               </div>
               <p className="text-sm font-semibold text-gray-900">{room.opponentNickname}</p>
@@ -586,7 +659,6 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       {/* 거래 진입 — 라운드14 매트릭스: 4 거래 유형 × 시점별 버튼 */}
       {!isAdmin && !chatBlocked && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
-
           {/* 거래대행 페어 — 단일 진입 ([거래대행 페이지로]) */}
           {isEscrowCard && !isEscrowCompleted && !isEscrowCanceled && (
             <>
@@ -636,17 +708,35 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
               {/* 거래 시작 (판매자, 거래 시작 전) */}
               {canStartTrade && (
-                <button
-                  onClick={() => {
-                    if (!room) return
-                    setRentalOpen(true)
-                  }}
-                  disabled={isCreatingTx}
-                  className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Receipt size={13} />
-                  {isRental ? '대여 시작' : '거래 시작'}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      if (canStartRequestedRental && presetRentalStart && presetRentalEnd) {
+                        void handleStartTrade({
+                          rentalStart: presetRentalStart,
+                          rentalEnd: presetRentalEnd,
+                        })
+                        return
+                      }
+                      setRentalOpen(true)
+                    }}
+                    disabled={isCreatingTx}
+                    className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Receipt size={13} />
+                    {canStartRequestedRental
+                      ? '대여 거래 시작'
+                      : isRental
+                        ? '대여 시작'
+                        : '거래 시작'}
+                  </button>
+                  {canStartRequestedRental && presetRentalStart && presetRentalEnd && (
+                    <p className="text-[11px] text-primary-700/80 text-center">
+                      구매자 신청 기간: {formatKst(presetRentalStart, 'M/d HH:mm')} ~{' '}
+                      {formatKst(presetRentalEnd, 'M/d HH:mm')}
+                    </p>
+                  )}
+                </>
               )}
 
               {/* 직거래·나눔 — [거래 완료] 한 번에 */}
@@ -672,19 +762,23 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               {canReserve && (
                 <button
                   onClick={async () => {
-                    try { await patchTx.mutateAsync({ action: '예약' }) } catch {}
+                    try {
+                      await patchTx.mutateAsync({ action: '예약' })
+                    } catch {}
                   }}
                   disabled={patchTx.isPending}
                   className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Receipt size={13} />
-                  예약 확정
+                  대여 거래 시작
                 </button>
               )}
               {canHandover && (
                 <button
                   onClick={async () => {
-                    try { await patchTx.mutateAsync({ action: '인계확인' }) } catch {}
+                    try {
+                      await patchTx.mutateAsync({ action: '인계확인' })
+                    } catch {}
                   }}
                   disabled={patchTx.isPending}
                   className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -696,7 +790,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               {canReturn && (
                 <button
                   onClick={async () => {
-                    try { await patchTx.mutateAsync({ action: '반납요청' }) } catch {}
+                    try {
+                      await patchTx.mutateAsync({ action: '반납요청' })
+                    } catch {}
                   }}
                   disabled={patchTx.isPending}
                   className="w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -708,7 +804,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
               {canConfirmReturn && (
                 <button
                   onClick={async () => {
-                    try { await patchTx.mutateAsync({ action: '회신확인' }) } catch {}
+                    try {
+                      await patchTx.mutateAsync({ action: '회신확인' })
+                    } catch {}
                   }}
                   disabled={patchTx.isPending}
                   className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -770,7 +868,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
       {!isAdmin && chatBlocked && (
         <div className="px-4 py-3 bg-gray-100 border-b border-gray-200 flex flex-col items-center gap-2">
           <p className="text-xs text-gray-600 font-medium text-center">
-            {iLeft ? '나간 채팅방이에요. 메시지를 보낼 수 없어요.' : '상대방이 채팅방을 나갔어요. 메시지를 보낼 수 없어요.'}
+            {iLeft
+              ? '나간 채팅방이에요. 메시지를 보낼 수 없어요.'
+              : '상대방이 채팅방을 나갔어요. 메시지를 보낼 수 없어요.'}
           </p>
           {!iLeft && (
             <button
@@ -815,7 +915,11 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                 {room.card.itemThumbnailUrl && (
-                  <img src={room.card.itemThumbnailUrl} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={room.card.itemThumbnailUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -824,7 +928,9 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                     {room.card.tradeMode}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-900 truncate">{room.card.itemTitle}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {room.card.itemTitle}
+                </p>
                 <p className="text-sm font-bold text-gray-900 mt-0.5">
                   {room.card.tradeMode === '나눔'
                     ? '무료 나눔'
@@ -846,10 +952,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           const isMine = msg.senderId === currentUser?.id
           return (
             <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
-              <div className={cn(
-                'max-w-[75%] rounded-2xl text-sm overflow-hidden',
-                isMine ? 'bg-primary-500 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-              )}>
+              <div
+                className={cn(
+                  'max-w-[75%] rounded-2xl text-sm overflow-hidden',
+                  isMine
+                    ? 'bg-primary-500 text-white rounded-br-sm'
+                    : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                )}
+              >
                 {msg.imageUrls.length > 0 && (
                   <div className="flex flex-col gap-1">
                     {msg.imageUrls.map((url, i) => (
@@ -866,10 +976,12 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                 {msg.content && (
                   <p className="px-3 py-2 whitespace-pre-wrap break-words">{msg.content}</p>
                 )}
-                <p className={cn(
-                  'text-xs px-3 pb-1.5',
-                  isMine ? 'text-primary-200' : 'text-gray-400',
-                )}>
+                <p
+                  className={cn(
+                    'text-xs px-3 pb-1.5',
+                    isMine ? 'text-primary-200' : 'text-gray-400'
+                  )}
+                >
                   {toChatTimestamp(msg.createdAt)}
                 </p>
               </div>
@@ -926,9 +1038,11 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
           </button>
           <input
             className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-sm outline-none focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-400"
-            placeholder={chatBlocked ? '메시지를 보낼 수 없는 채팅방이에요' : '메시지를 입력해 주세요'}
+            placeholder={
+              chatBlocked ? '메시지를 보낼 수 없는 채팅방이에요' : '메시지를 입력해 주세요'
+            }
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               // IME 가드 — 한글/일본어/중국어 등 조합 입력 중 Enter 가 발생하면 마지막
               // 음절이 한 번 더 send 되는 버그가 있어 isComposing / keyCode 229 차단.
@@ -953,10 +1067,7 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 
       {/* 유저 프로필 플로팅 패널 */}
       {profileUserId !== null && (
-        <UserProfileFloat
-          userId={profileUserId}
-          onClose={() => setProfileUserId(null)}
-        />
+        <UserProfileFloat userId={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </div>
   )
@@ -965,31 +1076,40 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
 /* ── 알림 패널 ── */
 function NotificationPanel() {
   const navigate = useNavigate()
-  const close = useDrawerStore(s => s.close)
+  const close = useDrawerStore((s) => s.close)
 
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
   // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 목록에서는 제외
   const items = (data?.pages[0]?.content ?? []).filter(
-    (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE',
+    (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE'
   )
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
-  const handleNotificationClick = (n: typeof items[number]) => {
+  const handleNotificationClick = (n: (typeof items)[number]) => {
     close()
     if (!n.linkType || n.linkId == null) return
     const path = (() => {
       switch (n.linkType) {
-        case 'TRANSACTION': return `/trades/${n.linkId}`
+        case 'TRANSACTION':
+          return `/trades/${n.linkId}`
         // 라운드14 3-D — buyer-info 로 직접 분기 (페이지에 안전 redirect 가드 있음)
-        case 'ESCROW':      return `/escrow/${n.linkId}/buyer-info`
-        case 'DELIVERY':    return `/delivery/${n.linkId}/track`
-        case 'ITEM':        return `/items/${n.linkId}`
-        case 'REVIEW':      return '/reviews'
-        case 'PAYMENT':     return '/point'
-        case 'INQUIRY':     return `/mypage/inquiries/${n.linkId}`
-        case 'OVERDUE':     return '/mypage/overdue'
-        default:            return null
+        case 'ESCROW':
+          return `/escrow/${n.linkId}/buyer-info`
+        case 'DELIVERY':
+          return `/delivery/${n.linkId}/track`
+        case 'ITEM':
+          return `/items/${n.linkId}`
+        case 'REVIEW':
+          return '/reviews'
+        case 'PAYMENT':
+          return '/point'
+        case 'INQUIRY':
+          return `/mypage/inquiries/${n.linkId}`
+        case 'OVERDUE':
+          return '/mypage/overdue'
+        default:
+          return null
       }
     })()
     if (path) navigate(path)
@@ -997,7 +1117,6 @@ function NotificationPanel() {
 
   return (
     <div className="flex flex-col h-full">
-
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
         <span className="text-xs text-gray-500">{items.length}개의 알림</span>
         <button
@@ -1013,7 +1132,7 @@ function NotificationPanel() {
         {items.length === 0 && (
           <li className="py-16 text-center text-sm text-gray-400">알림이 없어요</li>
         )}
-        {items.map(n => (
+        {items.map((n) => (
           <li key={n.id}>
             <button
               onClick={() => handleNotificationClick(n)}
@@ -1039,39 +1158,73 @@ function NotificationPanel() {
 }
 
 // 알림 종류별 배지 — 시스템/문의/신고/거래/기타 분기
-function NotificationBadge({
-  type, linkType,
-}: { type: string; linkType: string | null }) {
+function NotificationBadge({ type, linkType }: { type: string; linkType: string | null }) {
   // INQUIRY linkType 은 백엔드 type 이 SYSTEM 등 다양한데, 사용자 시각상 '문의' 가 더 의미 있음 → 우선
   if (linkType === 'INQUIRY') {
-    return <span className="text-[11px] font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">문의</span>
+    return (
+      <span className="text-[11px] font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">
+        문의
+      </span>
+    )
   }
   if (type === 'SYSTEM') {
-    return <span className="text-[11px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">시스템</span>
+    return (
+      <span className="text-[11px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+        시스템
+      </span>
+    )
   }
   // 신고 알림은 백엔드에 type 이 없음 — title 에 '[신고]' 같은 prefix 가 들어오면 추정.
   // 정식 type 추가되면 확장.
   if (type === 'NOTICE') {
-    return <span className="text-[11px] font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">공지</span>
+    return (
+      <span className="text-[11px] font-medium bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+        공지
+      </span>
+    )
   }
   if (type === 'TRANSACTION') {
-    return <span className="text-[11px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">거래</span>
+    return (
+      <span className="text-[11px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+        거래
+      </span>
+    )
   }
   // ESCROW (linkType 도 동일) — '거래 신청' 으로 명시
   if (type === 'ESCROW' || linkType === 'ESCROW') {
-    return <span className="text-[11px] font-medium bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">거래 신청</span>
+    return (
+      <span className="text-[11px] font-medium bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+        거래 신청
+      </span>
+    )
   }
   if (type === 'DELIVERY') {
-    return <span className="text-[11px] font-medium bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">배달</span>
+    return (
+      <span className="text-[11px] font-medium bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded">
+        배달
+      </span>
+    )
   }
   if (type === 'POINT') {
-    return <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">포인트</span>
+    return (
+      <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+        포인트
+      </span>
+    )
   }
   if (type === 'REVIEW') {
-    return <span className="text-[11px] font-medium bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">리뷰</span>
+    return (
+      <span className="text-[11px] font-medium bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">
+        리뷰
+      </span>
+    )
   }
   if (type === 'CHAT' || type === 'MESSAGE') {
-    return <span className="text-[11px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">채팅</span>
+    return (
+      <span className="text-[11px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+        채팅
+      </span>
+    )
   }
   return null
 }
