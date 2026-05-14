@@ -60,24 +60,37 @@ async function ensureKakaoSDK(): Promise<void> {
   return kakaoSDKPromise
 }
 
+// 라운드14 — OAuth `state` 파라미터로 callback 모드 분기.
+//   - 일반 로그인: state 생략 (또는 단순 'login')
+//   - 계정 연결 (LOCAL → OAuth): state='link'
+//     → SocialCallbackPage 가 이 값을 읽어 social-link/preview 흐름으로 라우팅.
+export type OAuthAuthorizeMode = 'login' | 'link'
+const STATE_LINK = 'link'
+
+function stateFor(mode: OAuthAuthorizeMode): string | undefined {
+  return mode === 'link' ? STATE_LINK : undefined
+}
+
 // 카카오 로그인 시작 — 페이지가 카카오로 redirect 됨
-export async function loginWithKakao(): Promise<never> {
+export async function loginWithKakao(mode: OAuthAuthorizeMode = 'login'): Promise<never> {
   await ensureKakaoSDK()
   if (!window.Kakao) throw new Error('Kakao SDK 미로드')
   window.Kakao.Auth.authorize({
     redirectUri: KAKAO_REDIRECT_URI,
     scope: 'account_email',
+    state: stateFor(mode),
   })
   // page is redirecting; this promise never resolves
   return new Promise(() => {})
 }
 
 // 구글 로그인 시작 — 구글 OAuth URL 로 redirect
-export async function loginWithGoogle(): Promise<never> {
+export async function loginWithGoogle(mode: OAuthAuthorizeMode = 'login'): Promise<never> {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   if (!clientId) {
     throw new Error('VITE_GOOGLE_CLIENT_ID 환경변수가 비어있어요. 구글 OAuth Client ID를 설정해 주세요.')
   }
+  const stateVal = stateFor(mode)
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: GOOGLE_REDIRECT_URI,
@@ -85,7 +98,13 @@ export async function loginWithGoogle(): Promise<never> {
     scope: 'email profile openid',
     access_type: 'online',
     prompt: 'select_account',
+    ...(stateVal ? { state: stateVal } : {}),
   })
   window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
   return new Promise(() => {})
+}
+
+/** SocialCallbackPage 가 모드 분기 시 사용 */
+export function isLinkState(state: string | null | undefined): boolean {
+  return state === STATE_LINK
 }

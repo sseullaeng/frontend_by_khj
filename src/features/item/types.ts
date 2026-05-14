@@ -20,13 +20,17 @@ export type MyItemStatus = Exclude<ItemStatus, '삭제'>
 // 대여 단위
 export type RentalUnit = '시간' | '일' | '주' | '월'
 
-// 정렬 옵션
+// 정렬 옵션 (단일 키)
+//   라운드14 — completed_last (거래완료 후순위) 추가
+//   ItemFilter.sort 는 CSV 다중키도 받음 (예: 'wishlist_desc,view_desc,latest').
+//   마지막에 id desc 자동 tiebreak 부착, 무효 토큰 무시.
 export type ItemSort =
   | 'latest'
   | 'price_asc'
   | 'price_desc'
   | 'view_desc'
   | 'wishlist_desc'
+  | 'completed_last'
 
 // ── 응답 스키마 ──────────────────────────────────────────────────────────────
 
@@ -44,6 +48,7 @@ export interface Item {
   title: string
   status: ItemStatus
   region: string | null
+  hashtags?: string[]     // ItemSummary 응답에 포함 (없는 환경 대비 옵셔널)
   thumbnailUrl: string | null
   wishlistCount: number
   isWishlisted: boolean   // 비로그인은 항상 false
@@ -92,7 +97,8 @@ export interface ItemFilter {
   minPrice?: number
   maxPrice?: number
   tag?: string
-  sort?: ItemSort
+  // ItemSort 단일 또는 CSV (예: 'wishlist_desc,view_desc,latest').
+  sort?: ItemSort | string
   page?: number
   size?: number
 }

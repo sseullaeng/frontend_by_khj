@@ -93,4 +93,8 @@ export const notificationApi = {
   // 라운드9: 전체 읽음 (응답 { updated: N })
   markAllRead: () =>
     api.patch<{ updated: number }>('/api/v1/notifications/read-all'),
+
+  // 라운드14: 안 읽은 개수 — 전용 endpoint (첫 페이지 derive 보다 정확)
+  getUnreadCount: () =>
+    api.get<{ unread: number }>('/api/v1/notifications/unread-count'),
 }

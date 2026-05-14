@@ -17,13 +17,18 @@ const ERROR_MESSAGES: Record<string, string> = {
   AUTH_VERIFICATION_TOKEN_EXPIRED:                  '만료된 인증 링크예요. 메일을 다시 받아 주세요.',
   AUTH_VERIFICATION_RESEND_TOO_SOON:                '잠시 후 다시 시도해 주세요.',
   AUTH_EMAIL_ALREADY_LINKED_TO_DIFFERENT_PROVIDER:  '다른 SNS로 이미 가입된 이메일이에요.',
-  // 회원가입 중복 이메일 — 백엔드 코드 변형 모두 방어적으로 매핑
-  AUTH_EMAIL_DUPLICATED:                            '이미 가입된 이메일이에요.',
-  AUTH_EMAIL_ALREADY_EXISTS:                        '이미 가입된 이메일이에요.',
-  USER_EMAIL_DUPLICATED:                            '이미 가입된 이메일이에요.',
-  USER_EMAIL_ALREADY_EXISTS:                        '이미 가입된 이메일이에요.',
-  EMAIL_ALREADY_EXISTS:                             '이미 가입된 이메일이에요.',
-  DUPLICATE_EMAIL:                                  '이미 가입된 이메일이에요.',
+  // 회원가입 중복 이메일 (백엔드 표준은 USER_EMAIL_DUPLICATED, 나머지는 방어적 매핑)
+  USER_EMAIL_DUPLICATED:                            '이미 사용 중인 이메일이에요.',
+  AUTH_EMAIL_DUPLICATED:                            '이미 사용 중인 이메일이에요.',
+  AUTH_EMAIL_ALREADY_EXISTS:                        '이미 사용 중인 이메일이에요.',
+  USER_EMAIL_ALREADY_EXISTS:                        '이미 사용 중인 이메일이에요.',
+  EMAIL_ALREADY_EXISTS:                             '이미 사용 중인 이메일이에요.',
+  DUPLICATE_EMAIL:                                  '이미 사용 중인 이메일이에요.',
+  // 라운드14 — LOCAL ↔ OAuth 2-step 명시 연결
+  AUTH_OAUTH_LINK_REQUIRED:                         '동일 이메일의 일반 계정이 이미 있어요. 로그인 후 [계정 연결] 을 진행해 주세요.',
+  AUTH_OAUTH_LINK_EMAIL_MISMATCH:                   '현재 로그인한 계정과 소셜 계정의 이메일이 일치하지 않아요.',
+  AUTH_OAUTH_LINK_KEY_INVALID:                      '연결 키가 만료되었거나 유효하지 않아요. 다시 시도해 주세요.',
+  AUTH_OAUTH_LINK_NOT_LOCAL:                        '이 계정은 이미 소셜 계정과 연결되어 있어요.',
   USER_BLOCKED:                                     '차단된 계정이에요.',
 
   // ── 물품 ──────────────────────────────────────────────────
