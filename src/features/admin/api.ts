@@ -60,14 +60,25 @@ export const adminApi = {
   me: () =>
     api.get<AdminMe>('/api/v1/admin/me'),
 
-  // 11.2 회원 (라운드9 — keyword/status/createdAfter/createdBefore 추가)
+  // 11.2 회원 (라운드9 + 라운드14 spec)
   users: {
     list: (params?: AdminUserSearchParams) =>
       api.get<PageResponse<AdminUser>>('/api/v1/admin/users', { params }),
     detail: (id: number) =>
       api.get<AdminUser>(`/api/v1/admin/users/${id}`),
+    // 영구 차단 토글 (BLOCKED ↔ ACTIVE)
     setBlocked: (id: number, blocked: boolean) =>
       api.patch<void>(`/api/v1/admin/users/${id}/block`, { blocked }),
+    // 라운드14 — 시한부 활동 정지 (suspendedUntil 까지 SUSPENDED, 만료 후 자동 ACTIVE)
+    //   body: { days: 1~365 }. cumulativeSuspendDays 누적 200 도달 시 자동 탈퇴 (스케줄러).
+    suspend: (id: number, days: number) =>
+      api.patch<void>(`/api/v1/admin/users/${id}/suspend`, { days }),
+    // 라운드14 — 만료 전 수동 해제. 누적 일수는 차감되지 않음.
+    unsuspend: (id: number) =>
+      api.delete<void>(`/api/v1/admin/users/${id}/suspend`),
+    // 라운드14 — 관리자 강제 탈퇴 (복구 불가)
+    withdraw: (id: number) =>
+      api.patch<void>(`/api/v1/admin/users/${id}/withdraw`),
   },
 
   // 11.3 배너

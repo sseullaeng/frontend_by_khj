@@ -24,7 +24,13 @@ export interface AdminMe {
 
 // ── User 관리 (§11.2) ─────────────────────────────────────────────────────
 // 라운드9 — 백엔드 응답 enriched
-export type AdminUserStatusBE = 'ACTIVE' | 'DORMANT' | 'SUSPENDED' | 'WITHDRAWN'
+// 라운드14 — BLOCKED (영구 차단) 추가. suspend/block/withdraw 3-way 분리.
+export type AdminUserStatusBE =
+  | 'ACTIVE'
+  | 'DORMANT'
+  | 'SUSPENDED'   // 시한부 활동 정지, suspendedUntil 만료 후 자동 ACTIVE
+  | 'BLOCKED'     // 영구 차단, 관리자 수동 unblock 필요
+  | 'WITHDRAWN'   // 탈퇴, 복구 불가
 
 export interface AdminUser {
   id: number

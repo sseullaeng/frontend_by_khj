@@ -26,5 +26,6 @@ export function toPanelUser(u: BackendAdminUser): PanelAdminUser {
     reportCount: u.reportCount,
     suspendedAt: u.suspendedAt ?? undefined,
     suspendDays: u.suspendDays ?? undefined,
+    suspendedUntil: u.suspendedUntil ?? undefined,
   }
 }
