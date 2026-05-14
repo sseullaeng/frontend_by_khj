@@ -1073,23 +1073,26 @@ function NotificationPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
-        <span className="text-xs text-gray-500">{items.length}개의 알림</span>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white shrink-0">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">알림 대화</p>
+          <p className="text-xs text-gray-400">{items.length}개의 알림</p>
+        </div>
         <button
           onClick={() => markAllRead()}
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-500 transition-colors"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600"
         >
           <CheckCheck size={13} />
           모두 읽음
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50 px-4 py-5">
+      <div className="flex-1 overflow-y-auto bg-[#f7f8fb] px-4 py-5">
         {items.length === 0 && (
           <p className="py-16 text-center text-sm text-gray-400">알림이 없어요</p>
         )}
         {timelineItems.length > 0 && (
-          <ol className="flex min-h-full flex-col justify-end gap-4">
+          <ol className="flex min-h-full flex-col justify-end gap-5">
             {timelineItems.map((n) => (
               <li key={n.id}>
                 <NotificationBubble
@@ -1119,37 +1122,50 @@ function NotificationBubble({
   }
   onClick: () => void
 }) {
+  const isChat = notification.type === 'CHAT' || notification.type === 'MESSAGE' || notification.linkType === 'CHAT_ROOM'
+  const hasAction = notification.linkType != null
+
   return (
-    <div className="flex items-end gap-2">
+    <div className="flex items-start gap-2.5">
       <NotificationAvatar type={notification.type} linkType={notification.linkType} unread={!notification.read} />
-      <div className="min-w-0 max-w-[78%]">
+      <div className="min-w-0 max-w-[82%]">
+        <div className="mb-1 flex items-center gap-2 px-1">
+          <span className="text-xs font-semibold text-gray-700">
+            {isChat ? '새 채팅' : '쓸랭 알림'}
+          </span>
+          <span className="text-[11px] text-gray-400">{fromNow(notification.createdAt)}</span>
+        </div>
         <button
           type="button"
           onClick={onClick}
           className={cn(
-            'group w-full rounded-2xl rounded-bl-md border px-3.5 py-3 text-left shadow-sm transition-colors',
+            'group relative w-full rounded-2xl rounded-tl-md border px-4 py-3 text-left shadow-sm transition-all',
+            'before:absolute before:left-[-6px] before:top-3 before:h-3 before:w-3 before:rotate-45 before:border-l before:border-b',
             notification.read
-              ? 'border-gray-200 bg-white hover:bg-gray-50'
-              : 'border-primary-100 bg-white hover:bg-primary-50'
+              ? 'border-gray-200 bg-white hover:-translate-y-0.5 hover:bg-white before:border-gray-200 before:bg-white'
+              : 'border-primary-200 bg-white ring-1 ring-primary-100 hover:-translate-y-0.5 hover:bg-primary-50 before:border-primary-200 before:bg-white'
           )}
         >
-          <div className="mb-1 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2">
             <NotificationBadge type={notification.type} linkType={notification.linkType} />
             {!notification.read && (
-              <span className="rounded-full bg-primary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="rounded-full bg-primary-500 px-2 py-0.5 text-[10px] font-semibold text-white">
                 새 알림
               </span>
             )}
           </div>
-          <p className="text-sm font-semibold text-gray-900 line-clamp-2">{notification.title}</p>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600 line-clamp-4">
+          <p className="text-[15px] font-semibold leading-snug text-gray-900 line-clamp-2">
+            {notification.title}
+          </p>
+          <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600 line-clamp-5">
             {notification.content}
           </p>
-          <p className="mt-2 text-[11px] font-medium text-primary-500 opacity-0 transition-opacity group-hover:opacity-100">
-            자세히 보기
-          </p>
+          {hasAction && (
+            <div className="mt-3 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors group-hover:bg-primary-100 group-hover:text-primary-700">
+              {isChat ? '채팅방 열기' : '상세 보기'}
+            </div>
+          )}
         </button>
-        <p className="mt-1 px-1 text-[11px] text-gray-400">{fromNow(notification.createdAt)}</p>
       </div>
     </div>
   )
