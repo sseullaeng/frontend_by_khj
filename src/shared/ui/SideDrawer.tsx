@@ -14,7 +14,7 @@ import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hook
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { useBlock, useReportUser } from '@/features/block/hooks'
-import { fromNow, toChatTimestamp } from '@/shared/lib/date'
+import { formatKst, fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
 import type { ChatRoom } from '@/features/chat/types'
 
@@ -830,6 +830,14 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                     ? '무료 나눔'
                     : `${room.card.price.toLocaleString()}원`}
                 </p>
+                {/* 라운드14 V43 — 대여 기간 노출 (rental-request / Transaction / Escrow 진입 시 백엔드가 채워옴) */}
+                {room.card.rentalStart && room.card.rentalEnd && (
+                  <p className="text-[11px] text-primary-600 mt-0.5">
+                    {formatKst(room.card.rentalStart, 'M/d HH:mm')}
+                    <span className="text-gray-400 mx-1">~</span>
+                    {formatKst(room.card.rentalEnd, 'M/d HH:mm')}
+                  </p>
+                )}
               </div>
             </div>
           </Link>
