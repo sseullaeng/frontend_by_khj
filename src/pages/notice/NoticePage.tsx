@@ -1,12 +1,14 @@
 // 공지 / 이벤트 목록 — 가이드 §10.9
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Megaphone, ChevronRight, Pin } from 'lucide-react'
+import { Megaphone, ChevronRight, Pin, Plus } from 'lucide-react'
 import { useNotices } from '@/features/notice/hooks'
 import type { NoticeType } from '@/features/notice/api'
+import { useAuthStore } from '@/features/auth/store'
 import { formatKst } from '@/shared/lib/date'
 
 export default function NoticePage() {
+  const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN')
   const [type, setType] = useState<NoticeType | 'all'>('all')
   const [page, setPage] = useState(0)
 
@@ -24,6 +26,14 @@ export default function NoticePage() {
           <Megaphone className="text-primary-500" size={24} />
           <h1 className="text-2xl font-bold text-gray-900">새소식/이벤트</h1>
         </div>
+        {isAdmin && (
+          <Link
+            to="/notices/write"
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+          >
+            <Plus size={14} /> 글 작성
+          </Link>
+        )}
       </div>
 
       {/* 필터 탭 */}
