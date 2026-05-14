@@ -114,6 +114,7 @@ const AdminMonthlyTradesPage = lazy(() => import('@/pages/admin/AdminMonthlyTrad
 const AdminItemPage = lazy(() => import('@/pages/admin/AdminItemPage')) // 관리자 물품 관리
 const AdminEscrowApplicationsPage = lazy(() => import('@/pages/admin/AdminEscrowApplicationsPage')) // 관리자 거래대행 모니터링
 const AdminReportPage = lazy(() => import('@/pages/admin/AdminReportPage')) // 관리자 신고 대기 처리
+const AdminOverduePage = lazy(() => import('@/pages/admin/AdminOverduePage')) // 관리자 연체 관리
 const AdminWithdrawPage = lazy(() => import('@/pages/admin/AdminWithdrawPage')) // 관리자 출금 관리
 const AdminDeliveryPage = lazy(() => import('@/pages/admin/AdminDeliveryPage')) // 관리자 배송 관리
 const AdminNoticePage = lazy(() => import('@/pages/admin/AdminNoticePage')) // 관리자 공지 관리
@@ -235,6 +236,7 @@ export const router = createBrowserRouter(
             { path: '/admin/escrow/applications', element: <AdminEscrowApplicationsPage /> },
             { path: '/admin/escrow/applications/:id', element: <AdminEscrowApplicationsPage /> },
             { path: '/admin/reports', element: <AdminReportPage /> }, // 신고 대기
+            { path: '/admin/overdue', element: <AdminOverduePage /> }, // 연체 관리
             { path: '/admin/withdraws', element: <AdminWithdrawPage /> },
             { path: '/admin/delivery', element: <AdminDeliveryPage /> },
             { path: '/admin/notices', element: <AdminNoticePage /> },

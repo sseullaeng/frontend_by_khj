@@ -27,8 +27,8 @@ export type OverdueLegalAction = 'NONE' | '내용증명' | '분쟁조정' | '소
 export interface OverdueRecord {
   id: number
   escrowApplicationId: number
-  buyerId: number
-  sellerId: number
+  buyerId?: number
+  sellerId?: number
 
   depositAmount: number             // 거래 시점 보증금 (절대값)
   depositForfeitedAmount: number    // 누적 차감된 보증금
@@ -38,7 +38,7 @@ export interface OverdueRecord {
   overdueDays: number
   phase: OverduePhase
   status: OverdueStatus
-  legalAction: OverdueLegalAction
+  legalAction?: OverdueLegalAction
 
   rentalEndAt: string               // 원래 반납 기한
   overdueStartedAt: string          // 연체 시작 시각
@@ -52,8 +52,9 @@ export interface OverdueRecord {
 
 // /users/me/overdue-debt 응답
 export interface MyOverdueDebt {
-  totalDebt: number                // 진행 중 record 의 extraDebtAmount 합계
-  activeRecordCount: number
+  debt: number                    // 다음 충전 시 우선 차감될 누적 채무
+  totalDebt?: number              // 구버전 응답 호환
+  activeRecordCount?: number      // 구버전 응답 호환
 }
 
 // ── 관리자 목록 쿼리 파라미터 ────────────────────────────────────────────
@@ -67,8 +68,7 @@ export interface AdminOverdueListParams {
 
 // 법적 조치 패치 body
 export interface OverdueLegalActionPatch {
-  legalAction: OverdueLegalAction
-  memo?: string
+  action: Exclude<OverdueLegalAction, 'NONE'>
 }
 
 // 강제 종료(정산) 패치 body

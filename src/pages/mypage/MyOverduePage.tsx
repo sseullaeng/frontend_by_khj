@@ -27,8 +27,9 @@ export default function MyOverduePage() {
   const { data: records, isLoading: recordsLoading } = useMyOverdueRecords()
 
   const list = records ?? []
-  const totalDebt = debt?.totalDebt ?? 0
-  const activeCount = debt?.activeRecordCount ?? 0
+  const totalDebt = debt?.debt ?? debt?.totalDebt ?? 0
+  const activeCount =
+    debt?.activeRecordCount ?? list.filter((r) => r.status === '진행중' || r.status === '법적조치중').length
   const isLoading = debtLoading || recordsLoading
 
   return (
@@ -113,7 +114,7 @@ function OverdueRecordCard({ record }: { record: OverdueRecord }) {
       <div className="flex items-center gap-2 mb-3">
         <PhaseBadge phase={record.phase} />
         <StatusBadge status={record.status} />
-        {record.legalAction !== 'NONE' && (
+        {record.legalAction && record.legalAction !== 'NONE' && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">
             <Gavel size={10} /> {record.legalAction}
           </span>

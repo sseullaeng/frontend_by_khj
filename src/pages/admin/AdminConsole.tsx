@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
   ShieldAlert,
   Truck,
+  Gavel,
   Menu as MenuIcon,
 } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
@@ -42,6 +43,7 @@ const AdminNoticePage = lazy(() => import('@/pages/admin/AdminNoticePage'))
 const AdminBannerPage = lazy(() => import('@/pages/admin/AdminBannerPage'))
 const AdminEscrowConfigPage = lazy(() => import('@/pages/admin/AdminEscrowConfigPage'))
 const AdminDeliveryPage = lazy(() => import('@/pages/admin/AdminDeliveryPage'))
+const AdminOverduePage = lazy(() => import('@/pages/admin/AdminOverduePage'))
 
 interface MenuItem {
   id: string
@@ -99,6 +101,7 @@ const MENU_GROUPS: MenuGroup[] = [
     label: '운영',
     items: [
       { id: 'ops.reports', label: '신고 처리', icon: AlertTriangle, component: AdminReportPage },
+      { id: 'ops.overdue', label: '연체 관리', icon: Gavel, component: AdminOverduePage },
       { id: 'ops.support', label: '문의 처리', icon: MessageSquare, component: SupportPage },
       {
         id: 'ops.withdraws',
