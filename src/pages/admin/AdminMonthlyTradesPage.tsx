@@ -1,7 +1,7 @@
 // 관리자 거래 검색 — 라운드8 백엔드 hook 연동
 //
 // 백엔드: GET /api/v1/admin/transactions
-//   ?status=&buyerId=&sellerId=&page=&size=
+//   ?status=&page=&size=
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -67,15 +67,11 @@ export default function AdminMonthlyTradesPage() {
   const urlStart = searchParams.get('start')
   const urlEnd = searchParams.get('end')
   const urlType = searchParams.get('type') as BackendType | null
-  const urlBuyerId = searchParams.get('buyerId')
-  const urlSellerId = searchParams.get('sellerId')
 
   const [startDate, setStartDate] = useState(urlStart ?? monthAgoLocal())
   const [endDate, setEndDate] = useState(urlEnd ?? todayLocal())
   const [typeTab, setTypeTab] = useState<'ALL' | BackendType>(urlType ?? 'ALL')
   const [keyword, setKeyword] = useState('')
-  const [buyerId, setBuyerId] = useState(urlBuyerId ?? '')
-  const [sellerId, setSellerId] = useState(urlSellerId ?? '')
   const [page, setPage] = useState(0)
 
   // 라운드9 PR #83: keyword 가 숫자면 ID 정확 매칭, 비숫자면 닉네임/이메일 LIKE
@@ -90,13 +86,11 @@ export default function AdminMonthlyTradesPage() {
       endDate: toEndOfDay(endDate),
       type: typeTab === 'ALL' ? undefined : typeTab,
       status: '거래완료' as const,
-      buyerId: buyerId.trim() ? Number(buyerId) : undefined,
-      sellerId: sellerId.trim() ? Number(sellerId) : undefined,
       keyword: keyword.trim() || undefined,
       page,
       size: 20,
     }),
-    [startDate, endDate, typeTab, keyword, buyerId, sellerId, page]
+    [startDate, endDate, typeTab, keyword, page]
   )
 
   const { data, isLoading } = useAdminTransactions(params)
@@ -176,30 +170,6 @@ export default function AdminMonthlyTradesPage() {
       <p className="text-xs text-gray-400 mb-4 px-1">
         숫자: 거래/물품 ID 정확 매칭 · 그 외: 닉네임/이메일 검색 (top 200 user)
       </p>
-
-      {/* 당사자 ID 필터 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-        <input
-          value={buyerId}
-          onChange={(e) => {
-            setBuyerId(e.target.value.replace(/[^0-9]/g, ''))
-            setPage(0)
-          }}
-          placeholder="구매자 ID"
-          inputMode="numeric"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
-        />
-        <input
-          value={sellerId}
-          onChange={(e) => {
-            setSellerId(e.target.value.replace(/[^0-9]/g, ''))
-            setPage(0)
-          }}
-          placeholder="판매자 ID"
-          inputMode="numeric"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
-        />
-      </div>
 
       {/* 유형 탭 */}
       <div className="border-b border-gray-200 mb-4">
