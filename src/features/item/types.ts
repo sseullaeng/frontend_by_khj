@@ -48,7 +48,7 @@ export interface Item {
   title: string
   status: ItemStatus
   region: string | null
-  hashtags?: string[]
+  hashtags?: string[]     // ItemSummary 응답에 포함 (없는 환경 대비 옵셔널)
   thumbnailUrl: string | null
   wishlistCount: number
   isWishlisted: boolean   // 비로그인은 항상 false
