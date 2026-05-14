@@ -12,7 +12,11 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { useAdminDashboardCharts, useAdminMe } from '@/features/admin/hooks'
+import {
+  useAdminCompletedTradeTypeCounts,
+  useAdminDashboardCharts,
+  useAdminMe,
+} from '@/features/admin/hooks'
 import { useAdminOverdueList } from '@/features/overdue/hooks'
 
 const PIE_COLORS = ['#6366f1', '#22c55e', '#f59e0b']
@@ -49,6 +53,7 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
   const displayName = nickname ?? adminMe?.name ?? '관리자'
 
   const { data, isLoading, isError } = useAdminDashboardCharts(startDate, endDate)
+  const completedTradeTypeCounts = useAdminCompletedTradeTypeCounts(startDate, endDate)
 
   // 차트용 가공
   const signupTrend = (data?.signupTrend ?? []).map((d) => ({
@@ -56,7 +61,7 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
     fullDate: d.date,
     count: d.count,
   }))
-  const tradeByType = data?.tradeByType ?? []
+  const tradeByType = completedTradeTypeCounts.data
   const tradeByStatus = (data?.tradeByStatus ?? []).map((d) => ({
     name: d.status,
     value: d.count,
@@ -193,14 +198,14 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
         )}
       </div>
 
-      {/* 거래 유형별 건수 — BarChart */}
+      {/* 완료된 거래 유형별 건수 — BarChart */}
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
         <p className="text-sm font-semibold text-gray-700 mb-0.5">
-          거래 유형별 건수
+          완료된 거래 유형별 건수
           <span className="text-xs font-normal text-gray-400 ml-2">{startDate} ~ {endDate}</span>
         </p>
-        <p className="text-xs text-gray-400 mb-3">클릭하면 상세 목록을 볼 수 있어요</p>
-        {isLoading ? (
+        <p className="text-xs text-gray-400 mb-3">거래완료 상태의 판매·대여만 집계해요</p>
+        {completedTradeTypeCounts.isLoading ? (
           <ChartPlaceholder height={160} />
         ) : (
           <ResponsiveContainer width="100%" height={160}>
@@ -216,11 +221,16 @@ export default function AdminStats({ nickname }: { nickname?: string } = {}) {
                 cursor="pointer"
                 onClick={(d: { type: string }) => {
                   // 백엔드 거래 검색은 한국어 enum 그대로 받음 (admin/api.ts AdminTransactionSearchParams)
-                  navigate(`/admin/trades?start=${startDate}&end=${endDate}&type=${encodeURIComponent(d.type)}`)
+                  navigate(
+                    `/admin/trades?start=${startDate}&end=${endDate}&status=${encodeURIComponent('거래완료')}&type=${encodeURIComponent(d.type)}`
+                  )
                 }}
               />
             </BarChart>
           </ResponsiveContainer>
+        )}
+        {completedTradeTypeCounts.isError && (
+          <p className="mt-3 text-xs text-red-500">완료 거래 유형 집계를 불러오지 못했어요.</p>
         )}
       </div>
 

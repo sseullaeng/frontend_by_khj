@@ -1,5 +1,5 @@
 // 관리자 hooks — 가이드 §11
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { adminApi } from './api'
@@ -95,6 +95,49 @@ export function useAdminDashboardCharts(startDate?: string, endDate?: string) {
     queryFn: () => adminApi.stats.dashboardCharts({ startDate, endDate }).then((r) => r.data),
     staleTime: 60_000,
   })
+}
+
+const COMPLETED_TRADE_TYPES = ['판매', '대여'] as const
+
+const toStartOfDay = (date?: string) => (date ? `${date}T00:00:00` : undefined)
+const toEndOfDay = (date?: string) => (date ? `${date}T23:59:59` : undefined)
+
+// 거래 유형별 차트는 운영자가 실제 완료 실적으로 보는 영역이라,
+// dashboardCharts 의 전체 분포 대신 거래 목록 endpoint 의 거래완료 결과만 집계한다.
+export function useAdminCompletedTradeTypeCounts(startDate?: string, endDate?: string) {
+  const results = useQueries({
+    queries: COMPLETED_TRADE_TYPES.map((type) => ({
+      queryKey: [
+        ...adminKeys.all(),
+        'transactions',
+        'completed-type-count',
+        type,
+        startDate ?? 'default',
+        endDate ?? 'default',
+      ] as const,
+      queryFn: () =>
+        adminApi.transactions
+          .list({
+            status: '거래완료',
+            type,
+            startDate: toStartOfDay(startDate),
+            endDate: toEndOfDay(endDate),
+            page: 0,
+            size: 1,
+          })
+          .then((r) => r.data.totalElements),
+      staleTime: 60_000,
+    })),
+  })
+
+  return {
+    data: COMPLETED_TRADE_TYPES.map((type, index) => ({
+      type,
+      count: results[index]?.data ?? 0,
+    })),
+    isLoading: results.some((result) => result.isLoading),
+    isError: results.some((result) => result.isError),
+  }
 }
 
 // ── Users (라운드9 — 검색/필터 서버 쿼리) ─────────────────────────────────
