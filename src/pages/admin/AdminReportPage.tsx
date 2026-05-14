@@ -5,9 +5,27 @@
 //   PATCH /api/v1/admin/reports/{id}  { action, memo? }
 //     action: MARK_IN_PROGRESS | COMPLETE | REJECT
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle, Clock, XCircle, Hash, User, Package } from 'lucide-react'
+import {
+  AlertTriangle,
+  Ban,
+  CheckCircle,
+  Clock,
+  Hash,
+  Package,
+  ShieldOff,
+  User,
+  UserX,
+  XCircle,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useAdminReportDetail, useAdminReports, usePatchAdminReport } from '@/features/admin/hooks'
+import {
+  useAdminReportDetail,
+  useAdminReports,
+  usePatchAdminReport,
+  useSetUserBlocked,
+  useSuspendUser,
+  useWithdrawUser,
+} from '@/features/admin/hooks'
 import type { AdminReport, AdminReportStatus, AdminReportAction } from '@/features/admin/types'
 import { Button } from '@/shared/ui/Button'
 import { formatKst, fromNow } from '@/shared/lib/date'
@@ -263,21 +281,85 @@ const ACTION_OPTIONS: {
   },
 ]
 
+type ReportSanction = 'NONE' | 'SUSPEND' | 'BLOCK' | 'WITHDRAW'
+
+const SANCTION_OPTIONS: {
+  value: ReportSanction
+  label: string
+  desc: string
+  icon: typeof AlertTriangle
+  activeCls: string
+}[] = [
+  {
+    value: 'NONE',
+    label: '제재 없음',
+    desc: '신고 상태만 완료로 변경',
+    icon: CheckCircle,
+    activeCls: 'border-gray-500 bg-gray-50',
+  },
+  {
+    value: 'SUSPEND',
+    label: '활동 정지',
+    desc: '피신고자를 지정 기간 정지하고 refresh token을 폐기',
+    icon: ShieldOff,
+    activeCls: 'border-amber-500 bg-amber-50',
+  },
+  {
+    value: 'BLOCK',
+    label: '영구 차단',
+    desc: '피신고자의 로그인을 차단하고 refresh token을 폐기',
+    icon: Ban,
+    activeCls: 'border-red-500 bg-red-50',
+  },
+  {
+    value: 'WITHDRAW',
+    label: '강제 탈퇴',
+    desc: '피신고자를 soft-delete 처리하고 refresh token을 폐기',
+    icon: UserX,
+    activeCls: 'border-red-600 bg-red-50',
+  },
+]
+
 function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: () => void }) {
   const { data: detail } = useAdminReportDetail(report.id)
   const current = detail ?? report
   const [action, setAction] = useState<AdminReportAction>('COMPLETE')
   const [memo, setMemo] = useState('')
+  const [sanction, setSanction] = useState<ReportSanction>('NONE')
+  const [suspendDays, setSuspendDays] = useState(7)
+  const [withdrawReason, setWithdrawReason] = useState('')
   const { mutateAsync, isPending } = usePatchAdminReport()
+  const suspendMut = useSuspendUser()
+  const blockMut = useSetUserBlocked()
+  const withdrawMut = useWithdrawUser()
 
   // PENDING 일 때만 MARK_IN_PROGRESS 가능
   const normalizedStatus = normalizeReportStatus(current.status as string)
   const availableActions = ACTION_OPTIONS.filter((o) =>
     normalizedStatus === 'PENDING' ? true : o.value !== 'MARK_IN_PROGRESS'
   )
+  const canSanction = action === 'COMPLETE'
+  const isSanctioning = suspendMut.isPending || blockMut.isPending || withdrawMut.isPending
+
+  const runSanction = async () => {
+    if (!canSanction || sanction === 'NONE') return
+    if (sanction === 'SUSPEND') {
+      await suspendMut.mutateAsync({ id: current.reportedId, days: suspendDays })
+      return
+    }
+    if (sanction === 'BLOCK') {
+      await blockMut.mutateAsync({ id: current.reportedId, blocked: true })
+      return
+    }
+    await withdrawMut.mutateAsync({
+      id: current.reportedId,
+      reason: withdrawReason.trim() || memo.trim() || `신고 #${current.id} 처리`,
+    })
+  }
 
   const handleSubmit = async () => {
     try {
+      await runSanction()
       await mutateAsync({ id: current.id, body: { action, memo: memo.trim() || undefined } })
       onClose()
     } catch (err) {
@@ -291,7 +373,8 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
         <h3 className="text-base font-bold text-gray-900 mb-1">신고 #{current.id} 처리</h3>
-        <p className="text-xs text-gray-500 mb-4 line-clamp-2">{current.reason}</p>
+        <p className="text-xs text-gray-500 mb-1 line-clamp-2">{current.reason}</p>
+        <p className="text-[11px] text-gray-400 mb-4">피신고자 #{current.reportedId}</p>
 
         <p className="text-xs font-semibold text-gray-700 mb-2">처리 방식</p>
         <div className="flex flex-col gap-2 mb-4">
@@ -311,6 +394,68 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
           ))}
         </div>
 
+        {canSanction && (
+          <>
+            <p className="text-xs font-semibold text-gray-700 mb-2">피신고자 제재</p>
+            <div className="flex flex-col gap-2 mb-4">
+              {SANCTION_OPTIONS.map((o) => {
+                const Icon = o.icon
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setSanction(o.value)}
+                    className={cn(
+                      'p-3 rounded-xl border-2 text-left transition-colors',
+                      sanction === o.value
+                        ? o.activeCls
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    )}
+                  >
+                    <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                      <Icon size={14} />
+                      {o.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{o.desc}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            {sanction === 'SUSPEND' && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  정지 기간
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={suspendDays}
+                  onChange={(e) => setSuspendDays(Number(e.target.value))}
+                  className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm outline-none focus:border-amber-400"
+                />
+              </div>
+            )}
+
+            {sanction === 'WITHDRAW' && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  강제 탈퇴 사유
+                </label>
+                <textarea
+                  value={withdrawReason}
+                  onChange={(e) => setWithdrawReason(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="다중 신고 누적 + 관리자 검토"
+                  className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm outline-none focus:border-red-400 resize-none"
+                />
+              </div>
+            )}
+          </>
+        )}
+
         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
           관리자 메모 (선택)
         </label>
@@ -326,12 +471,17 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            disabled={isPending}
+            disabled={isPending || isSanctioning}
             className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 disabled:opacity-50"
           >
             취소
           </button>
-          <Button onClick={handleSubmit} isLoading={isPending} fullWidth>
+          <Button
+            onClick={handleSubmit}
+            isLoading={isPending || isSanctioning}
+            disabled={sanction === 'SUSPEND' && (suspendDays < 1 || suspendDays > 365)}
+            fullWidth
+          >
             처리
           </Button>
         </div>
