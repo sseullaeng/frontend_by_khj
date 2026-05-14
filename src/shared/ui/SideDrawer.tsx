@@ -765,12 +765,23 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         </div>
       )}
 
-      {/* 상대 / 본인 leave 안내 — 입력 자체가 disable 됨 */}
+      {/* 상대 / 본인 leave 안내 — 입력 자체가 disable 됨.
+          상대만 나간 경우(iLeft=false) 본인도 [채팅방 나가기] 가능. */}
       {!isAdmin && chatBlocked && (
-        <div className="px-4 py-3 bg-gray-100 border-b border-gray-200 text-center">
-          <p className="text-xs text-gray-600 font-medium">
+        <div className="px-4 py-3 bg-gray-100 border-b border-gray-200 flex flex-col items-center gap-2">
+          <p className="text-xs text-gray-600 font-medium text-center">
             {iLeft ? '나간 채팅방이에요. 메시지를 보낼 수 없어요.' : '상대방이 채팅방을 나갔어요. 메시지를 보낼 수 없어요.'}
           </p>
+          {!iLeft && (
+            <button
+              onClick={() => setLeaveConfirmOpen(true)}
+              disabled={isLeaving}
+              className="px-3 py-1.5 rounded-lg text-[11px] text-gray-600 hover:text-red-600 hover:bg-white transition-colors inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <LogOut size={11} />
+              채팅방 나가기
+            </button>
+          )}
         </div>
       )}
 
