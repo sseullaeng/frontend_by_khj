@@ -4,12 +4,17 @@ import { ShieldOff, ShieldCheck, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/shared/lib/cn'
 import UserProfileFloat from '@/shared/ui/UserProfileFloat'  // 유저 프로필 플로팅 패널
-import { useSetUserBlocked } from '@/features/admin/hooks'
+import { useSuspendUser, useUnsuspendUser, useWithdrawUser } from '@/features/admin/hooks'
 
 // ─── 타입 ──────────────────────────────────────────────────────────────────
 
-/** 회원 상태 */
-export type AdminUserStatus = 'ACTIVE' | 'DORMANT' | 'SUSPENDED' | 'WITHDRAWN'
+/** 회원 상태 — 라운드14: BLOCKED(영구 차단) 추가 */
+export type AdminUserStatus =
+  | 'ACTIVE'
+  | 'DORMANT'
+  | 'SUSPENDED'   // 시한부 정지, suspendedUntil 만료 후 자동 ACTIVE
+  | 'BLOCKED'     // 영구 차단
+  | 'WITHDRAWN'
 
 /** 관리자 회원 정보 */
 export interface AdminUser {
@@ -23,8 +28,9 @@ export interface AdminUser {
   trustScore: number
   tradeCount: number
   reportCount: number
-  suspendedAt?: string    // 정지 처리 날짜
+  suspendedAt?: string    // 정지 처리 시각 (ISO)
   suspendDays?: number    // 정지 기간 (일)
+  suspendedUntil?: string // 라운드14 — 만료 시각 (백엔드 derived)
 }
 
 // ─── 상수 ──────────────────────────────────────────────────────────────────
@@ -34,6 +40,7 @@ export const ADMIN_STATUS_CLS: Record<AdminUserStatus, string> = {
   ACTIVE:    'bg-emerald-100 text-emerald-700',
   DORMANT:   'bg-sky-100 text-sky-700',
   SUSPENDED: 'bg-amber-100 text-amber-700',
+  BLOCKED:   'bg-red-100 text-red-700',
   WITHDRAWN: 'bg-gray-100 text-gray-400',
 }
 
@@ -42,6 +49,7 @@ export const ADMIN_STATUS_LABEL: Record<AdminUserStatus, string> = {
   ACTIVE:    '정상',
   DORMANT:   '휴면',
   SUSPENDED: '활동정지',
+  BLOCKED:   '영구차단',
   WITHDRAWN: '탈퇴',
 }
 
@@ -111,44 +119,55 @@ export default function AdminUserListPanel({
     return eff === activeTab
   })
 
-  // 라운드14 — 활동정지/복구는 백엔드 PATCH /admin/users/{id}/block 연동.
-  //   ⚠ 백엔드는 blocked: boolean 토글만 지원 — 정지 기간(suspendDays) 옵션은 UI 표시용.
-  //   ⚠ 강제 탈퇴 endpoint 는 아직 미구현 (라운드14 미구현 목록).
-  const setBlocked = useSetUserBlocked()
+  // 라운드14 — 시한부 정지 / 수동 해제 / 강제 탈퇴 각각 별도 endpoint
+  const suspendMut    = useSuspendUser()
+  const unsuspendMut  = useUnsuspendUser()
+  const withdrawMut   = useWithdrawUser()
 
   /** 확인 후 상태 변경 적용 — 백엔드 호출 + 로컬 캐시 반영 */
   const handleConfirm = () => {
     if (!confirm) return
     const userId = confirm.userId
 
-    if (confirm.action === 'withdraw') {
-      // 강제 탈퇴 — 백엔드 미구현
-      toast.error('관리자 강제 탈퇴는 아직 지원되지 않아요. 백엔드 구현 후 활성화됩니다.')
+    const finish = () => {
       setConfirm(null)
+      setSuspendDays(7)
+    }
+
+    if (confirm.action === 'withdraw') {
+      withdrawMut.mutate(userId, {
+        onSuccess: () => setStatuses(prev => ({ ...prev, [userId]: 'WITHDRAWN' })),
+        onError:   () => toast.error('탈퇴 처리에 실패했어요.'),
+        onSettled: finish,
+      })
       return
     }
 
-    const blocked = confirm.action === 'suspend'
-    setBlocked.mutate(
-      { id: userId, blocked },
-      {
-        onSuccess: () => {
-          if (blocked) {
+    if (confirm.action === 'suspend') {
+      suspendMut.mutate(
+        { id: userId, days: suspendDays },
+        {
+          onSuccess: () => {
             setStatuses(prev => ({ ...prev, [userId]: 'SUSPENDED' }))
             const today = new Date().toISOString().slice(0, 10)
             setSuspendInfo(prev => ({ ...prev, [userId]: { date: today, days: suspendDays } }))
-          } else {
-            setStatuses(prev => ({ ...prev, [userId]: 'ACTIVE' }))
-            setSuspendInfo(prev => { const n = { ...prev }; delete n[userId]; return n })
-          }
+          },
+          onError: () => toast.error('활동 정지에 실패했어요.'),
+          onSettled: finish,
         },
-        onError: () => toast.error('처리에 실패했어요. 다시 시도해 주세요.'),
-        onSettled: () => {
-          setConfirm(null)
-          setSuspendDays(7)
-        },
+      )
+      return
+    }
+
+    // restore — 수동 정지 해제
+    unsuspendMut.mutate(userId, {
+      onSuccess: () => {
+        setStatuses(prev => ({ ...prev, [userId]: 'ACTIVE' }))
+        setSuspendInfo(prev => { const n = { ...prev }; delete n[userId]; return n })
       },
-    )
+      onError: () => toast.error('정지 해제에 실패했어요.'),
+      onSettled: finish,
+    })
   }
 
   return (
@@ -216,10 +235,15 @@ export default function AdminUserListPanel({
                       <p className="text-xs text-gray-400">
                         가입 {user.joinedAt} · 거래 {user.tradeCount}건 · 신뢰 {user.trustScore}점
                       </p>
-                      {/* 활동정지 처리 날짜·기간 */}
+                      {/* 활동정지 — 처리 날짜·기간 + 만료(suspendedUntil) */}
                       {isSuspended && si && (
                         <p className="text-xs text-amber-600 font-medium mt-0.5">
                           {si.days}일 정지 · {si.date} 처리
+                          {user.suspendedUntil && (
+                            <span className="text-amber-500 ml-1">
+                              (만료 {user.suspendedUntil.slice(0, 16).replace('T', ' ')})
+                            </span>
+                          )}
                         </p>
                       )}
                     </div>

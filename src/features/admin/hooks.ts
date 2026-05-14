@@ -111,6 +111,43 @@ export function useSetUserBlocked() {
   })
 }
 
+// 라운드14 — 시한부 활동 정지 (days: 1~365)
+export function useSuspendUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, days }: { id: number; days: number }) =>
+      adminApi.users.suspend(id, days),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.all() })
+      toast.success('활동 정지 처리됐어요.')
+    },
+  })
+}
+
+// 라운드14 — 만료 전 수동 정지 해제 (누적 일수는 유지)
+export function useUnsuspendUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => adminApi.users.unsuspend(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.all() })
+      toast.success('정지가 해제됐어요.')
+    },
+  })
+}
+
+// 라운드14 — 관리자 강제 탈퇴 (복구 불가)
+export function useWithdrawUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => adminApi.users.withdraw(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: adminKeys.all() })
+      toast.success('탈퇴 처리됐어요.')
+    },
+  })
+}
+
 // ── Banners ───────────────────────────────────────────────────────────────
 export function useAdminBanners(params?: { page?: number; size?: number }) {
   return useQuery({
