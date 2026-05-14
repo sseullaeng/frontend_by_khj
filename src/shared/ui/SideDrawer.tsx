@@ -1034,6 +1034,7 @@ function NotificationPanel() {
   const { mutate: markAllRead } = useMarkAllRead()
   const { mutate: markRead } = useMarkRead()
   const items = data?.pages[0]?.content ?? []
+  const timelineItems = [...items].reverse()
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
   const handleNotificationClick = (n: (typeof items)[number]) => {
@@ -1083,29 +1084,73 @@ function NotificationPanel() {
         </button>
       </div>
 
-      <ul className="flex-1 divide-y divide-gray-100 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-gray-50 px-4 py-5">
         {items.length === 0 && (
-          <li className="py-16 text-center text-sm text-gray-400">알림이 없어요</li>
+          <p className="py-16 text-center text-sm text-gray-400">알림이 없어요</p>
         )}
-        {items.map((n) => (
-          <li key={n.id}>
-            <DrawerListRow
-              onClick={() => handleNotificationClick(n)}
-              avatar={<NotificationAvatar type={n.type} linkType={n.linkType} unread={false} />}
-              title={n.title}
-              time={fromNow(n.createdAt)}
-              description={n.content}
-              meta={<NotificationBadge type={n.type} linkType={n.linkType} />}
-              unread={!n.read}
-              trailing={
-                !n.read ? (
-                  <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" aria-hidden />
-                ) : null
-              }
-            />
-          </li>
-        ))}
-      </ul>
+        {timelineItems.length > 0 && (
+          <ol className="flex min-h-full flex-col justify-end gap-4">
+            {timelineItems.map((n) => (
+              <li key={n.id}>
+                <NotificationBubble
+                  notification={n}
+                  onClick={() => handleNotificationClick(n)}
+                />
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function NotificationBubble({
+  notification,
+  onClick,
+}: {
+  notification: {
+    type: string
+    linkType: string | null
+    title: string
+    content: string
+    read: boolean
+    createdAt: string
+  }
+  onClick: () => void
+}) {
+  return (
+    <div className="flex items-end gap-2">
+      <NotificationAvatar type={notification.type} linkType={notification.linkType} unread={!notification.read} />
+      <div className="min-w-0 max-w-[78%]">
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn(
+            'group w-full rounded-2xl rounded-bl-md border px-3.5 py-3 text-left shadow-sm transition-colors',
+            notification.read
+              ? 'border-gray-200 bg-white hover:bg-gray-50'
+              : 'border-primary-100 bg-white hover:bg-primary-50'
+          )}
+        >
+          <div className="mb-1 flex items-center gap-2">
+            <NotificationBadge type={notification.type} linkType={notification.linkType} />
+            {!notification.read && (
+              <span className="rounded-full bg-primary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                새 알림
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-gray-900 line-clamp-2">{notification.title}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-600 line-clamp-4">
+            {notification.content}
+          </p>
+          <p className="mt-2 text-[11px] font-medium text-primary-500 opacity-0 transition-opacity group-hover:opacity-100">
+            자세히 보기
+          </p>
+        </button>
+        <p className="mt-1 px-1 text-[11px] text-gray-400">{fromNow(notification.createdAt)}</p>
+      </div>
     </div>
   )
 }
