@@ -32,5 +32,8 @@ export function toPanelUser(u: BackendAdminUser): PanelAdminUser {
     suspendedUntil: u.suspendedUntil ?? undefined,
     pointBalance: u.pointBalance,
     lastLoginAt: u.lastLoginAt,
+    // 라운드14 — 연체 채무 / 활성 record
+    overdueDebt: u.overdueDebt,
+    activeOverdueRecordId: u.activeOverdueRecordId ?? undefined,
   }
 }
