@@ -3,7 +3,7 @@
 // 실시간: /user/queue/notifications 구독 (Spring 자동 라우팅, 본인 한정)
 // 안 읽은 개수 / 모두 읽음 — 백엔드 endpoint 미제공 → 클라이언트 derive
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   useInfiniteQuery,
   useMutation,
@@ -28,7 +28,7 @@ function notificationToHref(noti: Notification): string {
     CHAT_ROOM: '/notifications',
     TRANSACTION: `/mypage/trades/${noti.linkId}`,
     ESCROW: `/escrow/${noti.linkId}/buyer-info`,
-    DELIVERY: `/deliveries/${noti.linkId}`,
+    DELIVERY: `/delivery/${noti.linkId}/track`,
     ITEM: `/items/${noti.linkId}`,
     REVIEW: '/reviews',
     PAYMENT: '/points',
@@ -136,46 +136,53 @@ export function useMarkAllRead() {
 export function useNotificationStream() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const poppedIdsRef = useRef<Set<string>>(new Set())
+
+  const showNotificationPopup = (noti: Notification) => {
+    if (poppedIdsRef.current.has(noti.id)) return
+    poppedIdsRef.current.add(noti.id)
+
+    toast(noti.title, {
+      description: noti.content,
+      duration: 5000,
+      action: {
+        label: '보기',
+        onClick: () => {
+          notificationApi.markRead(noti.id).catch(() => undefined)
+          qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
+            notificationKeys.list(),
+            (old) => {
+              if (!old) return old
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  content: page.content.map((item) =>
+                    item.id === noti.id ? { ...item, read: true } : item
+                  ),
+                })),
+              }
+            }
+          )
+          if (!noti.read) {
+            qc.setQueryData<{ unread: number } | undefined>(
+              notificationKeys.unreadCount(),
+              (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev)
+            )
+          }
+          qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
+          navigate(notificationToHref(noti))
+        },
+      },
+    })
+  }
 
   useEffect(() => {
     const unsubscribe = subscribeStomp(NOTI_QUEUE, (frame) => {
       try {
         const noti: Notification = JSON.parse(frame.body)
 
-        toast(noti.title, {
-          description: noti.content,
-          position: 'bottom-right',
-          duration: 5000,
-          action: {
-            label: '보기',
-            onClick: () => {
-              notificationApi.markRead(noti.id).catch(() => undefined)
-              qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
-                notificationKeys.list(),
-                (old) => {
-                  if (!old) return old
-                  return {
-                    ...old,
-                    pages: old.pages.map((page) => ({
-                      ...page,
-                      content: page.content.map((item) =>
-                        item.id === noti.id ? { ...item, read: true } : item
-                      ),
-                    })),
-                  }
-                }
-              )
-              if (!noti.read) {
-                qc.setQueryData<{ unread: number } | undefined>(
-                  notificationKeys.unreadCount(),
-                  (prev) => (prev ? { unread: Math.max(0, prev.unread - 1) } : prev)
-                )
-              }
-              qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
-              navigate(notificationToHref(noti))
-            },
-          },
-        })
+        showNotificationPopup(noti)
 
         // 목록 캐시 맨 앞에 prepend
         qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
@@ -203,4 +210,56 @@ export function useNotificationStream() {
     })
     return unsubscribe
   }, [navigate, qc])
+
+  useEffect(() => {
+    let cancelled = false
+    let initialized = false
+
+    const syncLatestNotifications = async () => {
+      try {
+        const page = await notificationApi.getList({ page: 0, size: 10 }).then((r) => r.data)
+        if (cancelled) return
+
+        if (!initialized) {
+          page.content.forEach((noti) => poppedIdsRef.current.add(noti.id))
+          initialized = true
+          return
+        }
+
+        const fresh = page.content.filter((noti) => !poppedIdsRef.current.has(noti.id))
+        fresh.slice().reverse().forEach((noti) => {
+          if (!noti.read) showNotificationPopup(noti)
+          else poppedIdsRef.current.add(noti.id)
+        })
+
+        if (fresh.length > 0) {
+          qc.setQueryData<InfiniteData<PageResponse<Notification>>>(
+            notificationKeys.list(),
+            (old) => {
+              if (!old) return old
+              const [first, ...rest] = old.pages
+              if (!first) return old
+              const existing = new Set(first.content.map((noti) => noti.id))
+              const next = fresh.filter((noti) => !existing.has(noti.id))
+              if (next.length === 0) return old
+              return {
+                ...old,
+                pages: [{ ...first, content: [...next, ...first.content] }, ...rest],
+              }
+            },
+          )
+          qc.invalidateQueries({ queryKey: notificationKeys.unreadCount() })
+        }
+      } catch {
+        // 폴링 fallback 실패는 조용히 무시하고 다음 주기에 재시도한다.
+      }
+    }
+
+    syncLatestNotifications()
+    const timer = window.setInterval(syncLatestNotifications, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [qc])
 }
