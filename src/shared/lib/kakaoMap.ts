@@ -173,10 +173,14 @@ export async function reverseGeocodeCurrentPosition(): Promise<string> {
 export function ensureKakaoMap(): Promise<void> {
   if (loadPromise) return loadPromise
 
-  // 카카오 디벨로퍼스: 같은 앱의 JavaScript 키 하나로 로그인 + 지도 + 로컬 API 모두 사용
-  const key = import.meta.env.VITE_KAKAO_JS_KEY
+  // 라운드14 — 카카오맵용 키와 로그인용 키를 *다른 디벨로퍼 앱* 으로 분리 가능.
+  //   카카오 정책상 한 앱이 (테스트앱) ↔ (비즈앱+검수) 단계 사이를 동시에 만족 못 하는
+  //   경우가 있어, 앱 두 개로 운영하는 우회. 둘 다 안 정의되면 기존 VITE_KAKAO_JS_KEY 사용.
+  const key =
+    import.meta.env.VITE_KAKAO_MAP_JS_KEY ??
+    import.meta.env.VITE_KAKAO_JS_KEY
   if (!key) {
-    return Promise.reject(new Error('VITE_KAKAO_JS_KEY 환경변수가 비어있어요.'))
+    return Promise.reject(new Error('카카오맵 키가 비어있어요 (VITE_KAKAO_MAP_JS_KEY 또는 VITE_KAKAO_JS_KEY).'))
   }
 
   loadPromise = new Promise<void>((resolve, reject) => {

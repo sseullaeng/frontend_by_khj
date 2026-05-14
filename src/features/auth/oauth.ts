@@ -48,9 +48,13 @@ function loadScript(src: string): Promise<void> {
 async function ensureKakaoSDK(): Promise<void> {
   if (!kakaoSDKPromise) {
     kakaoSDKPromise = loadScript(KAKAO_SDK_URL).then(() => {
-      const key = import.meta.env.VITE_KAKAO_JS_KEY
+      // 라운드14 — 로그인용 카카오 앱 키. 맵용(VITE_KAKAO_MAP_JS_KEY) 과 분리 가능.
+      //   둘 다 안 정의되면 기존 VITE_KAKAO_JS_KEY 로 fallback.
+      const key =
+        import.meta.env.VITE_KAKAO_AUTH_JS_KEY ??
+        import.meta.env.VITE_KAKAO_JS_KEY
       if (!key) {
-        throw new Error('VITE_KAKAO_JS_KEY 환경변수가 비어있어요. 카카오 JavaScript 앱 키를 설정해 주세요.')
+        throw new Error('카카오 로그인 키가 비어있어요 (VITE_KAKAO_AUTH_JS_KEY 또는 VITE_KAKAO_JS_KEY).')
       }
       if (window.Kakao && !window.Kakao.isInitialized()) {
         window.Kakao.init(key)
