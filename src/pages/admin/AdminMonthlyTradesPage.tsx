@@ -22,7 +22,7 @@ import { formatKst } from '@/shared/lib/date'
 // ─── 타입/상수 ─────────────────────────────────────────────────────────────
 
 type BackendType = '판매' | '대여' | '나눔'
-type BackendStatus = '채팅중' | '예약' | '거래완료' | '취소'
+type BackendStatus = '진행중' | '채팅중' | '예약' | '거래완료' | '취소'
 
 const TYPE_TABS: { key: 'ALL' | BackendType; label: string }[] = [
   { key: 'ALL', label: '전체' },
@@ -33,6 +33,7 @@ const TYPE_TABS: { key: 'ALL' | BackendType; label: string }[] = [
 
 const STATUS_TABS: { key: 'ALL' | BackendStatus; label: string }[] = [
   { key: 'ALL', label: '전체' },
+  { key: '진행중', label: '진행 중' },
   { key: '채팅중', label: '채팅 중' },
   { key: '예약', label: '예약' },
   { key: '거래완료', label: '거래 완료' },
@@ -84,7 +85,7 @@ export default function AdminMonthlyTradesPage() {
   const [startDate, setStartDate] = useState(urlStart ?? monthAgoLocal())
   const [endDate, setEndDate] = useState(urlEnd ?? todayLocal())
   const [typeTab, setTypeTab] = useState<'ALL' | BackendType>(urlType ?? 'ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | BackendStatus>(urlStatus ?? 'ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | BackendStatus>(urlStatus ?? '진행중')
   const [statusDropOpen, setStatusDropOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [buyerId, setBuyerId] = useState(urlBuyerId ?? '')
@@ -102,7 +103,7 @@ export default function AdminMonthlyTradesPage() {
       startDate: toStartOfDay(startDate),
       endDate: toEndOfDay(endDate),
       type: typeTab === 'ALL' ? undefined : typeTab,
-      status: statusFilter === 'ALL' ? undefined : statusFilter,
+      status: statusFilter === 'ALL' || statusFilter === '진행중' ? undefined : statusFilter,
       buyerId: buyerId.trim() ? Number(buyerId) : undefined,
       sellerId: sellerId.trim() ? Number(sellerId) : undefined,
       keyword: keyword.trim() || undefined,
@@ -113,8 +114,11 @@ export default function AdminMonthlyTradesPage() {
   )
 
   const { data, isLoading } = useAdminTransactions(params)
-  const items = data?.content ?? []
-  const totalElements = data?.totalElements ?? 0
+  const rawItems = data?.content ?? []
+  const items = statusFilter === '진행중'
+    ? rawItems.filter((trade) => trade.status === 'CHATTING' || trade.status === 'RESERVED')
+    : rawItems
+  const totalElements = statusFilter === '진행중' ? items.length : data?.totalElements ?? 0
 
   return (
     <div className="pb-10">
