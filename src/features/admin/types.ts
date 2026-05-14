@@ -168,6 +168,7 @@ export interface AdminItemSummary {
   viewCount: number
   wishlistCount: number
   reportCount: number // ⭐ 누적 신고 수
+  rentalActive?: boolean // 현재 실제 대여중 여부. tradeTypes 의 대여 지원 여부와 분리.
   createdAt: string
 }
 

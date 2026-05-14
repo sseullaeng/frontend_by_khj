@@ -79,6 +79,11 @@ export default function WishListPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
+                    {item.rentalActive && (
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-600 text-white">
+                        대여중
+                      </span>
+                    )}
                     <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', TYPE_COLOR[item.tradeType])}>
                       {item.tradeType}
                     </span>

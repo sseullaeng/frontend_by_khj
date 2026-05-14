@@ -115,6 +115,11 @@ export default function ItemListItem({ item, className }: ItemListItemProps) {
 
           {/* 거래 유형 태그 */}
           <div className="flex flex-col gap-1.5 items-end">
+            {item.rentalActive && (
+              <span className="px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-emerald-600 text-white">
+                대여중
+              </span>
+            )}
             {modes.map((mode) => (
               <span
                 key={mode}

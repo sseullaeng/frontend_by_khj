@@ -59,6 +59,11 @@ export default function ItemCard({ item, className }: ItemCardProps) {
 
           {/* 거래 유형 태그 — 다중 등록이면 여러 개 */}
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            {item.rentalActive && (
+              <span className="px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-emerald-600 text-white shadow-sm">
+                대여중
+              </span>
+            )}
             {modes.map((m) => (
               <span
                 key={m}

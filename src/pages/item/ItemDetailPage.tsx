@@ -253,6 +253,11 @@ export default function ItemDetailPage() {
         <div className="relative flex flex-col gap-5">
           {/* 거래 방식 태그 — 다중 등록이면 여러 개 */}
           <div className="flex items-center gap-2 flex-wrap">
+            {item.rentalActive && (
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-600 text-white">
+                대여중
+              </span>
+            )}
             {modes.map((m) => (
               <span key={m} className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', TRADE_TYPE_BADGE[m].cls)}>
                 {m}

@@ -263,6 +263,11 @@ function ItemRow({ item, onOpenDetail }: { item: AdminItemSummary; onOpenDetail:
           >
             {item.status}
           </span>
+          {item.rentalActive && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-600 text-white">
+              대여중
+            </span>
+          )}
           {item.tradeTypes?.map((t) => (
             <span
               key={t}

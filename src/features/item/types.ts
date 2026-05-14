@@ -53,6 +53,7 @@ export interface Item {
   wishlistCount: number
   isWishlisted: boolean   // 비로그인은 항상 false
   viewCount: number       // 라운드13 PR #115 — Summary 응답에 추가
+  rentalActive?: boolean  // 현재 실제 대여중 여부. tradeTypes 의 대여 지원 여부와 분리.
 
   // 라운드13 PR #118 — 이중 등록
   tradeTypes:  TradeType[]      // ["판매"], ["대여"], ["나눔"], ["판매","대여"] 가능
