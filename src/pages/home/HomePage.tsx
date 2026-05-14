@@ -31,12 +31,12 @@ export default function HomePage() {
   //
   // 정렬은 라운드14 백엔드 CSV multi-key sort 위임. 마지막에 id desc 자동 tiebreak.
 
-  // HOT — 관심 수 → 조회 수 → 최근 등록 (거래완료는 자연스럽게 뒤로 — 핫이라 굳이 partition 안 함)
+  // HOT — 거래완료 후순위 + 관심 수 → 조회 수 → 최근 등록
   const hotQuery = useQuery({
     queryKey: [...itemKeys.lists(), 'home-hot'],
     queryFn: () =>
       itemApi
-        .getList({ page: 0, size: FETCH_SIZE, sort: 'wishlist_desc,view_desc,latest' })
+        .getList({ page: 0, size: FETCH_SIZE, sort: 'completed_last,wishlist_desc,view_desc,latest' })
         .then((r) => r.data),
   })
 
@@ -96,9 +96,29 @@ function HotSection({ items, isLoading }: { items: Item[]; isLoading: boolean })
   )
 }
 
-const TONE_STYLES: Record<'blue' | 'orange', { text: string; bar: string }> = {
-  blue:   { text: 'text-blue-600',   bar: 'from-blue-300 to-transparent' },
-  orange: { text: 'text-orange-600', bar: 'from-orange-300 to-transparent' },
+const TONE_STYLES: Record<'blue' | 'orange', {
+  gradient: string
+  bar: string
+  star1: string
+  star2: string
+  star3: string
+}> = {
+  // 대여 — 시원한 블루/시안/스카이 톤
+  blue: {
+    gradient: 'from-sky-500 via-cyan-500 to-blue-500',
+    bar:      'from-sky-300 via-cyan-300 to-transparent',
+    star1:    'text-cyan-400',
+    star2:    'text-sky-400',
+    star3:    'text-blue-400',
+  },
+  // 판매 — 따뜻한 오렌지/앰버/옐로 톤
+  orange: {
+    gradient: 'from-amber-500 via-orange-500 to-yellow-500',
+    bar:      'from-orange-300 via-amber-300 to-transparent',
+    star1:    'text-amber-400',
+    star2:    'text-orange-400',
+    star3:    'text-yellow-400',
+  },
 }
 
 function TradeSection({
@@ -108,7 +128,14 @@ function TradeSection({
   return (
     <section>
       <div className="flex items-center gap-3 mb-5">
-        <span className={`text-xl font-extrabold tracking-tight ${s.text}`}>{title}</span>
+        <div className="relative flex items-center gap-2">
+          <span className={`text-xl font-extrabold tracking-tight bg-gradient-to-r ${s.gradient} bg-clip-text text-transparent animate-pulse`}>
+            {title}
+          </span>
+          <span className={`absolute -top-2 -left-2 text-sm animate-bounce ${s.star1}`} style={{ animationDelay: '0ms' }}>✦</span>
+          <span className={`absolute -top-1 -right-3 text-xs animate-bounce ${s.star2}`} style={{ animationDelay: '200ms' }}>✦</span>
+          <span className={`absolute -bottom-2 left-1/2 text-xs animate-bounce ${s.star3}`} style={{ animationDelay: '400ms' }}>✦</span>
+        </div>
         <div className={`flex-1 h-px bg-gradient-to-r ${s.bar}`} />
       </div>
       <ItemSectionBody items={items} isLoading={isLoading} emptyMessage={`${title}이 없어요.`} />
