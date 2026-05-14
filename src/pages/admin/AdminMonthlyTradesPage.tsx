@@ -229,16 +229,19 @@ export default function AdminMonthlyTradesPage() {
             <li key={trade.id}>
               <button
                 onClick={() => navigate(`/items/${trade.itemId}`)}
-                className="w-full flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-sm transition-shadow"
+                className="w-full flex items-stretch gap-4 p-4 bg-white border border-gray-200 rounded-xl text-left hover:shadow-sm transition-shadow"
               >
-                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                {/* 이미지 — 카드의 시각 메인 */}
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
                   {trade.itemImageUrl
-                    ? <img src={trade.itemImageUrl} alt="" className="w-full h-full object-cover" />
-                    : <ShoppingBag size={18} className="text-gray-300" />}
+                    ? <img src={trade.itemImageUrl} alt={trade.itemTitle} className="w-full h-full object-cover" />
+                    : <ShoppingBag size={28} className="text-gray-300" />}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                {/* 정보 */}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  {/* 배지 */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {trade.tradeType && (
                       <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', TRADE_TYPE_CLS[trade.tradeType])}>
                         {trade.tradeType}
@@ -247,16 +250,32 @@ export default function AdminMonthlyTradesPage() {
                     <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', STATUS_CLS[trade.status])}>
                       {TRANSACTION_STATUS_LABEL[trade.status]}
                     </span>
+                    <span className="text-[11px] text-gray-400 ml-auto">#{trade.id}</span>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 truncate">{trade.itemTitle}</p>
-                  <p className="text-xs text-gray-400">
-                    {trade.price > 0 ? trade.price.toLocaleString() + '원' : '무료'} ·{' '}
-                    {trade.sellerNickname} → {trade.buyerNickname}
-                  </p>
-                  <p className="text-xs text-gray-400">{formatKst(trade.createdAt, 'yyyy.MM.dd HH:mm')}</p>
-                </div>
 
-                <ChevronRight size={14} className="text-gray-300 shrink-0 mt-1" />
+                  {/* 제목 + 가격 */}
+                  <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">{trade.itemTitle}</p>
+                  <p className="text-sm font-bold text-primary-600">
+                    {trade.price > 0 ? `${trade.price.toLocaleString()}원` : '무료 나눔'}
+                  </p>
+
+                  {/* 양 당사자 */}
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="text-gray-400">판매</span>
+                    <span className="font-medium text-gray-700">{trade.sellerNickname}</span>
+                    <ChevronRight size={11} className="text-gray-300 mx-0.5" />
+                    <span className="text-gray-400">구매</span>
+                    <span className="font-medium text-gray-700">{trade.buyerNickname}</span>
+                  </div>
+
+                  {/* 시각 메타 — 시작·완료 분리 */}
+                  <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                    <span>시작 {formatKst(trade.createdAt, 'yyyy.MM.dd HH:mm')}</span>
+                    {trade.completedAt && (
+                      <span className="text-emerald-600">완료 {formatKst(trade.completedAt, 'yyyy.MM.dd HH:mm')}</span>
+                    )}
+                  </div>
+                </div>
               </button>
             </li>
           ))}

@@ -199,6 +199,8 @@ function ReportActionModal({ report, onClose }: { report: AdminReport; onClose: 
       await mutateAsync({ id: report.id, body: { action, memo: memo.trim() || undefined } })
       onClose()
     } catch (err) {
+      // 진단 로그 — action / report id 와 응답 에러 단계 확인
+      console.error('admin report patch failed', { reportId: report.id, action, err })
       toast.error(err instanceof Error ? err.message : '처리에 실패했어요.')
     }
   }
