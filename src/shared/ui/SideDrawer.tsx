@@ -26,7 +26,7 @@ import { chatApi } from '@/features/chat/api'
 import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
 import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hooks'
 import { useReviewStore } from '@/features/review/store'
-import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
+import { useNotifications, useMarkAllRead, useMarkRead } from '@/features/notification/hooks'
 import { useBlock, useReportUser } from '@/features/block/hooks'
 import { formatKst, fromNow, toChatTimestamp } from '@/shared/lib/date'
 import { cn } from '@/shared/lib/cn'
@@ -998,6 +998,7 @@ function NotificationPanel() {
 
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
+  const { mutate: markRead } = useMarkRead()
   // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 목록에서는 제외
   const items = (data?.pages[0]?.content ?? []).filter(
     (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE'
@@ -1005,6 +1006,7 @@ function NotificationPanel() {
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
   const handleNotificationClick = (n: (typeof items)[number]) => {
+    if (!n.read) markRead(n.id)
     close()
     if (!n.linkType || n.linkId == null) return
     const path = (() => {

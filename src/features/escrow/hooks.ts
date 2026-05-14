@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { escrowApi } from './api'
 import { pointKeys } from '@/features/payment/keys'
+import { itemKeys } from '@/features/item/keys'
 import type {
   EscrowApplicationCreateRequest,
   EscrowApplicationStatus,
@@ -239,6 +240,7 @@ export function useConfirmEscrowReturn() {
       escrowApi.applications.confirmReturn(id).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: escrowKeys.all() })
+      qc.invalidateQueries({ queryKey: itemKeys.all() })
       qc.invalidateQueries({ queryKey: pointKeys.all() })
       toast.success('반납 확인이 완료됐어요. 정산이 진행돼요.')
     },

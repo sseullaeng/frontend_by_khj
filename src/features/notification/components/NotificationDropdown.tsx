@@ -1,6 +1,6 @@
 // 알림 드롭다운 — 가이드 §10.10 정합
 import { Link } from 'react-router-dom'
-import { useNotifications, useMarkAllRead } from '../hooks'
+import { useNotifications, useMarkAllRead, useMarkRead } from '../hooks'
 import { fromNow } from '@/shared/lib/date'
 import type { Notification, NotificationLinkType } from '../types'
 
@@ -30,6 +30,7 @@ function notificationToHref(noti: Notification): string {
 export default function NotificationDropdown({ onClose }: Props) {
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
+  const { mutate: markRead } = useMarkRead()
   // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 드롭다운에서는 제외
   const recent =
     data?.pages[0]?.content
@@ -56,7 +57,10 @@ export default function NotificationDropdown({ onClose }: Props) {
           <li key={n.id}>
             <Link
               to={notificationToHref(n)}
-              onClick={onClose}
+              onClick={() => {
+                if (!n.read) markRead(n.id)
+                onClose()
+              }}
               className={`flex flex-col gap-0.5 px-4 py-3 hover:bg-gray-50 ${
                 !n.read ? 'bg-primary-50' : ''
               }`}
