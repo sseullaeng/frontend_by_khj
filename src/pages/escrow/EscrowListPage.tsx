@@ -17,7 +17,10 @@ const DISPLAY_ICON: Record<EscrowDisplayStatus, typeof Clock> = {
   '매칭중':   Clock,
   '픽업중':   PackageCheck,
   '배달중':   Truck,
-  '배달완료': CheckCircle,
+  '사용중':   PackageCheck,
+  '반납중':   Truck,
+  '취소대기': Clock,
+  '완료':     CheckCircle,
   '취소':     XCircle,
 }
 
@@ -47,8 +50,8 @@ export default function EscrowListPage() {
             // 목록은 deliveryId 없음 → '진행중' 일 때 '매칭중' fallback
             const displayStatus = getEscrowDisplayStatus(app.status, undefined)
             const StatusIcon = DISPLAY_ICON[displayStatus]
-            // 진행중·완료 + 매칭된 deliveryId 있을 때만 [배달 추적] 버튼
-            const canTrack = !!app.deliveryId && (app.status === '진행중' || app.status === '완료')
+            // 진행·사용·반납·완료 + 매칭된 deliveryId 있을 때만 [배달 추적] 버튼
+            const canTrack = !!app.deliveryId && ['진행중', '사용중', '반납중', '완료'].includes(app.status)
             const goDetail = () => navigate(`/escrow/list/${app.id}`)
             return (
               <li key={app.id}>

@@ -11,7 +11,6 @@ import { useAuthStore } from '@/features/auth/store'
 import { chatApi } from '@/features/chat/api'
 import { useChatMessages, useLeaveChatRoom } from '@/features/chat/hooks'
 import { useCreateTransaction, usePatchTransaction } from '@/features/trade/hooks'
-import { useConfirmEscrowHandover, useConfirmEscrowReceipt } from '@/features/escrow/hooks'
 import { useReviewStore } from '@/features/review/store'
 import { useNotifications, useMarkAllRead } from '@/features/notification/hooks'
 import { fromNow, toChatTimestamp } from '@/shared/lib/date'
@@ -202,10 +201,32 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
   const escrowAppId  = room?.card?.escrowApplicationId ?? null
   const escrowStatus = room?.card?.escrowStatus ?? null
   const isEscrowCard = cardKind === 'EscrowApplication'
-  const isEscrowInProgress = isEscrowCard && escrowStatus === '진행중'
   const isEscrowCompleted  = isEscrowCard && escrowStatus === '완료'
-  const handoverMut = useConfirmEscrowHandover()
-  const receiptMut  = useConfirmEscrowReceipt()
+  const isEscrowCanceled   = isEscrowCard && escrowStatus === '취소'
+
+  // 라운드14 — 거래대행 페어 시 단일 진입 (액션은 모두 EscrowDetailPage 에서)
+  //   채팅방엔 [거래대행 페이지로] 한 줄만 노출.
+
+  // 라운드14 — 대여 거래 매트릭스 (예약 → 인계 → 반납 → 회신)
+  const tradeMode = room?.tradeMode
+  const isRental  = tradeMode === '대여'
+
+  // 직거래 매트릭스 권한
+  const canStartTrade  = isSeller && !isTxStarted && !isTxCompleted && !isEscrowCard
+  // 대여 단계별
+  const canReserve       = isSeller && isRental && txStatus === '채팅중'
+  const canHandover      = isSeller && isRental && txStatus === '예약'
+  const canReturn        = !isSeller && isRental && txStatus === '인계완료'
+  const canConfirmReturn = isSeller && isRental && txStatus === '반납요청'
+  // 직거래·나눔 — [거래 완료] 한 번에 (action='완료', 백엔드 가드: 대여 거부)
+  const canComplete      = isSeller && !isRental && isTxStarted
+  // 취소 — 양쪽, 채팅중·예약 까지 (인계완료 이후 차단)
+  const canCancel        = isTxStarted
+    && (txStatus === '채팅중' || txStatus === '예약')
+  // 거래대행 시작 — seller, 거래 시작됐고 채팅중 단계까지
+  const canStartEscrow   = isSeller && isTxStarted && txStatus === '채팅중' && !isEscrowCard
+  // 거래 진행 중에는 [나가기] 숨김
+  const showLeaveButton  = !isTxStarted && !(isEscrowCard && !isEscrowCompleted && !isEscrowCanceled)
 
   // 이미지 첨부 — 단일 이미지 (백엔드 spec 은 배열 지원)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
@@ -537,68 +558,74 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
         )}
       </div>
 
-      {/* 거래 진입 — cardKind 별 분기 (거래대행 우선) */}
+      {/* 거래 진입 — 라운드14 매트릭스: 4 거래 유형 × 시점별 버튼 */}
       {!isAdmin && !chatBlocked && (
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0 flex flex-col gap-1.5">
-          {/* 라운드13 PR #132 — 거래대행 카드: 진행중일 때 인계/인수 버튼 */}
-          {isEscrowCard ? (
+
+          {/* 거래대행 페어 — 단일 진입 ([거래대행 페이지로]) */}
+          {isEscrowCard && !isEscrowCompleted && !isEscrowCanceled && (
             <>
-              {isEscrowInProgress && isSeller && escrowAppId != null && (
-                <button
-                  onClick={async () => {
-                    try { await handoverMut.mutateAsync(escrowAppId) } catch {}
-                  }}
-                  disabled={handoverMut.isPending}
-                  className="w-full py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Truck size={13} />
-                  {handoverMut.isPending ? '인계 처리 중...' : '물품 인계 완료'}
-                </button>
-              )}
-              {isEscrowInProgress && !isSeller && escrowAppId != null && (
-                <button
-                  onClick={async () => {
-                    try { await receiptMut.mutateAsync(escrowAppId) } catch {}
-                  }}
-                  disabled={receiptMut.isPending}
-                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Receipt size={13} />
-                  {receiptMut.isPending ? '인수 처리 중...' : '물품 인수 확인'}
-                </button>
-              )}
-              {isEscrowCompleted && (
-                <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
-                  ✓ 거래대행이 완료됐어요
-                </div>
-              )}
-              {!isEscrowInProgress && !isEscrowCompleted && (
-                <div className="w-full py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-[11px] text-center">
-                  거래대행 진행 중 — {escrowStatus ?? '상태 확인'}
-                </div>
-              )}
+              <button
+                onClick={() => {
+                  if (escrowAppId == null) return
+                  close()
+                  navigate(`/escrow/list/${escrowAppId}`)
+                }}
+                className="w-full py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Truck size={13} />
+                거래대행 페이지로
+              </button>
+              <p className="text-[11px] text-purple-700/80 text-center">
+                거래대행 진행 중 — 인계/반납/완료는 거래대행 페이지에서 진행해요
+              </p>
             </>
-          ) : (
+          )}
+
+          {/* 거래대행 완료/취소 — 직거래와 동일하게 리뷰 안내 + 나가기 */}
+          {isEscrowCard && (isEscrowCompleted || isEscrowCanceled) && (
+            <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
+              ✓ 거래대행이 {isEscrowCompleted ? '완료' : '취소'}됐어요
+            </div>
+          )}
+
+          {/* 일반 거래 — cardKind !== 'EscrowApplication' */}
+          {!isEscrowCard && (
             <>
-              {/* 거래완료 안내 — 양쪽 당사자 모두 노출 */}
+              {/* 거래완료 — 양쪽 안내 */}
               {isTxCompleted && (
                 <div className="w-full py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium text-center">
                   ✓ 거래가 완료됐어요
                 </div>
               )}
-              {/* 리뷰 작성 — 양쪽 당사자 모두 노출 (각자 1건씩 작성 가능) */}
+              {/* 리뷰 작성 — 거래완료 후 양쪽 각자 1건씩 (alreadyReviewed 분기는 아래 영역에서) */}
               {isTxCompleted && !alreadyReviewed && (
                 <button
                   onClick={handleReviewNav}
                   className="w-full py-2 rounded-lg bg-white border border-green-500 text-green-600 hover:bg-green-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Star size={13} />
-                  리뷰 작성
+                  리뷰 남기기
                 </button>
               )}
 
-              {/* 판매자만 — 거래 시작/완료 액션 */}
-              {isSeller && isTxStarted && (
+              {/* 거래 시작 (판매자, 거래 시작 전) */}
+              {canStartTrade && (
+                <button
+                  onClick={() => {
+                    if (!room) return
+                    setRentalOpen(true)
+                  }}
+                  disabled={isCreatingTx}
+                  className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  {isRental ? '대여 시작' : '거래 시작'}
+                </button>
+              )}
+
+              {/* 직거래·나눔 — [거래 완료] 한 번에 */}
+              {canComplete && (
                 <button
                   onClick={async () => {
                     try {
@@ -615,21 +642,59 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   {patchTx.isPending ? '완료 처리 중...' : '거래 완료'}
                 </button>
               )}
-              {isSeller && !isTxStarted && !isTxCompleted && (
+
+              {/* 대여 — 단계별 액션 */}
+              {canReserve && (
                 <button
-                  onClick={() => {
-                    if (!room) return
-                    setRentalOpen(true)
+                  onClick={async () => {
+                    try { await patchTx.mutateAsync({ action: '예약' }) } catch {}
                   }}
-                  disabled={isCreatingTx}
-                  className="w-full py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <Receipt size={13} />
-                  거래 시작
+                  예약 확정
                 </button>
               )}
-              {/* 판매자만 — 거래대행 신청 (거래 완료된 후엔 의미 없음) */}
-              {isSeller && !isTxCompleted && (
+              {canHandover && (
+                <button
+                  onClick={async () => {
+                    try { await patchTx.mutateAsync({ action: '인계확인' }) } catch {}
+                  }}
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Truck size={13} />
+                  인계 완료
+                </button>
+              )}
+              {canReturn && (
+                <button
+                  onClick={async () => {
+                    try { await patchTx.mutateAsync({ action: '반납요청' }) } catch {}
+                  }}
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  반납하기
+                </button>
+              )}
+              {canConfirmReturn && (
+                <button
+                  onClick={async () => {
+                    try { await patchTx.mutateAsync({ action: '회신확인' }) } catch {}
+                  }}
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Receipt size={13} />
+                  회신 확인
+                </button>
+              )}
+
+              {/* 거래대행 시작 — 거래 진행 중인 판매자 (채팅중 단계까지) */}
+              {canStartEscrow && (
                 <button
                   onClick={() => {
                     if (!room) return
@@ -639,19 +704,39 @@ function ChatRoomView({ roomId, room, onBack }: { roomId: number; room?: ChatRoo
                   className="w-full py-2 rounded-lg bg-white border border-primary-300 text-primary-600 hover:bg-primary-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Truck size={13} />
-                  거래대행 신청
+                  거래대행 시작
+                </button>
+              )}
+
+              {/* 거래 취소 — 양쪽, 채팅중·예약 단계까지 */}
+              {canCancel && (
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('거래를 취소할까요?')) return
+                    try {
+                      await patchTx.mutateAsync({ action: '취소', cancelReason: '채팅방에서 취소' })
+                    } catch {}
+                  }}
+                  disabled={patchTx.isPending}
+                  className="w-full py-2 rounded-lg bg-white border border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  거래 취소
                 </button>
               )}
             </>
           )}
-          <button
-            onClick={() => setLeaveConfirmOpen(true)}
-            disabled={isLeaving}
-            className="w-full py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-red-500 hover:bg-white transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
-          >
-            <LogOut size={11} />
-            채팅방 나가기
-          </button>
+
+          {/* 채팅방 나가기 — 거래 진행 중엔 숨김 */}
+          {showLeaveButton && (
+            <button
+              onClick={() => setLeaveConfirmOpen(true)}
+              disabled={isLeaving}
+              className="w-full py-1.5 rounded-lg text-[11px] text-gray-500 hover:text-red-500 hover:bg-white transition-colors flex items-center justify-center gap-1 disabled:opacity-50"
+            >
+              <LogOut size={11} />
+              채팅방 나가기
+            </button>
+          )}
         </div>
       )}
 
