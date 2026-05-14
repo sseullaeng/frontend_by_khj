@@ -1028,18 +1028,20 @@ function ChatRoomView({
 function NotificationPanel() {
   const navigate = useNavigate()
   const close = useDrawerStore((s) => s.close)
+  const openChatRoom = useDrawerStore((s) => s.openChatRoom)
 
   const { data } = useNotifications()
   const { mutate: markAllRead } = useMarkAllRead()
   const { mutate: markRead } = useMarkRead()
-  // 채팅 메시지는 별도 채팅 탭에서 확인 — 알림 목록에서는 제외
-  const items = (data?.pages[0]?.content ?? []).filter(
-    (n) => n.type !== 'CHAT' && n.type !== 'MESSAGE'
-  )
+  const items = data?.pages[0]?.content ?? []
 
   /** 알림 클릭 → linkType 별 라우팅. 라운드8: INQUIRY 추가 */
   const handleNotificationClick = (n: (typeof items)[number]) => {
     if (!n.read) markRead(n.id)
+    if (n.linkType === 'CHAT_ROOM') {
+      if (n.linkId != null) openChatRoom(n.linkId)
+      return
+    }
     close()
     if (!n.linkType || n.linkId == null) return
     const path = (() => {
