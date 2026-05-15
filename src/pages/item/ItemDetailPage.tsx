@@ -114,10 +114,6 @@ export default function ItemDetailPage() {
   // 라운드13 — tradeTypes 우선, legacy 단일 모드면 [tradeType] 으로 폴백
   const modes: TradeType[] = item.tradeTypes?.length ? item.tradeTypes : [item.tradeType]
   const isShare = modes.includes('나눔')
-  const supportsRental = modes.includes('대여')
-  const canRequestRental = item.rentalAvailable === true
-  const hasNonRentalMode = modes.some((m) => m !== '대여')
-  const canOpenTrade = item.status === '판매중' && (hasNonRentalMode || !supportsRental || canRequestRental)
 
   // 라운드13 #5 + 라운드14 — 채팅 시작 시 거래유형 선택 + (대여면) 기간 입력
   //   - 단일 모드 '판매' / '나눔'  → 바로 채팅방 생성
@@ -141,10 +137,6 @@ export default function ItemDetailPage() {
   }
 
   const startChatWithRental = async () => {
-    if (!canRequestRental) {
-      toast.error('현재 대여 신청이 불가해요.')
-      return
-    }
     if (!rentalRange || !rentalRange.start || !rentalRange.end) {
       toast.error('대여 기간(시작·종료)을 모두 선택해 주세요.')
       return
@@ -171,10 +163,6 @@ export default function ItemDetailPage() {
       // 단일 모드 — 바로 분기
       if (modes.length === 1) {
         if (modes[0] === '대여') {
-          if (!canRequestRental) {
-            toast.error('현재 대여 신청이 불가해요.')
-            return
-          }
           setChatModalStep('rentalDate')
           setChatModalOpen(true)
         } else {
@@ -298,7 +286,7 @@ export default function ItemDetailPage() {
                     </span>
                   </div>
                 )}
-                {supportsRental && (
+                {modes.includes('대여') && (
                   <div className="flex items-baseline gap-2">
                     <span className="text-xs text-gray-500 w-8">대여</span>
                     <span className="text-2xl font-bold text-gray-900">
@@ -307,7 +295,7 @@ export default function ItemDetailPage() {
                     </span>
                   </div>
                 )}
-                {supportsRental && item.deposit != null && item.deposit > 0 && (() => {
+                {modes.includes('대여') && item.deposit != null && item.deposit > 0 && (() => {
                   // 라운드14 B-1 — PERCENT 일 때 환산 base = salePrice ?? rentalPrice (백엔드 공식 일치)
                   if (item.depositType !== 'PERCENT') {
                     return (
@@ -362,7 +350,7 @@ export default function ItemDetailPage() {
           <hr className="border-gray-100" />
 
           {/* 라운드14 4-C — 대여 가능 기간 — 토글 진입 버튼 (오버레이 펼침) */}
-          {supportsRental && (
+          {modes.includes('대여') && (
             <button
               type="button"
               onClick={() => setRentalCalOverlayOpen(true)}
@@ -461,17 +449,17 @@ export default function ItemDetailPage() {
                 {/* 라운드12 — [거래 시작] 은 채팅방 안에서만. 물품 상세에는 [채팅하기] 만. */}
                 <button
                   onClick={handleChat}
-                  disabled={!canOpenTrade}
+                  disabled={item.status !== '판매중'}
                   className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
                 >
-                  {canOpenTrade ? '채팅하기' : supportsRental && !hasNonRentalMode ? '대여 불가' : '거래 불가'}
+                  {item.status === '판매중' ? '채팅하기' : '거래 불가'}
                 </button>
               </>
             )}
           </div>
 
           {/* 라운드14 — 대여 가능 기간 오버레이 (정보 패널 위로 덮음, 닫기 버튼 제공) */}
-          {rentalCalOverlayOpen && supportsRental && (
+          {rentalCalOverlayOpen && modes.includes('대여') && (
             <div className="absolute inset-0 z-20 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900">대여 가능 기간</h3>
@@ -552,10 +540,10 @@ export default function ItemDetailPage() {
             </button>
             <button
               onClick={handleChat}
-              disabled={!canOpenTrade}
+              disabled={item.status !== '판매중'}
               className="flex-1 py-3 bg-primary-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
             >
-              {canOpenTrade ? '채팅하기' : supportsRental && !hasNonRentalMode ? '대여 불가' : '거래 불가'}
+              {item.status === '판매중' ? '채팅하기' : '거래 불가'}
             </button>
           </>
         )}
@@ -595,21 +583,17 @@ export default function ItemDetailPage() {
                       key={m}
                       onClick={async () => {
                         if (m === '대여') {
-                          if (!canRequestRental) return
                           setChatModalStep('rentalDate')
                         } else {
                           await startChatWithSale(m)
                         }
                       }}
-                      disabled={m === '대여' && !canRequestRental}
                       className={cn('w-full py-3 rounded-xl text-sm font-semibold border-2 transition-colors text-left px-4',
-                        TRADE_TYPE_BADGE[m].cls,
-                        m === '대여' && !canRequestRental && 'opacity-50 cursor-not-allowed')}
+                        TRADE_TYPE_BADGE[m].cls)}
                     >
                       {m}
                       {m === '판매'  && item.salePrice   != null && ` — ${item.salePrice.toLocaleString()}원`}
                       {m === '대여'  && item.rentalPrice != null && ` — ${item.rentalPrice.toLocaleString()}원${item.rentalUnit ? ` / ${item.rentalUnit}` : ''}`}
-                      {m === '대여' && !canRequestRental && ' — 현재 신청 불가'}
                       {m === '나눔'  && ' — 무료 나눔'}
                     </button>
                   ))}
@@ -662,7 +646,7 @@ export default function ItemDetailPage() {
                   </button>
                   <button
                     onClick={startChatWithRental}
-                    disabled={!canRequestRental || !rentalRange?.start || !rentalRange?.end || requestRental.isPending}
+                    disabled={!rentalRange?.start || !rentalRange?.end || requestRental.isPending}
                     className="flex-1 py-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-semibold"
                   >
                     {requestRental.isPending ? '신청 중...' : '신청 후 채팅 시작'}
